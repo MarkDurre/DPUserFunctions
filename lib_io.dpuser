@@ -1,0 +1,334 @@
+function io_str_clean, strng {
+  n=nelements(strng)
+  out=""
+  for (i=1;i<=n;i++) {
+    cc=strng[i]
+    ok=0
+    j=32
+    while (j<127)&&(ok==0) {
+      if (cc==char(j)) ok=1
+      j++
+    }
+    if (ok==1) out+=cc
+  }
+  io_str_clean=out
+}
+
+function io_text_FITS_1D, inbuff, ignore{
+//Read text file, convert to FITS format
+//Input lines in format wavelength,flux
+//Values separated by "," or " "
+//Output is fits buffer with WCS axis 1 wavelength set
+//Assumes linear wavelength range
+  if (nparams()<2) ignore=0
+  nlines=nelements(inbuff)
+  ngood=nlines-ignore
+  outbuff=fits(ngood)
+  j=0
+  for (i=1;i<=nlines;i++) {
+    if (i>ignore) {
+      j=j+1
+      line=strsplit(simplifywhitespace(inbuff[i])," ")
+      if (nelements(line)==1) line=strsplit(simplifywhitespace(inbuff[i]),",")
+      xs=line[1]
+      ys=line[2]
+      if (j==1) {
+        xs=io_str_clean(strtrim(line[1]))
+        ys=io_str_clean(strtrim(line[2]))
+//        print xs,ys
+      }
+      v1=float(xs)
+      v2=float(ys)
+//      if (upper(line[2])=="INF") v2=1/0
+//      if (upper(line[2])=="NAN") v2=0/0
+      if (int(j)==1) {
+        wave_start=v1
+//        print j+" "+v1,line
+      }
+      if (j==ngood) {wave_end=v1}
+/*      if (j>1000)&&(j<1020) {
+        print j+" "+v1+" "+v2
+        print i+" "+inbuff[i]
+      } */
+      outbuff[j]=v2
+    }
+  }
+  wave_delt=(wave_end-wave_start)/(nlines-1)
+  print "IO_TEXT_FITS_1D: Number of points : "+nlines+" Wavelength start : "+wave_start+" End: "+wave_end+" Delta: "+wave_delt
+  wcsf=[1,wave_start,wave_delt]
+  set_WCS_data outbuff, wcsf,1
+  io_text_FITS_1D=outbuff
+}
+
+function io_text_FITS_3D, inbuff, nx, ny, nz, blank {
+//Convert text file to 3D cube
+//nx, ny, nz are the dimensions
+//Input format is "i j v1 v2..."
+//This allows for blank elements
+//"blank" is the value for no input
+  nlines=nelements(inbuff)
+  outbuff=fits(nx,ny,nz) //Create fits file with given dimensions
+  outbuff[*,*,*]=blank
+  for (i=1;i<=nlines;i++) {
+    n1=int(inbuff[1,i])
+    n2=int(inbuff[2,i])
+    if ((n1>0)&&(n1<nx)&&(n2>0)&&(n2<ny)) outbuff[n1,n2,*]=inbuff[3:nz+2,i]
+  }
+  io_text_FITS_3D=outbuff
+}
+
+function io_text_FITS_interp, fname, xstart, xdelta, xnum, xscale, yscale, wavenum, ignore{
+  inbuff=import(fname,/text)
+  nlines=nelements(inbuff)
+  workbuff=fits(2,nlines)
+  j=0
+  if (xscale<=0) xscale=1
+  if (yscale<=0) yscale=1
+  for (i=ignore+1;i<=nlines;i++) {
+    line=strsplit(simplifywhitespace(inbuff[i])," ")
+    if (nelements(line)==1) {
+      line=strsplit(simplifywhitespace(inbuff[i]),",")
+    }
+    v1=float(line[1])
+    v2=float(line[2])
+    j++
+    workbuff[1,j]=v1
+    workbuff[2,j]=v2
+  }
+  resize workbuff,2,j
+  xold=workbuff[1,*]
+  if (wavenum==1) xold=1/xold
+  xold=xold*xscale
+  if (wavenum==1) {
+    xtemp=xold
+    ne=naxis1(xtemp)
+    for (i=1;i<=ne;i++) xtemp[i]=xold[ne-i+1]
+    xold=xtemp
+  }
+  yold=workbuff[2,*]
+  xnew=spectrum_make_disp(xstart, xdelta, 1,xnum)
+  ynew=interpol(yold, xold, xnew)
+  setwcs ynew, 1, 1, xstart, 1, xdelta, 1
+  lmin=workbuff[1,1]/xscale
+  lmax=workbuff[1,naxis2(workbuff)]/xscale
+  nlmin=xnew[1]
+  nlmax=xnew[naxis1(xnew)]
+  if (nlmin<lmin) {
+    p=cvt_WCS_pixel_data(ynew, lmin, 1)
+    ynew[1:p]=0/0
+  }
+  if (nlmax>lmax) {
+    p=cvt_WCS_pixel_data(ynew, lmax, 1)
+    ynew[p:naxis1(ynew)]=0/0
+  }
+  io_text_FITS_interp=ynew/yscale
+}
+
+function io_FITS_text_1D, inbuff, p, prefix, cutoff {
+    n1=naxis1(inbuff)
+    outbuff=stringarray(n1+1)
+    nl=0
+    if (p==1) { //prefix lin
+      if (prefix=="") {
+        outbuff[1]="Wavelength,Flux"
+      } else {
+        outbuff[1]="descriptor `"+prefix+"_Wavelength` `"+prefix+"_Flux`"
+      }
+      nl=1
+    }
+    wcsi=get_WCS_data(inbuff,1)
+    cp=wcsi[1]
+    cv=wcsi[2]
+    cd=wcsi[3]
+    for (i=1;i<=n1;i++) {
+      x=cvt_pixel_WCS(i,cp,cv,cd)
+      y=inbuff[i]
+      nl++
+      if ((cutoff!=0)&&(y<=cutoff)) {
+        outbuff[nl]=x+"    NaN"
+      } else {
+        outbuff[nl]=x+"    "+y
+      }
+    }
+    print "IO_FITS_TEXT_1D: Number of points : "+n1+" Wavelength start : "+cvt_pixel_WCS(1, cp, cv, cd)+" End: "+cvt_pixel_WCS(n1, cp, cv, cd)+" Delta: "+cd
+    if (cutoff!=0) print "Cutoff value : "+cutoff
+
+    io_FITS_text_1D = outbuff
+}
+
+function io_FITS_text_2D, inbuff, prefix {
+    n1=naxis1(inbuff)
+    n2=naxis2(inbuff)
+    outbuff=stringarray(n1+1)
+    if ((prefix=="")||(prefix==0)) {
+      outbuff[1]="Wavelength"
+    } else {
+      outbuff[1]="descriptor `"+prefix+"_Wavelength`"
+    }
+    for (i=1;i<=n2;i++) {
+      if ((prefix=="")||(prefix==0)) {
+        outbuff[1]=outbuff[1]+" Flux_"+i
+      } else {
+        outbuff[1]=outbuff[1]+" `"+prefix+"_Flux_"+i+"`"
+      }
+    }
+    cp=getfitskey(inbuff,"CRPIX1")
+    cv=getfitskey(inbuff,"CRVAL1")
+    cd=getfitskey(inbuff,"CDELT1")
+    for (i=1;i<=n1;i++) {
+      x=cvt_pixel_WCS(i,cp,cv,cd)
+      outbuff[i+1]=string(x)
+      for (j=1;j<=n2;j++) {
+        if ((cutoff!=0)&&(inbuff[i,j]<=cutoff)) {
+          outbuff[i+1]=outbuff[i+1]+" NaN"
+        } else {
+          outbuff[i+1]=outbuff[i+1]+" "+inbuff[i,j]
+        }
+      }
+    }
+    print "IO_FITS_TEXT_2D: Number of points : "+n1+" Number of Rows : "+n2+" Wavelength start : "+cvt_pixel_WCS(1, cp, cv, cd)+" End: "+cvt_pixel_WCS(n1, cp, cv, cd)+" Delta: "+cd
+
+    io_FITS_text_2D = outbuff
+}
+
+function io_cube_from_xyz, cube, data, n {
+//Make a cube from imported data
+//"cube" is template, resized to n on axis 3
+//First 2 values are x,y co-ords, rest are values along z axis
+  outcube=cube*0/0
+  n1=naxis1(cube)
+  n2=naxis2(cube)
+  n3=naxis3(cube)
+  resize outcube, n1, n2, n
+  for (i=1;i<=naxis2(data);i++) {
+    x=int(data[1,i])
+    y=int(data[2,i])
+    d=data[3:n+2,i]
+    outcube[y,x,*]=d
+  }
+  io_cube_from_xyz=outcube
+}
+
+function io_array_from_xy, array, data, n {
+//Make a cube from imported data
+//"cube" is template, resized to n on axis 3
+//First 2 values are x,y co-ords, rest are values along z axis
+  outarray=array*0/0
+  n1=naxis1(array)
+  n2=naxis2(arry)
+  resize outarray, n1, n
+  for (i=1;i<=naxis2(data);i++) {
+    x=int(data[1,i])
+    d=data[2:n+1,i]
+    outarray[x,*]=d
+  }
+  io_array_from_xyz=outarray
+}
+
+function io_import_TXT_1D, name {
+  inbuff=import(name,/text)
+  io_import_TXT_1D=io_text_FITS_1D(inbuff)
+}
+
+function io_export_cube, inbuff, fname, exflag {
+//Export general cube data 
+//
+  n1=naxis1(inbuff)
+  n2=naxis2(inbuff)
+  n3=naxis3(inbuff)
+  cnt=1
+  bad=0
+  tmpexp=stringarray(n1*n2+1)
+  print "IO_EXPORT_CUBE: Cube dimensions : ["+n1+","+n2+","+n3+"]"
+  tmpexp[1]="descriptor `X` `Y`"
+  for (i=1;i<=n3;i++) {
+    tmpexp[1]=tmpexp[1]+" `Data_"+i+"`"
+  }
+  for (i=1;i<=n1;i++) {
+    for (j=1;j<=n2;j++) {
+      mul=1
+      for (k=1;k<=n3;k++) {
+        mul*=inbuff[i,j,k]
+        if (isnan(mul)==1) {
+          bad++
+        } else { 
+          cnt++
+          tmpexp[cnt]=i+" "+j
+          for (k=1;k<=n3;k++) tmpexp[cnt]=tmpexp[cnt]+" "+inbuff[i,j,k] 
+//          print cnt+" "+tmpexp[cnt]
+        }
+      }
+    }
+  }
+  print "IO_EXPORT_CUBE: Nan pixels: "+bad+" Good pixels: "+(cnt-1)
+  for (k=1;k<=n3;k++) print "IO_EXPORT_CUBE: Compare "+k+": Min: "+min(inbuff[*,*,k])+" Max: "+max(inbuff[*,*,k])
+  if (exflag>0) {
+    export fname+".txt",tmpexp[1:cnt]
+    print "IO_EXPORT_CUBE: Data exported to : "+pwd()+"/"+fname+".txt"
+  }    
+  io_export_cube=tmpexp[1:cnt]
+}
+
+function io_files_from_csv, inbuff, indelim, outdelim, outquote {
+//Output individual files from CSV data
+//First line contains the parameter names
+//Subsequent lines contain data
+//First column is individual output names
+//Other columns are line-by-line in parameter-data format
+//Delimiter between columns in input specified by "indelim" (default comma)
+//Between parameter and data specified by "outdelim" (default space)
+//If "outquote" is 1, then data is quoted (default 1)
+  if nparams()<4 outquote=1
+  if nparams()<3 outdelim=" "
+  if nparams()<2 indelim=","
+  nx=nelements(inbuff)
+  if (outquote==1) {
+    quote="\"" 
+  } else {
+    quote=""
+  }
+  for (i=1;i<=nx;i++) {
+    data=strsplit(inbuff[i],indelim)
+    if (i==1) {
+      nlines=nelements(data)-1
+      print "IO_FILES_FROM_CSV: No. of files to be created - "+(nx-1)
+      print "IO_FILES_FROM_CSV: No. of lines for each file - "+(nlines)
+      if (nlines<2) print "IO_FILES_FROM_CSV: Warning! Only one column!"
+      paramnames=data
+      output=stringarray(nlines)
+    } else {
+      fname=data[1] //Assume file name in first column
+      outdata=stringarray(nlines)
+      ndata=nelements(data)-1
+//      print nlines+"-"+ndata
+      if (ndata<=nlines) { //Ensure that output has no more columns than first line
+        for (k=1;k<=ndata;k++) outdata[k]=data[k+1]
+      } else {
+        for (k=1;k<=nlines;k++) outdata[k]=data[k+1]
+      }
+      for (j=1;j<=nlines;j++) {
+        if (outdata[j]=="") {
+          output[j]=paramnames[j+1]
+        } else {
+          output[j]=paramnames[j+1]+outdelim+quote+outdata[j]+quote
+        }
+      }
+      export fname, output
+      print "IO_FILES_FROM_CSV: Exported - "+(i-1)+" "+fname
+    }
+  }
+  print "IO_FILES_FROM_CSV: Completed!"
+  io_files_from_csv=1
+}
+
+procedure io_export_spectrum, inbuff, fname, fmult, wlmult, prec {
+//Export 1D spectrum
+  if nparams()<5 prec=6
+  if nparams()<4 wlmult=1
+  if nparams()<3 fmult=1
+  n1=naxis1(inbuff)
+  outbuff=fits(2,n1)
+  outbuff[1,*]=spectrum_make_disp_data(inbuff,1)*wlmult
+  outbuff[2,*]=inbuff*fmult
+  export fname, outbuff, prec
+}

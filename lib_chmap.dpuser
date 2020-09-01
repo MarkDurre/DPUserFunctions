@@ -1,0 +1,263 @@
+dpuserdir=getenv("DPUSER_DIR")
+run dpuserdir+"/functions/lib_wcs.dpuser"
+
+function chmap_create, cube, lambda_cent, lambda_width, cutoff, width_factor, smooth  {
+//Create channel maps with single wavelength element
+  if (lambda_cent==0) {
+    print "CHMAP_CREATE: Parameters:"
+    print "  l_est"
+    print "  fwhm_est"
+    print "  thresh"
+    print "  width"
+    print "  smooth (0=no, 1=yes)"
+    chmap_create=0
+  } else {
+    c_sol=299792.5
+  //Continuum subtract by velmap
+    velmp=velmap(cube,lambda_cent, lambda_width, cutoff,/centroid)
+  //Continuum is layer 1 of velmap (assume continuum is flat over wavelength range)
+    contn=velmp[*,*,1]
+    cscube=cube-contn
+    mask=contn
+    mask[where(contn>0)]=1
+  //Mask off where continuum <=0
+    cscube=cscube*mask
+    cv=getfitskey(cube, "CRVAL3")
+    cp=getfitskey(cube, "CRPIX3")
+    cd=getfitskey(cube, "CDELT3")
+  //Convert inputs in nm to pixels
+    lambda_min =lambda_cent-lambda_width*width_factor
+    lambda_max =lambda_cent+lambda_width*width_factor
+    lambda_min_p = cvt_WCS_pixel_data(cube,lambda_min, 3)
+    lambda_max_p = cvt_WCS_pixel_data(cube,lambda_max, 3)
+  //Create output cube
+    n1=naxis1(cube)
+    n2=naxis2(cube)
+    newcube=cscube[*,*,lambda_min_p:lambda_max_p]*cd //Convert to flux in that channel
+    n3=naxis3(newcube)
+  //Get the middle wavelength for zero
+    cvn=getfitskey(newcube, "CRVAL3")
+    cpn=getfitskey(newcube, "CRPIX3")
+    cdn=getfitskey(newcube, "CDELT3")
+  //Set WCS to velocity, centred on middle pixel
+    lcent=lambda_cent
+    l1=cvt_pixel_WCS(1,cpn,cvn,cdn)
+    v_min=(l1/lcent-1)*c_sol
+    v_delt=(cdn)/lcent*c_sol
+    setfitskey newcube, "CRVAL3", v_min
+    setfitskey newcube, "CRPIX3", 1
+    setfitskey newcube, "CDELT3", v_delt
+    setfitskey newcube, "CD3_3", v_delt
+    v1=cvt_pixel_WCS(1,1,v_min,v_delt)
+    v2=cvt_pixel_WCS(n3,1,v_min, v_delt)
+    print "CHMAP_CREATE: Pixels - Min : "+lambda_min+" ("+v1+"/"+lambda_min_p+") Max - "+lambda_max+" ("+v2+"/"+lambda_max_p+") Axis - "+n3
+  //Reverse map in z axis, redshift is negative, blueshift is positive`
+  /*  tempcube=newcube
+    for (i=1;i<=n3;i++) {
+      tempcube[*,*,i]=newcube[*,*,n3-i+1]
+    }
+    newcube=tempcube*/
+  //Return
+    if (smooth>0) {
+      if ((int(smooth)-smooth)!=0) {
+        newcube=smooth(newcube,smooth)
+      } else {
+        newcube=boxcar(newcube,int(smooth),/median)
+      }
+    }
+    chmap_create=clip(newcube,0,max(newcube)+1)*mask
+//chmap_create=newcube
+  }
+}
+
+function chmap_rebin, inbuff, lnew, velwidth, sm, minval {
+//Rebins channel map cube to 16 layers for plotting
+/*
+inbuff    channel map to be rebinned
+lnew      number of rebinning layers
+v1, v2    velocity range
+sm        smoothing size: if integer (e.g. "3") use boxcar smoothing, if not (e.g. 2.01) use gauss smoothing
+minval    minimum value: set all pixels to NaN below this value
+*/
+  n1=naxis1(inbuff)
+  n2=naxis2(inbuff)
+  n3=naxis3(inbuff)
+  outbuff=inbuff
+  outbuff=resize(outbuff, n1, n2, lnew)
+  wcs=get_WCS_data(inbuff, 3)
+  xold=([1:n3]-wcs[1])*wcs[3]+wcs[2]
+  vl=-lnew/2*velwidth+velwidth/2
+  cdnew=velwidth
+  xnew=[0:lnew-1]*cdnew+vl
+  for (i=1;i<=n1;i++) {
+    for (j=1;j<=n2;j++) {
+      outbuff[i,j,*]=interpol(inbuff[i,j,*],xold, xnew)
+    }
+    print "CHMAP_REBIN: Interpolating : column "+i
+  }
+  outbuff[where(outbuff<=0)]=0/0
+  q=quantile(outbuff,0.01)
+  outbuff[where(outbuff<q)]=q
+  outbuff=cblank(outbuff)
+  outbuff[where(outbuff==0)]=q
+  setfitskey outbuff, "CRPIX3", 1
+  setfitskey outbuff, "CRVAL3", vl
+  setfitskey outbuff, "CDELT3", cdnew
+  setfitskey outbuff, "CD3_3", cdnew
+  setfitskey outbuff, "DATAMIN", min(outbuff)
+  setfitskey outbuff, "DATAMAX", max(outbuff)
+  if (sm>0) {
+    if (abs(sm-int(sm))>0) {
+      print "CHMAP_REBIN: Gaussian smooth : "+sm
+      outbuff=smooth(outbuff,sm)
+    } else {
+      print "CHMAP_REBIN: Boxcar smooth : "+sm
+      outbuff=boxcar(outbuff, sm, /median)
+    }
+  }
+//  outbuff=norm(outbuff)
+  if (minval>0) {
+    print "CHMAP_REBIN: Setting minimum : "+minval
+    outbuff[where(outbuff<=minval)]=0/0
+  }
+  chmap_rebin=outbuff
+}
+
+procedure chmap_comps, inbuff, dirout, fnameout {
+//Split channel maps into components for plotting
+//
+  n3=naxis3(inbuff)
+  workbuff=(inbuff)
+  for (i=1;i<=n3;i++) {
+    v=int(cvt_pixel_WCS_data(inbuff, i, 3))
+    outbuff=(workbuff[*,*,i])
+    vv=right("0000"+string(round(abs(v))),4)
+    if (v>=0) {
+      vv="+"+vv
+    } else {
+      vv="-"+vv
+    }
+    fn=dirout+"/"+fnameout+vv+".fits"
+    writefits fn, outbuff
+    print "CHMAP_COMPS: Channel # : "+i+" Velocity : "+vv+" File : "+fn
+  }
+  print "CHMAP_COMPS: Min Value : "+min(workbuff)+" Max Value : "+max(workbuff)
+}
+
+
+function chmap_from_velmap, cube, velmap, width, res {
+//Make a channel map from the velmap and a FWHM factor
+//Evaluate the velmap as pure gaussians
+//Correct fwhm by res - spectral resolution
+  cc=299792.5
+  fwhm=velmap[*,*,4]
+  lcent=median(velmap[*,*,3],0)
+  f1=fwhm/lcent
+  if (res>0) {
+    f2=1/res
+  } else {
+    f2=0
+  }
+  f3=f1^2-f2^2
+  f3[where(f3<=0)]=0/0
+  fcorr=sqrt(f3)*lcent
+  velcorr=velmap
+  velcorr[*,*,4]=fcorr
+  fwhmmed=median(fcorr)
+  eval=evalvelmap(velcorr, cube)
+//Extract wavelength range - width factor * fwhm
+  wcs=get_WCS_data(cube,3)
+  spix=wcs[1]
+  sval=wcs[2]
+  sdelt=wcs[3]
+  fw=fwhmmed*width
+  l1=lcent-fw
+  l2=lcent+fw
+  pc=cvt_WCS_pixel(lcent, spix,sval,sdelt)  
+  p1=cvt_WCS_pixel(l1, spix,sval,sdelt)  
+  p2=cvt_WCS_pixel(l2, spix,sval,sdelt)
+/*  print "Median Wavelength : "+lcent+" FWHM : "+fwhmmed+" Window : "+fw
+  print "Wavelengths : "+l1+" - "+lcent+" - " +l2
+  print "Pixels : "+p1+" - "+pc+" - "+p2*/
+  ccube=eval[*,*,p1:p2]
+//Convert wavelength to velocity
+  vdelt=sdelt/lcent*cc
+  vval=-(pc-p1)*vdelt
+  vpix=1
+  vwcs=[vpix,vval,vdelt]
+  set_WCS_data ccube, vwcs,3
+  chmap_from_velmap=ccube*sdelt //Convert from height to flux
+}
+
+function chmap_total_norm, inbuff {
+  outbuff=inbuff[*,*,1]*0
+  for (i=1;i<=naxis3(inbuff);i++) outbuff += norm(inbuff[*,*,i])
+  chmap_total_norm=norm(outbuff)
+}
+
+function chmap_chan_norm, inbuff {
+  outbuff=inbuff*0
+  for (i=1;i<=naxis3(inbuff);i++) outbuff [*,*,i]= norm(inbuff[*,*,i])
+  chmap_chan_norm=outbuff
+}
+
+function chmap_flux, inbuff, prefix1, prefix2, l1, l2 {
+//Channel map flux, momentum, pressure etc. for export
+  n3=naxis3(inbuff)+1
+  n1=naxis1(inbuff)
+  n2=naxis2(inbuff)
+  if (l1==0) l1=1
+  if (l2==0) l2=n3-1
+  data=stringarray(n3)
+  cutoff1=.9
+  cutoff2=.5
+  prefix=prefix1+"_"+prefix2+"_CHMAP"
+  cc=cubeavg(inbuff)
+  xm=xmax(cc)
+  ym=ymax(cc)
+  ii=1
+  data[1]="descriptor `"+prefix+"_Vel` `"+prefix+"_Flux` `"+prefix+"_Xcen` `"+prefix+"_Ycen` `"+prefix+"_Radius1` `"+prefix+"_Radius2`" 
+  for (i=2;i<=(n3);i++) {
+    j=i-1
+    if ((j>=l1)&&(j<=l2)) {
+      v=cvt_pixel_WCS_data(inbuff,j,3)
+      f=cblank(inbuff[*,*,j])
+      ftot=total(f)
+//Calculate 50% radius from centroid
+      xc=xcen(f)
+      yc=ycen(f)
+      radius1=0
+      tot1=f[xc,yc]
+      while (tot1<(ftot*cutoff1)) {
+//      print i+" "+radius+" "+tot
+        radius1++
+        tot1=total(f*circle(xc,yc,radius1))
+      }
+//Calculate 90% radius from center of zero vel flux
+      radius2=0
+      tot2=f[xc,yc]
+      while (tot2<(ftot*cutoff2)) {
+//      print i+" "+radius+" "+tot
+        radius2++
+        tot2=total(f*circle(xm,ym,radius2))
+      }
+      ii++
+      data[ii]= v+" "+ftot+" "+xc+" "+yc+" "+radius1+" "+radius2
+    }
+  }
+  chmap_flux=data
+}
+
+function chmap_tot_norm, inbuff{
+  outbuff=inbuff[*,*]*0
+  for (i=1;i<=naxis2(inbuff);i++) {
+    if (total(inbuff[*,i])==0) {
+      outbuff[*,i] = 0
+    } else {
+      outbuff[*,i]=norm(inbuff[*,i])
+    }
+  }
+  chmap_tot_norm=outbuff
+}
+
+

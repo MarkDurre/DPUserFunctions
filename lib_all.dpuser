@@ -1,0 +1,27 @@
+//All functions
+dir_save_all=pwd()
+dpuserdir=getenv("DPUSER_DIR")
+if dpuserdir[1]=="D" {
+  setenv "DPUSER_OD", "D:/Users/Mark Durre/OneDrive - Swinburne University/"
+} else {
+  setenv "DPUSER_OD", "/Users/mdurre/onedrive/"
+}
+cd dpuserdir
+@functions/lib_wcs.dpuser
+@functions/lib_image.dpuser
+@functions/lib_masking.dpuser
+@functions/lib_general.dpuser
+@functions/lib_astro.dpuser
+@functions/lib_astronomy.dpuser
+@functions/lib_cube.dpuser
+@functions/lib_spectrum.dpuser
+@functions/lib_io.dpuser
+@functions/lib_clean.dpuser
+@functions/lib_wvt.dpuser
+@functions/lib_velmap.dpuser
+@functions/lib_pv.dpuser
+@functions/lib_chmap.dpuser
+@functions/lib_post_reduction.dpuser
+@instruments/kcwi/lib_kcwi.dpuser
+//@/users/mdurre/dropbox/dpuser/functions/lib_chmap.dpuser
+cd dir_save_all

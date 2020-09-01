@@ -1,0 +1,185 @@
+//WCS functions
+function check_header_key, inbuff, key {
+  h=header(inbuff)
+  nlines=int(nelements(h)/80)
+  lkey=strlen(strtrim(key))
+  UK=upper(key)
+  chk=0
+  i=1
+  while (i<=(nlines-1))&&(chk==0) {
+    hline=h[(i-1)*80+1:i*80]
+    HKEY=upper(hline[1:lkey])
+    if (UK==HKEY) then chk=1
+/*    print i
+    print hline
+    print HKEY
+    print chk*/
+    i++
+  }
+  check_header_key=chk
+}
+
+function get_header, inbuff {
+  h=header(inbuff)
+  nlines=int(nelements(h)/80)
+  hh=stringarray(nlines)
+  for (i=1;i<=nlines;i++) hh[i]=h[(i-1)*80+1:i*80]
+  get_header=hh
+}
+
+function get_fits_key, inbuff, key {
+  k=""
+  if (check_header_key(inbuff,key)==1) k = getfitskey(inbuff,key)
+  get_fits_key = k
+}
+
+function get_WCS_data, inbuff, axis {
+  out=floatarray(3)
+  ax=axis
+  if (ax<=1)  ax=1 
+  cv=getfitskey(inbuff, "CRVAL"+ax)
+  cp=getfitskey(inbuff, "CRPIX"+ax)
+  set_CD_key, inbuff, ax
+  cd=getfitskey(inbuff,"CD"+axis+"_"+axis)
+  out[1]=float(cp)
+  out[2]=float(cv)
+  out[3]=float(cd) 
+  get_WCS_data=out
+}
+
+function get_WCS_values, inbuff {
+//Gets "pseudo"-WCS values from linear dispersion values
+  cv=inbuff[1]
+  n=nelements(inbuff)
+  cd=(inbuff[n]-inbuff[1])/(n-1)
+  get_WCS_values=[1,cv,cd]
+}
+
+procedure set_CD_key, inbuff, axis {
+  cdt="CD"+axis+"_"+axis
+  chk=check_header_key(inbuff, cdt)
+  if (chk==0) {
+    cd=getfitskey(inbuff,"CDELT"+axis)
+    setfitskey inbuff,"CD"+axis+"_"+axis,cd
+  }
+}
+
+procedure set_WCS_data, inbuff, wcs, axis {
+  if (axis<=1)  axis=1 
+  setfitskey inbuff, "CRVAL"+axis, wcs[2]  
+  setfitskey inbuff, "CRPIX"+axis, wcs[1]  
+  setfitskey inbuff, "CDELT"+axis, wcs[3]
+  setfitskey inbuff,"CD"+axis+"_"+axis, wcs[3]
+}
+
+function cvt_WCS_pixel, value, cpix, cval, cdelt, prnt {
+  p = ((value-cval)/cdelt+cpix)
+  if (prnt>0) print p
+  cvt_WCS_pixel = p
+}
+
+function cvt_pixel_WCS, pix, cpix, cval, cdelt, prnt {
+  if nparams()<5 prnt=0
+  if (prnt>0) {
+    print "CP="+sprintf("%10.10f",cpix)
+    print "CV="+sprintf("%10.10f",cval)
+    print "CD="+sprintf("%10.10f",cdelt)
+    print "PX="+sprintf("%10.10f",pix)
+  }
+  cvt_pixel_WCS = (pix-cpix)*cdelt+cval
+}
+
+function cvt_WCS_pixel_data, inbuff, value, axis, prnt {
+  if nparams()<4 prnt=0
+  wcs=get_WCS_data(inbuff,axis)
+  cp=wcs[1]
+  cv=wcs[2]
+  cd=wcs[3]
+  v=float(value)
+  cvt_WCS_pixel_data = cvt_WCS_pixel(v, cp, cv, cd, prnt)
+}
+
+function cvt_pixel_WCS_data, inbuff, value, axis, prnt {
+  if nparams()<4 prnt=0
+  wcs=get_WCS_data(inbuff,axis)
+  cp=wcs[1]
+  cv=wcs[2]
+  cd=wcs[3]
+  v=float(value)
+  cvt_pixel_WCS_data=cvt_pixel_WCS(v, cp, cv, cd, prnt)
+}
+
+function WCS_range, inbuff, p1, p2, axis, prnt {
+  l1 = cvt_pixel_WCS_data(inbuff, p1, axis)
+  l2 = cvt_pixel_WCS_data(inbuff, p2, axis)
+  if (prnt>0) print "WCS_RANGE: WCS Range ["+l1+"-"+l2+"]"
+  WCS_range=[l1,l2]
+}
+  
+function pixel_range, inbuff, w1, w2, axis, prnt {
+  p1 = cvt_WCS_pixel_data(inbuff, w1, axis)
+  p2 = cvt_WCS_pixel_data(inbuff, w2, axis)
+  if (prnt>0) print "WCS_RANGE: Pixel Range : ["+p1+"-"+p2+"]"
+  pixel_range=[p1,p2]
+}
+
+function set_WCS_default, inbuff {
+//Check WCS keys and set to 1 if not present
+  wcskeys=["CRPIX1","CRVAL1","CDELT1","CRPIX2","CRVAL2","CDELT2","CRPIX3","CRVAL3","CDELT3"]
+  n=naxis(inbuff)
+  ne=n*3
+  outbuff=inbuff
+  for (i=1;i<=ne;i++) {
+    t=strtrim(getfitskey(inbuff, wcskeys[i],/text))
+    if (t=="") setfitskey outbuff,wcskeys[i],1, "Set by default"
+  }
+  set_WCS_default=outbuff
+}
+
+function get_aperture_WCS, inbuff, wcs1, wcs2, wsize, prnt {
+//Get aperture from image based on WCS co-ords
+//wcs1/wcs2/wcssize are in WCS units (e.g. if wcs1/wcs2=RA/DEC then wcssize is in degrees i.e sec/3600
+  if (prnt==1) print "GET_APERTURE_WCS: Parameters : "+wcs1+" "+wcs2+" "+wsize
+  w1=wcs1-wsize
+  w2=wcs1+wsize
+  if (prnt==1) print "GET_APERTURE_WCS: Axis 1 : "+w1+"-"+w2
+  wcsp1=pixel_range(inbuff, w1, w2, 1)
+  w1=wcs2-wsize
+  w2=wcs2+wsize
+  if (prnt==1) print "GET_APERTURE_WCS: Axis 2 : "+w1+"-"+w2
+  wcsp2=pixel_range(inbuff, w1, w2, 2)
+  if (wcsp1[1]>wcsp1[2]) flip wcsp1, 1
+  if (wcsp2[1]>wcsp2[2]) flip wcsp2, 1
+  get_aperture_WCS=inbuff[wcsp1[1]:wcsp1[2], wcsp2[1]:wcsp2[2]]
+}
+
+function get_wcs_cd, inbuff, key {
+  t1=getfitskey(inbuff,key,/text)
+  if (t1=="") {
+    get_wcs_cd = 0
+  } else {
+    get_wcs_cd = getfitskey(inbuff,key)
+  }
+}
+
+function WCS_cd_cdelt, inbuff {
+  cd11=get_wcs_cd(inbuff,"CD1_1")
+  cd12=get_wcs_cd(inbuff,"CD1_2")
+  cd21=get_wcs_cd(inbuff,"CD2_1")
+  cd22=get_wcs_cd(inbuff,"CD2_2")
+  print cd11+","+cd12+","+cd21+","+cd22
+  cd1=sqrt(cd11^2+cd21^2)
+  cd2=sqrt(cd12^2+cd22^2)
+  scd=sign(cd11*cd22-cd12*cd21)
+  r1=atan(sign(cd1*cd2)*cd12,cd22,/deg)
+  r2=atan(-1*sign(cd1*cd2)*cd21,cd11,/deg)
+  print "Rotation 1 : "+r1
+  print "Rotation 2 : "+r2
+  if (scd<0) {
+    cd1=-1*cd1
+  }
+  print "CDELT1 : "+cd1+" ("+cd1*3600+")"
+  print "CDELT2 : "+cd2+" ("+cd2*3600+")"
+
+  WCS_cd_cdelt=[cd1,cd2,r1]
+}

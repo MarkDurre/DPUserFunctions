@@ -1,0 +1,523 @@
+dpuserdir=getenv("DPUSER_DIR")
+run dpuserdir+"/functions/lib_general.dpuser"
+
+/*
+Functions
+velmap_ext        extended velmap function
+velmap_fix        fix velmap to remove "unreasonable" values
+velmap_check      check velmap values for "reasonableness"
+velmap_flux       compute line flux from height and fwhm
+velmap_ew         compute equivalent width
+velmap_rescale    rescale values in velmap e.g. after flux recalibration
+
+chmap             create channel map, resolution of single spectral measurement
+chmap_rebin       rebin channel map over velocity range and no. of layers
+chmap_comps       Split channel maps into components for plotting
+*/
+//[168,179,157,171,150,169,174,186,187,190,205,207,150,200,188,157,188,177,149,126,233,64]
+procedure velmap_flux_loc, velmp, pos {
+//Print velmap fluxes with errors, computed from height and FWHM, at location [pos]
+  np=nelements(pos)/2
+  outstr=stringarray(int(np))
+  for (i=1;i<=np;i++) {
+    xp=pos[i*2-1]
+    yp=pos[i*2]
+    h=velmp[xp,yp,2]
+    w=velmp[xp,yp,4]
+    he=velmp[xp,yp,6]
+    we=velmp[xp,yp,8]
+    f=h*w*1.06447
+    fe=((he/h)+(we/w))*f
+    print "VELMAP_FLUX_LOC: Position ["+xp+":"+yp+"] Flux : "+f+" +- "+fe
+    outstr[i]=string(f)+char(9)+string(fe)
+    print outstr[i]
+  }
+  export "VELMAPFLUX.txt", outstr
+}
+
+function velmap_std_to_ext, velmpstd, r, fmin, vmethod, vcenter, vx, vy {
+//Convert standard QFitsView velmap to extended version
+//Clips flux<fmin
+  n1=naxis1(velmpstd)
+  n2=naxis2(velmpstd)
+  cc=299796
+  lvelmpstd=velmpstd
+  mask=lvelmpstd[*,*,1]*0+1
+  mask[where(cblank(lvelmpstd[*,*,1])==0)]=0
+  lr=r
+  lfmin=fmin
+  lvmethod=vmethod
+  lvcenter=vcenter
+  lvx=vx
+  lvy=vy
+  vmgauss=(resize(velmpstd,n1,n2,15))
+  flux=lvelmpstd[*,*,2]*lvelmpstd[*,*,4]*1.06447
+  flux[where(lvelmpstd[*,*,2]*lvelmpstd[*,*,4]<0)]=0/0
+  vel=(lvelmpstd[*,*,3]) //central wavelength
+  velmed=0
+  if (vmethod==0) {
+    velmed=median(vel,0)
+  }
+  if (vmethod==1) {
+    velmed=avg(vel,0)
+  }
+  if (vmethod==2) {
+    velmed=total( vel * flux) / total(flux)
+  }
+  if (vmethod==3) {
+    velmed=vcenter
+  }
+  if (vmethod==4) {
+    velmed=vel[vx, vy]
+  }
+  velmap_vel=(vel/velmed-1)*cc
+//  print velmed
+//  print velmap_vel
+  vmgauss[*,*,10]=velmap_vel //Velocity
+  sigma=vmgauss[*,*,4]/velmed*cc/2.355
+  if (lr>0) {
+    ds=cc/lr/2.355 //Instrumental spectral resolution at central wavelength
+  } else {
+    print "VELMAP_STD_TO_EXT: WARNING - Instrument Dispersion <= 0!"
+    ds=0
+  }
+  s1=cblank(sigma^2-ds^2)
+  s1[where(s1<=ds)]=0/0
+  sigmac=sqrt(s1)
+  vmgauss[*,*,11]=sigmac //Dispersion
+  vmgauss[*,*,12]=flux //Gas flux
+  vew=vmgauss[*,*,2]/vmgauss[*,*,1]*vmgauss[*,*,4]*1.06447
+  vew[where(vmgauss[*,*,1]*vmgauss[*,*,4]==0)]=0/0
+  vmgauss[*,*,13]=vew //Gas light
+  vmgauss[*,*,14]=sqrt(velmap_vel^2+sigmac^2) //Support
+  vmgauss[*,*,15]=abs(velmap_vel/sigmac) //Ordered vs turbulent ratio  
+  for (i=1;i<=n1;i++) { //nan all non fitted pixels
+    for (j=1;j<=n2;j++) {
+      l=vmgauss[i,j,3]
+      s=vmgauss[i,j,4]
+      f=vmgauss[i,j,12]
+      if ((l==0)||(s==0)||(f<fmin)) {
+        vmgauss[i,j,*]=0/0
+      }
+    }
+  }
+  df=velmed/r
+  print "VELMAP_STD_TO_EXT: Instrumental dispersion : "+ds+" (km/s) = "+df+" (nm)"
+  print "VELMAP_STD_TO_EXT: Zero velocity method - "+["Median","Average","Flux Weighted","Manual","Pixel"][lvmethod+1]
+  print "VELMAP_STD_TO_EXT: Central wavelength (nm) - "+velmed
+  velmap_std_to_ext=vmgauss
+}
+
+function profit_to_velmap, profit_data, velmpstd {
+//Convert cube from PROFIT to standard velmap format using velmpstd as template
+  n1=naxis1(profit_data)
+  n2=naxis2(profit_data)
+  vmgauss=(resize(velmpstd,n1,n2,9))*0
+  vmgauss[*,*,1]=profit_data[*,*,6] //Continuum
+  vmgauss[*,*,2]=profit_data[*,*,12] //Height
+  vmgauss[*,*,4]=profit_data[*,*,11] //FWHM
+  vmgauss[*,*,3]=profit_data[*,*,10] //Wavelength
+  vmgauss[*,*,9]=profit_data[*,*,9]
+  profit_to_velmap=vmgauss
+}
+
+function velmap_vel, velmap, vmethod, vcenter, vx, vy {
+//Make velocity map from standard velmap, zero point set by method
+//method = 0 : median
+//method = 1 : average
+//method = 2 : flux-weighted average
+//method = 3 : specify the central wavelength
+//method = 4 : specify the wavelength at pixel [vx, vy]
+  cc=299796
+  vel=cblank(velmap[*,*,3]) //central wavelength
+  flux=velmap[*,*,2] //flux
+  velmed=0
+  if (vmethod==0) {
+    velmed=median(vel,0)
+  }
+  if (vmethod==1) {
+    velmed=avg(vel,0)
+  }
+  if (vmethod==2) {
+    velmed=total( vel * flux) / total(flux)
+  }
+  if (vmethod==3) {
+    velmed=vcenter
+  }
+  if (vmethod==4) {
+    velmed=vel[vx, vy]
+  }
+  velmap_vel=(vel/velmed-1)*cc
+}  
+
+function velmap_vel_center, velmap, vmethod, vcenter, vx, vy {
+//Make velocity map from standard velmap, zero point set by method
+//method = 0 : median
+//method = 1 : average
+//method = 2 : flux-weighted average
+//method = 3 : specify the central wavelength
+//method = 4 : specify the wavelength at pixel [vx, vy]
+  cc=299796
+  vel=velmap[*,*,3] //central wavelength
+  flux=velmap[*,*,2] //flux
+  velmed=0
+  if (vmethod==0) {
+    velmed=median(vel,0)
+  }
+  if (vmethod==1) {
+    velmed=avg(vel,0)
+  }
+  if (vmethod==2) {
+    velmed=total( vel * flux) / total(flux)
+  }
+  if (vmethod==3) {
+    velmed=vcenter
+  }
+  if (vmethod==4) {
+    velmed=vel[vx, vy]
+  }
+  velmap_vel_center=velmed
+}  
+
+function velmap_extcorr_map, velmap, extmap, lambda {
+//Correct velmap for extinction
+//Input original velmap, extinction map (A_V) and wavelength (in nm) 
+  outmap=velmap
+  av0=cblank(extmap)
+//Assume R_V=3.1, use Cardelli etal 1989 extinction law
+  ll=0.404 * (lambda/1000)^-1.61
+  fcorr=10^(0.4*av0*ll)
+  outmap[*,*,1:2]=outmap[*,*,1:2]*fcorr
+  if (naxis3(velmap)>9) outmap[*,*,12]=outmap[*,*,12]*fcorr
+  velmap_extcorr_map=outmap
+}
+
+function velmap_extcorr, velmap, av, lambda {
+//Correct velmap for extinction
+//Input original velmap, extinction map (A_V) and wavelength (in nm) 
+  outmap=velmap
+//Assume R_V=3.1, use Cardelli etal 1989 extinction law
+  ll=0.404 * (lambda/1000)^-1.61
+  fcorr=10^(0.4*av*ll)
+  print "VELMAP_EXTCORR: De-reddening- Mag: "+ll+" Flux: "+fcorr
+  outmap[*,*,1:2]=outmap[*,*,1:2]*fcorr
+  if (naxis3(velmap)>9) outmap[*,*,12]=outmap[*,*,12]*fcorr
+  velmap_extcorr=outmap
+}
+
+function velmap_ew, inbuff {
+//Produce a equivalent width image - check if it is velmap form
+  if (naxis3(inbuff)==15) {
+    velmap_ew=inbuff[*,*,2]/inbuff[*,*,1]*inbuff[*,*,4]*1.06447
+    velmap_ew[where(inbuff[*,*,1]*inbuff[*,*,4]==0)]=0/0
+  } else {
+    print "VELMAP_EW: Error! Input is not a velmap!"
+  }
+}
+
+function velmap_flux, inbuff {
+  if (naxis3(inbuff)==15) {
+    velmap_flux=inbuff[*,*,2]*inbuff[*,*,4]*1.06447
+    velmap_flux[where(inbuff[*,*,2]*inbuff[*,*,4]<0)]=0/0
+  } else {
+    print "VELMAP_FLUX: Error! Input is not a velmap!"
+  }
+}
+
+function velmap_fix, inbuff, contlo, conthi, flo, fhi, vlo, vhi, wlo, whi, setvalue {
+//Fix velocity map
+//  print contlo,conthi,flo,fhi,vlo,vhi,wlo,whi
+  if (nparams()<10) setvalue=0
+  outbuff=inbuff
+  n1=naxis1(inbuff)
+  n2=naxis2(inbuff)
+  n3=naxis3(inbuff)
+  flag=fits(n1,n2)
+  flag[*,*]=1
+  cont=inbuff[*,*,1]
+  flux=inbuff[*,*,2]
+  vel=inbuff[*,*,3]
+  fwhm=inbuff[*,*,4]
+  flag[where(cblank(cont)==0)]=0 //Check for nan values
+  for (i=1;i<=n1;i++) {
+    for (j=1;j<=n2;j++) {
+      if (flag[i,j]==1) {
+//Check continuum level
+        if ((contlo!=0)||(conthi!=0)) {
+          if ((cont[i,j]>conthi)||(cont[i,j]<contlo)) {
+            flag[i,j]=-1
+            print "VELMAP_FIX: Cont fix : ["+i+","+j+"] "+cont[i,j]
+          }
+        }
+//Check vel. level
+        if ((vlo!=0)||(vhi!=0)) {
+          if ((vel[i,j]<vlo)||(vel[i,j]>vhi)) {
+            flag[i,j]=-1
+            print "VELMAP_FIX: Velo fix : ["+i+","+j+"] "+vel[i,j]
+          }
+        }
+//Check flux level
+        if ((flo!=0)||(fhi!=0)) {
+          if ((flux[i,j]<flo)||(flux[i,j]>fhi)) {
+            flag[i,j]=-1
+            print "VELMAP_FIX: Flux fix : ["+i+","+j+"] "+flux[i,j]
+          }
+        }
+//Check fwhm level
+        if ((wlo!=0)||(whi!=0)) {
+          if ((fwhm[i,j]<wlo)||(fwhm[i,j]>whi)) {
+            flag[i,j]=-1
+            print "VELMAP_FIX: FWHM fix : ["+i+","+j+"] "+fwhm[i,j]
+          }
+        }
+      }
+    }
+  }
+  flag[where(flag<1)]=setvalue
+  velmap_fix=outbuff*flag
+}
+
+function velmap_ext, inbuff, l_est, fwhm_est, thresh, width, method, r {
+//Vel map from individual pixel fitting, to overcome problems with QFitsView velmap
+//Velmap cube is
+//Layer   Contents
+//  1     Continuum
+//  2     Line height
+//  3     Central wavelength
+//  4     FWHM
+//  5     Error continuum
+//  6     Error line height
+//  7     Error central wavelength
+//  8     Error FWHM
+//  9     Chi-square
+//  10    Velocity (from median value)
+//  11    Dispersion (sigma - less instrumental dispersion in quadrature)
+//  12    Line flux
+//  13    Equivalent width (flux/continuum)
+//  14    Support (rotation vs pressure)
+//  15    Order vs turbulence
+
+//Steps:
+//1-Trim spectral dimension to l_est +- width*fwhm_est
+//2-Estmate gaussian from centroid at each pixel
+//3-Gaussian fit from estimates at each pixel
+
+//Trim spectral dimension
+
+  if (l_est==0) {
+    print "VELMAP_EXT: Parameters:"
+    print "  l_est"
+    print "  fwhm_est"
+    print "  thresh"
+    print "  width"
+    print "  method (0=centroid, 1=gaussfit)"
+    print "  r (instrument resolution (delta lambda/lambda)"
+  } else {
+    cv=getfitskey(inbuff, "CRVAL3")
+    cp=getfitskey(inbuff, "CRPIX3")
+    cd=getfitskey(inbuff, "CDELT3")
+    l1=l_est-width*fwhm_est
+    l2=l_est+width*fwhm_est
+    p1=cvt_WCS_pixel(l1, cp, cv, cd)
+    p2=cvt_WCS_pixel(l2, cp, cv, cd)
+    n1=naxis1(inbuff)
+    n2=naxis2(inbuff)
+    workbuff=inbuff[*,*,p1:p2]
+    n3=naxis3(inbuff)
+    if (r<=0) {
+      print "VELMAP_EXT: Error! R is zero"
+    } else {
+      if ((p1<=0)||(p2>n3)) {
+        print "VELMAP_EXT: Error! Wavelength outside cube range!"
+        print "VELMAP_EXT: Pixel range: "+p1+" : "+p2
+      } else {
+      //Gaussian fit parametrs at each pixel by velmap centroid
+        vmcent=velmap(workbuff, l_est, fwhm_est, thresh,/centroid)
+      //Find the position of the maximum flux by centroid method, iuse that value for threshold for gauss estimate
+        centflux=vmcent[*,*,2]*vmcent[*,*,4]*1.06447 //Not exact flux, but proportionate
+        fluxthresh=max(centflux)*thresh/100
+        vmgauss=resize(vmcent,n1,n2,15)
+
+
+      //Start gaussian method
+        if (method>0) {
+          vmgauss=vmgauss*0/0
+          lrange=[p1:p2]*cd+cv-cp*cd
+
+        //Go through cube
+          for (i=1;i<=n1;i++) {
+            for (j=1;j<=n2;j++) {
+              if (vmcent[i,j,3]>0) { //only do pixels that have a centroid fit
+                gaussest=vmcent[i,j,1:4]
+                velest=vmcent[1,1,*]*0
+                flag=velmap_check(gaussest, l_est, fwhm_est)
+              //Check estimates are "reasonable"
+                if (flag==0) { //Use gauss fit if all OK
+              //            print "using gaussfit at : "+i+" "+j+" flag : "+flag
+                  y=workbuff[i,j,*]
+                  errest=y*0.05
+                  chisq=0.0
+                  velest[1:8]=gaussfit(lrange,y,errest,gaussest,chisq)
+                  velest[9]=chisq
+                  vmgauss[i,j,1:9]=velest
+                } else {
+                  print "VELMAP_EXT: using centroid at : "+i+" "+j+" flag : "+flag
+                  vmgauss[i,j,1:9]=vmcent[i,j,*]
+                }
+                flag=velmap_check(velest, l_est, fwhm_est)
+                if (flag>0) { //bad velmap estimate
+                  print "VELMAP_EXT: using centroid at : "+i+" "+j+" flag : "+flag
+                  vmgauss[i,j,1:9]=vmcent[i,j,*]
+                }
+              } //check centroid fit ok
+            } //end of column loop
+            print "VELMAP_EXT: gaussfit: at row "+i
+          } //end of row loop
+        } //end of use gaussfit
+
+      //Convert to velocity and add gas flux and gaslight
+        cc=299796
+        gf=velmap_flux(vmgauss)
+        ew=velmap_ew(vmgauss)
+        vv=vmgauss[*,*,3]
+        velmed=median(vv,0)
+        sigma=vmgauss[*,*,4]/velmed*cc/2.355
+        ds=cc/r/2.355 //Instrumental spectral resolution at central wavelength
+        s1=cblank(sigma^2-ds^2)
+        s1[where(s1<=0)]=0
+        sigmac=sqrt(s1)
+        sigmac[where(sigmac<ds)]=0/0 //Corrected dispersion
+//        sigmac=sigma
+        df=velmed/r
+        print "VELMAP_EXT: nstrumental dispersion : "+ds+" (km/s) = "+df+" (nm)"
+        vel=(vv/velmed-1)*cc
+        vmgauss[*,*,10]=vel //Velocity
+        vmgauss[*,*,11]=sigmac //Dispersion
+        vmgauss[*,*,12]=gf //Gas flux
+        vmgauss[*,*,13]=ew //Gas light
+        vmgauss[*,*,14]=sqrt(vel^2+sigmac^2) //Support
+        vmgauss[*,*,15]=abs(vel/sigmac) //Ordered vs turbulent ratio  
+        for (i=1;i<=n1;i++) { //nan all non fitted pixels
+          for (j=1;j<=n2;j++) {
+            if (vmgauss[i,j,3]==0) vmgauss[i,j,*]=0/0
+            if (vmgauss[i,j,4]==0) vmgauss[i,j,*]=0/0
+          }
+        }
+      } //end of R check
+    } //end of pixel range check  
+  } //end of parameters check
+  velmap_ext=vmgauss
+}
+
+function velmap_rescale, inbuff, scale {
+  if (naxis3(inbuff)==15) {
+    outbuff=inbuff
+    outbuff[*,*,1]=outbuff[*,*,1]*scale
+    outbuff[*,*,2]=outbuff[*,*,2]*scale
+    outbuff[*,*,12]=outbuff[*,*,12]*scale
+    outbuff[*,*,13]=outbuff[*,*,13]*scale
+    velmap_rescale=outbuff
+  } else {
+    print "VELMAP_RESCALE: Error! Input is not a velmap!" 
+  }
+}
+
+function velmap_vel_set, velmap, method, center, vx, vy {
+  vmap=velmap
+  vmap[*,*,10]=velmap_vel(vmap, method, center, vx, vy)
+  velmap_vel_set=vmap
+}
+
+function velmap_fix_interp, velmp, npix,x1,x2,y1,y2 {
+  if (nparams()<3) {
+    x1=0
+    x2=0
+    y1=0
+    y2=0
+  }
+  map=velmp
+  nn=npix
+  mask=cube_set_flags_nan(velmp,1)
+  velmap_fix_interp=cube_interp_flags(map,mask,x1,x2,y1,y2,nn)
+}
+
+function velmap_clean_map_wvt, velmp, map, nregion {
+//Clean up velmap based on map region number, setting bad pixels to NaN
+  n1=naxis1(velmp)
+  n2=naxis2(velmp)
+  mask=fits(n1,n2)+1
+  mask[where(map==nregion)]=0/0
+  velmap_clean_map_wvt=velmp*mask
+}
+
+function velmap_mask, velmp {
+//Mask velmap from zero-level continuum
+  l=velmp[*,*,1]
+  m=mask_from_image(l,1e-10,0/0)
+  velmap_mask=velmp*m
+}
+
+	procedure write_comp, data, prefix, nm {
+		fn=prefix+"_"+nm+".fits"
+		print nm+" => "+fn
+		writefits fn, data
+	}
+
+procedure velmap_comps, velmap, prefix, hmax {
+//Output velmap components - extended version
+//Output to the current working directory
+  print "VELMAP_COMPS: Maximum vel range : "+hmax
+  data=velmap[*,*,12]
+  nm="Flux"
+  write_comp data, prefix, nm
+  data=norm(data)
+  nm="Flux_Norm"
+  write_comp data, prefix, nm
+  data=velmap[*,*,10]
+  nm="Vel"
+  write_comp data, prefix, nm
+  if (hmax>0) {
+    nm="VelHist"
+    hmin=-(hmax)
+    ldata=data
+    lhmax=hmax
+    dh=myhist(data,hmin,hmax,10,1)
+    write_comp dh, prefix, nm
+  }
+  data=velmap[*,*,13]
+  nm="EW"
+  write_comp data, prefix, nm
+  data=velmap[*,*,11]
+  nm="Sig"
+  write_comp data, prefix, nm
+  if (hmax>0) {
+    nm="SigHist"
+    dh=myhist(data,0,hmax,10,1)
+    write_comp dh, prefix, nm
+  }
+
+}
+
+function velmap_derotate, cube, velmodel, lambdac {
+//Subtract velmodel velocity from cube using central wavelength lambdac
+  n1=naxis1(cube)
+  n2=naxis2(cube)
+  if (n1!=naxis1(velmodel))||(n2!=naxis2(velmodel)) {
+    print "VELMAP_DEROTATE: Axes not equal - exiting!"
+    break
+  }
+  outbuff=cube*0
+  wcscube=get_WCS_data(cube,3)
+  c=2.99792e5
+  pixvel=c*wcscube[3]/lambdac
+  for (i=1;i<=n1;i++) {
+    for (j=1;j<=n2;j++) {
+      data=3dspec(cube, i, j, /sum)
+      shft=-(velmodel[i,j]/pixvel)
+      datashft=shift(data, shft,0)
+      outbuff[i,j,*]=datashft
+//      print velmodel[i,j]/pixvel
+    }
+  }
+  velmap_derotate=outbuff
+}

@@ -1,0 +1,374 @@
+//lib_image
+//General image functions
+dpuserdir=getenv("DPUSER_DIR")
+run dpuserdir+"/functions/lib_masking.dpuser"
+
+function image_avg, image, x, y, s {
+  image_avg=avg(image[x-s:x+s,y-s:y+s])
+}
+
+function image_interp_x, image_in, x1, x2, y1, y2 {
+//Smooth over bad pixels
+   x0=x1-1
+   x3=x2+1
+   outbuff=image_in
+   for (k=y1;k<=y2;k++) {
+       v0=image_in[x0,k]
+       v2=image_in[x3,k]
+       for (i=x1;i<=x2;i++) {
+         v=(i-x0)/(x3-x0)*(v2-v0)+v0
+         outbuff[i,k]=v
+       }
+//       print j+","+k+","+v0+","+v2
+   }
+   image_interp_x=outbuff
+}
+
+function image_interp_y, image_in, x1, x2, y1, y2 {
+//Smooth over bad pixels
+   y0=y1-1
+   y3=y2+1
+   outbuff=image_in
+     for (j=x1;j<=x2;j++) {
+       v0=image_in[j,y0]
+       v2=image_in[j,y3]
+       for (i=y1;i<=y2;i++) {
+         v=(i-y0)/(y3-y0)*(v2-v0)+v0
+         outbuff[j,i]=v
+       }
+//       print j+","+k+","+v0+","+v2
+   }
+   image_interp_y=outbuff
+}
+
+function image_arith, image, data, func, direc {
+//Perform image arithmetic 
+//func is one of "+","-","*',"/"
+//direc is one of "x","y"
+  nd=naxis1(data)
+  n1=naxis1(image)
+  n2=naxis2(image)
+  out=image*0
+  err=0
+  if (direc=="x") {
+    if (nd==n1) {
+      print "IMAGE_ARITH: Arithmetic along x-axis; function : "+func
+      for (i=1;i<=n2;i++) {
+        if (func=="+") out[*,i]=image[*,i]+data
+        if (func=="-") out[*,i]=image[*,i]-data
+        if (func=="*") out[*,i]=image[*,i]*data
+        if (func=="/") out[*,i]=image[*,i]/data
+      }
+    } else err=1
+  }
+  if (direc=="y") {
+    if (nd==n2) {
+      print "IMAGE_ARITH: Arithmetic along y-axis; function : "+func
+      for (i=1;i<=n1;i++) {
+        if (func=="+") out[i,*]=image[i,*]+data
+        if (func=="-") out[i,*]=image[i,*]-data
+        if (func=="*") out[i,*]=image[i,*]*data
+        if (func=="/") out[i,*]=image[i,*]/data
+      }
+    } else err=1
+  }
+  if (err==1) print "IMAGE_ARITH: Error! Data and image axis lengths not equal"
+  image_arith=out
+}
+
+function image_interp_xy, image_in, x1, x2, y1, y2 {
+//Smooth over bad pixels
+   x0=x1-1
+   x3=x2+1
+   y0=y1-1
+   y3=y2+1
+   outbuff=image_in
+     for (x=x1;x<=x2;x++) {
+       vy0=image_in[x,y0]
+       vy3=image_in[x,y3]
+       for (y=y1;y<=y2;y++) {
+         vx0=image_in[x0,y]
+         vx3=image_in[x3,y]
+         vi1=(y-y0)/(y3-y0)*(vy3-vy0)+vy0
+         vi2=(x-x0)/(x3-x0)*(vx3-vx0)+vx0
+         outbuff[x,y]=(vi1+vi2)/2
+       }
+     }
+   image_interp_xy=outbuff
+}
+ 
+function image_smooth, inbuff, smooth {
+//Smooth image with NaN values
+  outbuff=inbuff
+//First get NaN values
+  mask=mask_from_image_nan(inbuff)
+//Convert NaNs to zeros
+  outbuff=cblank(outbuff)
+  sm=smooth
+//Do smoothing (integer smooth is boxcar, non-integer is gaussian)
+  if (sm>0) {
+    if (abs(sm-int(sm))>0) {
+      print "IMAGE_SMOOTH: Gaussian smooth : "+sm
+      outbuff=smooth(outbuff,sm)
+    } else {
+      print "IMAGE_SMOOTH: Boxcar smooth : "+sm
+      outbuff=boxcar(outbuff, sm, /median)
+    }
+  }
+//Mask back NaNs
+  image_smooth=outbuff*mask
+}
+
+function image_erodenan, inbuff {
+//Make NaN values around NaN regions 
+//Usually used after img_smooth to remove silly values
+  n1=naxis1(inbuff)
+  n2=naxis2(inbuff)
+  outbuff=inbuff
+  for (i=2;i<=(n1-1);i++) {
+    for (j=2;j<=(n2-1);j++) {
+      if (isnan(inbuff[i,j])==0) {
+        tot=inbuff[i-1,j-1]+inbuff[i,j-1]+inbuff[i+1,j-1]+inbuff[i,j-1]+inbuff[i,j+1]+inbuff[i+1,j-1]+inbuff[i,j+1]+inbuff[i+1,j+1]
+        if (isnan(tot)!=0) outbuff[i,j]=0/0
+      }
+    }
+  }
+  image_erodenan=outbuff
+}
+
+function image_from_profile, profile, xp, yp, xc, yc {
+//create 2D image from 1D profile
+//xp, yp size of output image
+//xc, yc - center of rebuilt profile
+  heights=profile*0
+  outbuff=fits(xp,yp)
+  np=nelements(profile)
+  for (i=1;i<=np-1;i++) {
+    heights[i]=(profile[i]-profile[i+1])
+  }
+  heights=cblank(heights)
+  for (i=1;i<=np-1;i++) {
+    outbuff=outbuff+circle(xc,yc,i-1,naxis1=xp,naxis2=yp)*heights[i]
+  }
+  image_from_profile=outbuff
+}
+
+function image_enclosed_flux, inbuff, xc, yc, r, smth {
+//Get enclosed flux within radius r from xc, yc (pixels)
+   flux=total(mask_circle(inbuff, xc, yc, r))
+   outbuff=inbuff*0
+
+   for (i=0;i<=r;i++) {
+     lvl=total(mask_circle(inbuff, xc, yc, i))/flux
+     add=outbuff*0+lvl
+     add[where(outbuff>0)]=0
+     outbuff=outbuff+add
+     outbuff=mask_circle(outbuff, xc, yc, i)
+   }
+   outbuff[where(outbuff==0)]=1
+   if (smth>0) outbuff=smooth(outbuff,smth)
+   image_enclosed_flux=outbuff
+}
+
+function butterworth_filter, order, cutoff, size{
+//Create a Butterworth filter for order "order" for a square of sides "size"
+//Cutoff is cutoff Nyquist frequency
+  f=fits(size,size)
+  cent=size/2
+  for (i=1;i<=size;i++) {
+    for (j=1;j<=size;j++) {
+      f[i,j]=1/(1+sqrt(((i-cent)^2+(j-cent)^2)/(cutoff*size)^2)^(2*order))
+    }
+  }
+  butterworth_filter=f
+}
+
+function image_bfilter, image, order, cutoff {
+//Butterworth filter an image
+//Assume square image
+  imfft=fft(image)
+  size=naxis1(image)
+  bfilt=butterworth_filter(order, cutoff, size)
+  imfftfilt=imfft*bfilt
+  image_bfilter=fft(imfftfilt)
+}
+
+function image_structure, image, psf_image {
+//Structure map = image/(image x psf) x psf^T
+//"x"=convolution
+//"^T" = transpose
+//Enlarge image for convolution
+  print "IMAGE_STRUCTURE: Resizing and centering image..."
+  ni1=naxis1(image)
+  ni2=naxis2(image)
+  np1=naxis1(psf_image)
+  np2=naxis2(psf_image)
+  imr=resize(image,ni1+np1,ni2+np2)
+  shft1=np1/2
+  shft2=np2/2
+  imrs=shift(imr,shft1,shft2)
+  print "IMAGE_STRUCTURE: Convolving with PSF and dividing image.."
+  imrsc=convolve(imrs,psf_image)
+  imrscd=imrs/imrsc
+  imrscd=cblank(imrscd)
+  print "IMAGE_STRUCTURE: Transposing and convoluting PSF..."
+  psft=transpose(psf_image)
+  imrscdc=convolve(imrscd,psft)
+  print "IMAGE_STRUCTURE: Resizing back to original size..."
+  imrscdcs=shift(imrscdc,-shft1,-shft2)
+  image_structure=resize(imrscdcs,ni1,ni2)
+  print "IMAGE_STRUCTURE: Finished!"
+}
+
+function image_interp_flags, image, flags, xi1, xi2, yi1, yi2, dmax {
+//Interpolate over flagged spaxels
+//cube - input data cube, x/y axes are spaxels
+//flags - 2D data with same x/y axes size as cube, with value=1 to be interpolated, value=0 - good pixels
+//xi1,xi2,yi1,yi2 - co-ordinate range to interpolate over. If not input, then do all spaxels
+//dmax - maximum pixel distance for interpolation (=0 don't test)
+  n1=naxis1(image)
+  n2=naxis2(image)
+  outbuff=image
+  if (xi1>0) {
+    x1=xi1
+    x2=xi2
+    y1=yi1
+    y2=yi2
+  } else {
+    x1=1
+    x2=n1
+    y1=1
+    y2=n2
+  }
+  if (naxis1(flags)!=n1)||(naxis2(flags)!=n2) {
+    print "IMAGE_INTERP_FLAGS: Error! : cube and flags size mismatch"
+    break
+  }
+//Get range to good pixels
+  for (i=x1;i<=x2;i++) {
+//    print "Interpolating Column : "+i
+    for (j=y1;j<=y2;j++) {
+      if (flags[i,j]==1) {
+        xx=flags[*,j]
+        yy=flags[i,*]
+        xlo=-1
+        for (m=i;m>1;m--) {
+          isn=xx[m-1]
+          if (isn==0)&&(xlo==-1) xlo=m-1
+        }
+        xhi=-1
+        for (m=i;m<n1;m++)  {
+          isn=xx[m+1]
+          if (isn==0)&&(xhi==-1) xhi=m+1
+        }
+        ylo=-1
+        for (m=j;m>1;m--) {
+          isn=yy[m-1]
+          if (isn==0)&&(ylo==-1) ylo=m-1
+        }
+        yhi=-1
+        for (m=j;m<n2;m++)  {
+          isn=yy[m+1]
+          if (isn==0)&&(yhi==-1) yhi=m+1
+        }
+//Check maximum distance ``
+        if (dmax>0) {
+          if (abs(i-xlo)>dmax) xlo=-1
+          if (abs(i-xhi)>dmax) xhi=-1
+          if (abs(j-ylo)>dmax) ylo=-1
+          if (abs(j-yhi)>dmax) yhi=-1
+        }
+//Interpolate method, in x (=1), y (=2) or both (=3) directions
+        mm=0
+        if (xlo>0) && (xhi>0) mm=mm+1
+        if (ylo>0) && (yhi>0) mm=mm+2
+//        print "["+i+","+j+"] "+xlo+" "+xhi+" "+ylo+" "+yhi+" "+mm
+//Interpolate
+        if (mm>0) {
+          ii=[0/0,0/0]
+          xdata=image[*,j]
+          ydata=image[i,*]
+          if (mm==1)||(mm==3) ii[1]=interp(xdata,i,xlo,xhi)
+          if (mm==2)||(mm==3) ii[2]=interp(ydata,j,ylo,yhi)
+          outbuff[i,j]=avg(ii) 
+        } //if method
+      } //if isnan
+    } //for j
+  } //for i
+  image_interp_flags=outbuff
+}
+  
+function image_cut, inbuff, x, y, a {
+  work=twodcut(inbuff,x,y,a,1)
+  work[where(work==0)]=0/0
+  n=naxis1(work)
+  cdold=getfitskey(work,"CDELT1")
+  setfitskey work,"CRPIX1",(n+1)/2
+  setfitskey work,"CRVAL1",0
+  setfitskey work, "CDELT1",abs(cdold/1.5*3600)
+  setfitskey work, "CD1_1",abs(cdold/1.5*3600)
+  image_cut=work
+}
+
+function image_comb_sigma, inbuff, sigma, omit, toler {
+//Image combine with sigma clipping algorithm
+//imbuff is a cube of images with n images in 3rd dimension
+//sigma is standard deviations allowed
+  n1=naxis1(inbuff)
+  n2=naxis2(inbuff)
+  n3=naxis3(inbuff)
+/*  print "Average with sigma clipping"
+  print "Image dimensions : ["+n1+","+n2+"]"
+  print "# of images : "+n3
+  print "Sigma/Tolerance : "+sigma+"/"+toler
+  print "Omit value : "+omit*/
+  outbuff=inbuff[*,*,1]*0
+  for (i=1;i<=n1;i++) {
+    print "IMAGE_COMB_SIGMA Col: "+i
+    for (j=1;j<=n2;j++) {
+      tol=1
+      s=1
+      while (tol==1)&&(s>0) {
+        m=median(inbuff[i,j,*],omit)
+        s=meddev(inbuff[i,j,*])
+        for (k=1;k<=n3;k++) {
+          if (isnan(inbuff[i,j,k])==0) {
+            if (abs(inbuff[i,j,k]-m)>(sigma*s)) {
+/*              print "Reject : ["+i+","+j+","+k+"]"
+              print "Value : "+inbuff[i,j,k]
+              print "Median : "+m+" Std Dev : "+s*/
+              inbuff[i,j,k]=0/0
+            }
+          }
+        }
+        sigold=s
+        signew=meddev(inbuff[i,j,*])
+        t=(sigold-signew)/signew
+        if (t<toler) tol=0
+//        print "Coords: "+i+","+j+" tol :"+tol+" m: "+m+" s: "+s+" sigold: "+sigold+" signew: "+signew+" t: "+t
+      }
+      outbuff[i,j]=avg(inbuff[i,j,*],omit)
+    }
+  }
+  image_comb_sigma=outbuff
+}
+
+function image_coord_map, image1, image2 {
+//Compare coordinates for registration of 2 images
+  n11=naxis1(image1)
+  n12=naxis2(image1)
+  n21=naxis1(image2)
+  n22=naxis2(image2)
+  x1=cvt_pixel_WCS_data(image1, 1, 1)
+  y1=cvt_pixel_WCS_data(image1, 1, 2)
+  x2=cvt_pixel_WCS_data(image1, n11, 1)
+  y2=cvt_pixel_WCS_data(image1, n12, 2)
+  rx1=cvt_WCS_pixel_data(image2, x1, 1)
+  ry1=cvt_WCS_pixel_data(image2, y1, 2)
+  rx2=cvt_WCS_pixel_data(image2, x2, 1)
+  ry2=cvt_WCS_pixel_data(image2, y2, 2)
+  print "IMAGE_COORD_MAP : IMAGE1 CO-ORDS ["+sprintf("%10.8f",x1)+","+sprintf("%10.8f",y1)+"] - ["+sprintf("%10.8f",x2)+","+sprintf("%10.8f",y2)+"]"
+  print "IMAGE_COORD_MAP : IMAGE1 CO-ORDS ["+dectosex(x1/15)+","+dectosex(y1)+"] - ["+dectosex(x2/15)+","+dectosex(y2)+"]"
+  image_coord_map=[[rx1,ry1],[rx2,ry2]]
+}
+

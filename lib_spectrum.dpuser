@@ -1,0 +1,392 @@
+function spectrum_make_disp, val, delt, pix, n {
+//Make a dispersion value vector
+//Val : starting value
+//Delt : increment bewteen elements
+//Pix : starting pixel for val (usually 1)
+//N : number of elements
+  if (nparams()<1) {
+   print "SPECTRUM_MAKE_DISP: val, delt, pix, n"
+   s=0
+  } else {
+  s=[0:n-1]*delt+val-(pix-1)*delt
+  setfitskey s, "CRVAL1", val
+  setfitskey s, "CDELT1", delt
+  setfitskey s, "CD1_1", delt
+  setfitskey s, "CRPIX1", pix
+  }
+  spectrum_make_disp=s
+}
+
+function spectrum_make_disp_n, val1, val2, n {
+  delt=(val2-val1)/(n-1)
+  spectrum_make_disp_n = spectrum_make_disp(val1, delt, 1, n)
+}
+
+function spectrum_make_disp_data, inbuff, axis {
+  cc=get_WCS_data(inbuff, axis)
+  nx=getfitskey(inbuff, "NAXIS"+axis)
+  spectrum_make_disp_data=spectrum_make_disp(cc[2],cc[3],cc[1],nx)
+}
+
+function spectrum_wavenum_to_length, inbuff {
+//Convert a vector of wave numbers to wavelength
+  outbuff=1/inbuff
+  temp=inbuff
+  n=naxis1(inbuff)
+//Assume wavenum is in cm^-1 => nm output
+  for (i=1;i<=n;i++) temp[i]=outbuff[n-i+1]*1e7
+  spectrum_wavenum_to_length=temp
+}
+
+function spectrum_mask, inbuff, mask, value, flag {
+//Assume last axis is spectral
+//Flag = 0, values are pixels
+//Flag = 1, values are wavelength
+  if (nelements(mask)<2) {
+    outbuff=inbuff
+  } else {
+    aspec=naxis(inbuff)
+    outbuff=inbuff
+    nmask=nelements(mask)/2
+    for (i=1;i<=nmask;i++) {
+      p1=mask[i*2-1]
+      p2=mask[i*2]
+      if (flag==1) {
+        p1=cvt_WCS_pixel_data(inbuff,p1,aspec)
+        p2=cvt_WCS_pixel_data(inbuff,p2,aspec)
+      }
+    //    print p1+" "+p2
+      if (aspec==1) {
+        outbuff[p1:p2]=value
+      } else {
+        outbuff[*,*,p1:p2]=value
+      }
+    }
+  }
+  spectrum_mask=outbuff
+}
+
+function spectrum_cont_slope, spec, mask, flag, order {
+//1D continuum slope from spectrum with mask
+  sspec=spectrum_mask(spec, mask, 0/0, flag)
+  if (nparams()<4) order=1
+  o=order
+  if (o<2) o=1
+  p=polyfit(sspec,o)
+  spectrum_cont_slope=p
+}
+
+function spectrum_deslope, spec, mask, flag, order {
+//Remove and normailze spectrum with mask
+  n1=naxis1(spec)
+  s=spectrum_cont_slope(spec,mask, flag, order)
+  o=order
+  if (o<2) o=1
+  l=poly([1:n1],s[*,1])
+  spectrum_deslope=spec/l
+}
+
+function spectrum_slope_sub, spec, mask, flag, order {
+//Remove and normailze spectrum with mask
+  n1=naxis1(spec)
+  s=spectrum_cont_slope(spec,mask, flag, order)
+  o=order
+  if (o<2) o=1
+  l=poly([1:n1],s[*,1])
+  spectrum_slope_sub=spec-l
+}
+
+function spectrum_polyfit, inbuff, order, mask, flag {
+//Fit spectrum with poly order=order
+//Mask out mask
+  outbuff=inbuff
+  if (nelements(mask)>1) {
+    outbuff=spectrum_mask(outbuff, mask, 0/0, flag)
+  }
+  o=order
+  if (o<2) o=1
+  fit=polyfit(outbuff,o)
+  n1=naxis1(inbuff)
+  x=[1:n1]
+  polyout=poly(x,fit[*,1])
+  spec_polyfit=fits(n1,3)
+  spec_polyfit[*,1]=outbuff
+  spec_polyfit[*,2]=polyout
+  spec_polyfit[*,3]=outbuff-polyout
+  copyheader spec_polyfit,inbuff
+  spectrum_polyfit=spec_polyfit
+}
+
+function spectrum_symm_flip, inbuff, lambda, part {
+//Split and flip especially for broad/narrow lines
+  flip_pixel=cvt_WCS_pixel_data(inbuff,lambda,1)
+  n1=naxis1(inbuff)
+  outbuff=inbuff*0/0
+  if (part==0) {
+    outbuff[1:flip_pixel]=inbuff[1:flip_pixel]
+    if ((flip_pixel*2)>n1) {
+      l=n1-flip_pixel
+    } else {
+      l=flip_pixel-1
+    }
+    for (i=1;i<=l;i++) {
+      outbuff[flip_pixel+i]=outbuff[flip_pixel-i]
+    }
+    if ((flip_pixel+l)<n1) outbuff[flip_pixel+l+1:n1]=outbuff[flip_pixel+l]
+  }  else {
+    outbuff[flip_pixel:n1]=inbuff[flip_pixel:n1]
+    if ((flip_pixel*2)<n1) {
+      l=flip_pixel-1
+    } else {
+      l=n1-flip_pixel
+    }
+    for (i=1;i<=l;i++) {
+      outbuff[flip_pixel-i]=outbuff[flip_pixel+i]
+    } 
+  }   
+  spectrum_symm_flip=outbuff
+}
+
+function spectrum_wave_to_lambda, inbuff, v1, v2, nv {
+//Convert spectrum in wavenumber to wavelength
+//Assume wavenumbers in cm^-1, output in nm
+//If v1, v2 are defined (>0), interpolate over that range of wavelengths
+//Otherwise use the wavelength range of input spectrum
+  if nparams()<2 {
+    v1=0
+    v2=0
+    nv=0
+  }
+  n=naxis1(inbuff)
+  w1=cvt_pixel_WCS_data(inbuff,1,1)
+  w2=cvt_pixel_WCS_data(inbuff,n,1)
+  l1=1e7/w2
+  l2=1e7/w1
+  xold=1e7/spectrum_make_disp_n(w1,w2,n)
+  flip xold,1
+  yold=inbuff
+  flip yold,1
+  if (v1>0) { 
+    xnew=spectrum_make_disp_n(v1,v2,nv)
+    l1=v1
+    l2=v2
+    n=nv
+  } else {
+    xnew=spectrum_make_disp_n(l1,l2,n)
+  }
+  ynew=interpol(yold,xold,xnew)
+  outbuff=inbuff
+  resize outbuff,n,1
+  cd=(l2-l1)/n
+  outbuff[1:n]=ynew
+  setfitskey outbuff,"CRPIX1",1
+  setfitskey outbuff,"CRVAL1",l1
+  setfitskey outbuff,"CDELT1",cd
+  setfitskey outbuff,"CD1_1",cd
+  spectrum_wave_to_lambda=outbuff
+}
+
+function spectrum_make_gauss, inbuff, bi, bs, h, lc, w {
+//Make gaussian from fit
+//b1, bs are intercept and slope of base
+//h, c, w are height centre and sigma of gaussian
+//X-axis range taken from inbuff 
+//  print "SPECTRUM_MAKE_GAUSS : ",h,lc,w
+  sp=spectrum_make_disp_data(inbuff, 1)
+  base=bi+bs*sp
+  gs=h*exp(-4*ln(2)*(sp-lc)^2/w^2)+base
+  w=get_WCS_data(inbuff,1)
+  set_WCS_data gs,w,1 
+  spectrum_make_gauss=gs
+}
+
+function spectrum_make_lorentz, inbuff, bi, bs, h, lc, w {
+//Make gaussian from fit
+//b1, bs are intercept and slope of base
+//h, c, w are height centre and sigma of gaussian
+//X-axis range taken from inbuff 
+//  print "SPECTRUM_MAKE_GAUSS : ",h,lc,w
+  sp=spectrum_make_disp_data(inbuff, 1)
+  base=bi+bs*sp
+//  gs=h*exp(-4*ln(2)*(sp-lc)^2/w^2)+base
+  gs=w/((sp-lc)^2+(w/2)^2)/(2*pi())*h/(2/pi()/w)+base
+  w=get_WCS_data(inbuff,1)
+  set_WCS_data gs,w,1 
+  spectrum_make_lorentz=gs
+}
+
+function spectrum_redisp_lin, inbuff, data, daxis, xmin,delt, npix, zero, norms,  prnt, fluxcons {
+//Redisperse spectrum, zeroing outside of old spectral range 
+  if (nparams()<1) {
+    print "SPECTRUM_REDISP_LIN: inbuff, data, daxis, xmin,delt, npix, zero, norms,  prnt, fluxcons"
+    print "inbuff           : spectrum to be redispersed"
+    print "data             : data with dispersal solution (if =0 then use parameters for dispersion)"
+    print "daxis            : spectral axis of data (=1)"
+    print "xmin, delt, npix : dispersion solution if data=0"
+    print "zero             : if =1, then set redispersed spectra to zero where out of original range, rather than NaN (=0)"
+    print "norms            : if =1, normalize dispersed spectra [0,1] (=0)"
+    print "prnt             : if =1, print spectral range information (=0)"
+    print "fluxcons         : if =1, spectrum is flux, rather than flux density, so conserve total (=0)"
+    spectrum_redisp_lin=0
+    break
+  }
+  if (nparams()<10) fluxcons=0
+  if (nparams()<9) prnt=0
+  if (nparams()<8) norms=0
+  if (nparams()<7) zero=0
+  if (nparams()<6) npix=1
+  if (nparams()<5) delt=1
+  if (nparams()<4) xmin=1
+  if (nparams()<3) daxis=1
+  yold=inbuff
+  xold=spectrum_make_disp_data(inbuff, 1)
+  xstart=xold[1]
+  xend=xold[naxis1(xold)]
+  if (prnt>0) print "SPECTRUM_REDISP_LIN: Old spectral range - "+xstart+":"+xend
+  if (nelements(data)==1) {
+    xnew=spectrum_make_disp(xmin, delt, 1, npix)
+  } else {
+    xnew=spectrum_make_disp_data(data, daxis)
+  }
+  if (prnt>0) print "SPECTRUM_REDISP: New spectral range - "+xnew[1]+":"+xnew[naxis1(xnew)]
+  wcsnew=get_WCS_values(xnew)
+  ynew=interpol(yold, xold, xnew)
+  set_WCS_data ynew, wcsnew, 1
+//Set to zero outside of orig. wavelength range if required
+  if (zero==1) {
+    nnew=naxis1(ynew)
+    p1=cvt_WCS_pixel_data(ynew, xstart, 1)
+    p2=cvt_WCS_pixel_data(ynew, xend, 1)
+    if (p1>1) {
+      ynew[1:p1]=0
+    }
+    if (p2<nnew) {
+      ynew[p2:nnew]=0
+    }
+    print "SPECTRUM_REDISP: Trimming pixels - ["+p1+":"+p2+"]"
+  }
+//Flux conserve
+  if (fluxcons==1) ynew=total(inbuff)/total(ynew)*ynew
+//Normalise if required
+  if (norms==1) {
+    ynew=norm(ynew)
+  }
+  spectrum_redisp_lin=ynew
+}
+
+function spectrum_from_xy, inbuff {
+//re-disperse spectrum from 2D x and y bintable to wavelength range and same number of points
+//Get wavelength and flux vectors
+  w=inbuff[0]
+  f=inbuff[1]
+  nw=naxis1(w)
+  xstart=w[1]
+  xend=w[nw]
+  wnew=spectrum_make_disp_n(xstart,xend,nw)
+  ynew=interpol(f,w,wnew)
+  wcs=get_WCS_data(wnew, 1)
+  set_WCS_data ynew, wcs, 1
+  spectrum_from_xy=ynew
+}
+
+function spectrum_from_data, xdata, ydata, w1, w2, delt {
+//re-disperse spectrum from 2D x and y bintable to wavelength range and same number of points
+//Get wavelength and flux vectors
+  w=xdata
+  f=ydata
+  nw=(w2-w1)/(delt)+1
+  wnew=spectrum_make_disp_n(w1, w2, nw)
+  ynew=interpol(f,w,wnew)
+  wcsnew=get_WCS_data(wnew, 1)
+  set_WCS_data ynew, wcsnew, 1
+  spectrum_from_data=ynew
+}
+/*
+data = import("/Users/mdurre/Programs/STARLIGHT/BasesDir/bc2003_hr_m22_chab_ssp_020.spec", 0, " ", "", 6, /number)
+xdata=data[1,*]/10
+ydata=data[2,*]
+w1=1000
+w2=2500
+delt=0.5
+*/
+
+function spectrum_interp, inbuff, x1, x2 {
+//Smooth over bad pixels
+   x0=x1-1
+   x3=x2+1
+   outbuff=inbuff
+   v0=inbuff[x0]
+   v2=inbuff[x3]
+   for (i=x1;i<=x2;i++) {
+     v=(i-x0)/(x3-x0)*(v2-v0)+v0
+     outbuff[i]=v
+   }
+   spectrum_interp=outbuff
+}
+
+function spectrum_redisp_xy, inbuff, l1, l2, npix, xscl, yscl {
+//Rediserse input spectrum, assuming wavelength is in first column
+//l1, l2, npix is new wavelength range and number of pixels
+    if (nparams()<6) yscl=1
+    if (nparams()<5) xscl=1
+    xold=inbuff[*,1]*xscl //rescale to match new dispersion (e.g. from micron to nm, xscl=1000)
+    xnew=spectrum_make_disp_n (l1, l2, npix)
+    nx=naxis2(inbuff)
+    outbuff=inbuff
+    resize outbuff, npix, nx-1
+    for (i=2;i<=nx;i++) {
+      yold=cblank(clip(inbuff[*,i],0,-1))*yscl //rescale data
+      ynew=interpol(yold,xold,xnew) //Interpolate flux and error spectra
+      ynew=cblank(clip(ynew,0,-1))
+      outbuff[*,i-1]=ynew
+    }
+    cdelt=(l2-l1)/(npix-1)
+    setfitskey outbuff, "CRPIX1", 1
+    setfitskey outbuff, "CRVAL1",l1
+    setfitskey outbuff, "CDELT1", cdelt
+    setfitskey outbuff,"CUNIT1", "nm"
+    setfitskey outbuff,"CTYPE1","WAVE"
+    setfitskey outbuff,"CD1_1",cdelt
+    setfitskey outbuff,"MINWAVE",min(xold),"Minimum wavelength observed (nm)"
+    setfitskey outbuff,"MAXWAVE",max(xold),"Maximum wavelength observed (nm)"
+    spectrum_redisperse=outbuff
+}
+
+function spectrum_redisp, inbuff, l1, l2, npix, xscl, yscl {
+//Rediserse input spectrum, assuming wavelength is in first column
+//l1, l2, npix is new wavelength range and number of pixels
+    if (nparams()<6) yscl=1
+    if (nparams()<5) xscl=1
+    xold=spectrum_make_disp_data(inbuff,1)
+    xnew=spectrum_make_disp_n (l1, l2, npix)
+    yold=cblank(clip(inbuff,0,-1))*yscl //rescale data
+    ynew=interpol(yold,xold,xnew) //Interpolate flux and error spectra
+    outbuff=cblank(clip(ynew,0,-1))
+    cdelt=(l2-l1)/(npix-1)
+    copyheader outbuff,inbuff
+    setfitskey outbuff, "CRPIX1", 1
+    setfitskey outbuff, "CRVAL1",l1
+    setfitskey outbuff, "CDELT1", cdelt
+    setfitskey outbuff,"CUNIT1", "nm"
+    setfitskey outbuff,"CTYPE1","WAVE"
+    setfitskey outbuff,"CD1_1",cdelt
+    spectrum_redisp=outbuff
+}
+
+function spectrum_clean, inbuff {
+//Clean spectrum using dpixcreate/apply
+  inb=cblank(inbuff)
+  dead=dpixcreate(inb, median(inb)/2)
+  clean=dpixapply(inb, dead, method=1)
+  spectrum_clean=clean
+}
+
+function spectrum_fitwext, inbuff, template, extinction, wlflag {
+//Fit spectrum to template with extinction
+//wlflag = 0 for nm, = 1 for Angstrom
+//Redisperse inbuff to template
+  rinbuff=spectrum_redisp_lin(cblank(inbuff), cblank(template), 1)
+  rext=extinction_correct(rinbuff, -1*extinction)
+  spectrum_fitwext=rext/template
+}
+  

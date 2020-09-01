@@ -1,0 +1,107 @@
+//Cube cleaning functions - need lib_wcs
+dpuserdir=getenv("DPUSER_DIR")
+run dpuserdir+"/functions/lib_wcs.dpuser"
+
+function limits, val, rnge, onaxis {
+  v=val
+  if (onaxis==1) {
+    if (v<2) v=2
+    if (v>=rnge) v=rnge-1
+  } else {
+    if (v<1) v=1
+    if (v>rnge) v=rnge
+  }
+  limits=int(v)
+}
+
+function checklimits, cube, x1, x2, y1, y2, z1, z2, nx {
+//Check the limits are within cube range
+//Co-ordinates on interp axis have to be LESS than axis size
+  
+  n1=naxis1(cube)
+  n2=naxis2(cube)
+  n3=naxis3(cube)
+  nx1=(nx==1)
+  nx2=(nx==2)
+  nx3=(nx==3)
+  x1=limits(x1,n1, nx1)
+  x2=limits(x2,n1, nx1)
+  y1=limits(y1,n2, nx2)
+  y2=limits(y2,n2, nx2)
+  z1=limits(z1,n3, nx3)
+  z2=limits(z2,n3, nx3)
+  checklimits=[x1,x2,y1,y2,z1,z2]
+}
+
+function interp, data, x, x1, x2 {
+   v=(x-x1)/(x2-x1)*(data[x2]-data[x1])+data[x1]
+   interp=v
+} 
+
+function dpixapply2, x, dpl, boxsize {
+//Alternative to dpixapply function
+  n1=naxis1(x)
+  n2=naxis2(x)
+  y = x
+  y[where(dpl==1)]=0
+  for (i=1;i<=n1;i++) {
+    for (j=1;j<=n2; j++) {
+      if (dpl[i,j]>=1) {
+        y[i,j] = median(y[max(1,i-boxsize):min(n1,i+boxsize),max(1,j-boxsize):min(n2,j+boxsize)],0)
+      }
+    }
+  }
+  dpixapply2=y
+}
+
+//Fix a data cube bad pixels using dpixcreate/apply
+//Input is data cube, threshold, output is bad pixel map, fixed data cube
+function clean_cube_bp, cube, threshold {
+  dim=naxis(cube)
+  if (dim!=3) {
+    print "CLEAN_CUBE_BP: Incorrect axis number!"
+    break
+  }
+  badpix=cube*0
+  for (i=1;i<=naxis3(cube);i++) {
+    print "CLEAN_CUBE_BP: Frame : "+i
+    frame=cube[*,*,i]
+    bpix=dpixcreate(frame,threshold,3,1)
+    badpix[*,*,i]=bpix
+  }
+  clean_cube_bp=badpix
+  print "CLEAN_CUBE_BP: Total badpix : "+total(badpix)
+}
+
+function clean_cube_bp_fix, cube, bp_cube {
+//Fix cube from a bad pixel cube of same size
+  nx1=naxis1(cube)
+  ny1=naxis2(cube)
+  nz1=naxis3(cube)
+  nx2=naxis1(bp_cube)
+  ny2=naxis2(bp_cube)
+  nz2=naxis3(bp_cube)
+  if ((nx1==nx2)&&(ny1==ny2)&&(nz1==nz2)) { //Axes size matches
+    outbuff=cube
+    for (i=1;i<=nx1;i++) {
+      cube_frame=cube[i,*,*]
+        bp_cube_frame=bp_cube[i,*,*]
+        frame_fixed=dpixapply(cube_frame, bp_cube_frame)
+        outbuff[i,*,*]=frame_fixed
+      
+      print "CLEAN_CUBE_BP_FIX: Layer "+i+" / "+ nx1
+    }
+    clean_cube_bp_fix=outbuff
+  } else {
+    print "CLEAN_CUBE_BP_FIX: Error - axes unequal!"
+    clean_cube_bp_fix=cube*0
+  }
+    
+}
+
+function clean_cube_bp_limits, cube, ll, ul {
+  bp=cube*0
+  bp[where(cube<ll)]=1
+  bp[where(cube>ul)]=1
+  clean_cube_bp_limits=bp
+}

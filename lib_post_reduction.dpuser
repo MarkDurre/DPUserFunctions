@@ -1,0 +1,146 @@
+function pr_cube_fix, inbuff, xc,yc,ax,ay,tl1, tl2, scale {
+//Fix up cubes post reduction, centering, resizing, trimming wavelength range ends
+  work1=inbuff
+  n1=naxis1(inbuff)
+  n2=naxis2(inbuff)
+  n3=naxis3(inbuff)
+  if nparams()<8 scale=1
+  if nparams()<7 tl2=0
+  if nparams()<6 tl1=0
+  if nparams()<5 ay=0
+  if nparams()<4 ax=0
+  if nparams()<3 yc=0
+  if nparams()<2 xc=0
+  if nparams()<=1 {
+    print "PR_CUBE_FIX: Parameters"
+    print "  inbuff   - data cube to fix"
+    print "  xc,yc    - co-ordinate to center"
+    print "  ax,ay    - new cube x,y size"
+    print "  tl1, tl2 - end pixels set to Nan"
+    print "  scale    - wavelength rescale (e.g. um-> nm, scale=1000)"
+    pr_cube_fix=0
+  }   
+//Resizing axes
+  axx=ax
+  axy=ax
+  if (ax==0) {
+    axx=n1
+    axy=n2
+  }
+  pr_cube_fix=0
+
+//Centering
+  if ((xc==0)||(yc==0)) {
+    print "PR_CUBE_FIX: Skipping centering"
+  } else {
+    nsx=int(ax/2)
+    nsy=int(ay/2)
+    print "PR_CUBE_FIX: Centering cube - ["+xc+","+yc+"]=>["+nsx+","+nsy+"]"
+    work1=cube_resize_center(inbuff,xc,yc,ax,ay) //Resize and centre
+  }
+  pr_cube_fix=1
+//Trimming ends
+  if (tl1>0) work1[*,*,1:tl1]=0/0
+  if (tl2<n3) work1[*,*,tl2:naxis3(inbuff)]=0/0
+  pr_cube_fix=work1
+
+//Rescaling wavelengths
+  if (scale!=1) {
+    cd3=getfitskey(inbuff,"CD3_3") 
+    cv3=getfitskey(inbuff,"CRVAL3")
+    setfitskey work1,"CD3_3",cd3*scale
+    setfitskey work1,"CDELT3",cd3*scale
+    setfitskey work1,"CRVAL3",cv3*scale
+  }
+  pr_cube_fix=work1
+
+//Printing details
+  cinst=check_header_key(inbuff,"INSTRUME")
+  if (cinst==1) inst=getfitskey(inbuff,"INSTRUME")
+  cinst=check_header_key(inbuff,"CURRINST")
+  if (cinst==1) inst=getfitskey(inbuff,"CURRINST")
+  print "PR_CUBE_FIX: Instrument - "+inst
+
+  if strtrim(upper(inst))=="SINFONI" {
+    print "  DIT : "+getfitskey(inbuff,"HIERARCH ESO DET DIT",/text)
+    print "  OBJECT : "+getfitskey(inbuff,"HIERARCH ESO OBS TARG NAME",/text)
+    print "  DATE : "+getfitskey(inbuff,"DATE-OBS",/text)
+    print "  FILTER : "+getfitskey(inbuff,"HIERARCH ESO INS FILT1 NAME",/text)
+    print "  SCALE : "+getfitskey(inbuff,"HIERARCH ESO INS OPTI1 NAME",/text)
+  }
+
+  if strtrim(upper(inst))=="OSIRIS" {
+    print "  DIT : "+getfitskey(inbuff,"ITIME",/text)
+    print "  OBJECT : "+getfitskey(inbuff,"OBJECT",/text)
+    print "  DATE : "+getfitskey(inbuff,"DATE-OBS",/text)
+    print "  FILTER : "+getfitskey(inbuff,"FILTER",/text)
+    print "  SCALE : "+getfitskey(inbuff,"SCALE",/text)
+  }
+
+  if strtrim(upper(inst))=="NIFS" {
+    print "  DIT : "+getfitskey(inbuff,"EXPTIME",/text)
+    print "  OBJECT : "+getfitskey(inbuff,"OBJECT",/text)
+    print "  DATE : "+getfitskey(inbuff,"DATE-OBS",/text)
+    print "  FILTER : "+getfitskey(inbuff,"FILTER",/text)
+    print "  SCALE : "+getfitskey(inbuff,"PIXSCALE",/text)
+  }
+
+  pr_cube_fix=work1
+}
+
+function pr_calib_spectrum, object, name, lm, xm, ym, r1, r2 {
+//
+  cube_dir="/users/mdurre/OneDrive/"+object+"/Postreduction/C-TellCubesReg/"
+  calibspec_dir="/users/mdurre/OneDrive/"+object+"/postreduction/D-CalibSpectrum/"
+  buffer1=readfits(cube_dir+name)
+  n1=naxis1(buffer1)
+  n2=naxis2(buffer1)
+  exptime=getfitskey(buffer1,"EXPTIME",/text)
+  exptime2=getfitskey(buffer1,"ITIME",/text)
+  print "Exptime : "+exptime+exptime2
+  inn=strtrim(getfitskey(buffer1,"INSTRUME",/text))
+  if (strtrim(inn)=="SINFONI") {
+    print "DIT : "+getfitskey(buffer1,"HIERARCH ESO DET DIT",/text)
+    print "OBJECT : "+getfitskey(buffer1,"HIERARCH ESO OBS TARG NAME",/text)
+    print "DATE : "+getfitskey(buffer1,"DATE-OBS",/text)
+    print "FILTER : "+getfitskey(buffer1,"HIERARCH ESO INS FILT1 NAME",/text)
+    print "SCALE : "+getfitskey(buffer1,"HIERARCH ESO INS OPTI1 NAME",/text)
+  }
+    
+  spec=3dspec(buffer1,xm,ym,r1,r2,/sum)
+  writefits calibspec_dir+name, spec
+  fd=spec_fluxdens(spec,lm-5,lm+5,1)
+  pr_calib_spectrum=spec
+}
+
+
+function pr_cube_fc_tell, object, name, tsname, fc, exptime {
+  cube_dir="/users/mdurre/OneDrive/"+object+"/Postreduction/B-ScienceCubesReg/"
+  tellspec_dir="/users/mdurre/OneDrive/"+object+"/postreduction/F-TelluricSpectrumNorm/"
+  fc_cube_dir="/users/mdurre/OneDrive/"+object+"/Postreduction/G-ScienceCubesCal/"
+  tell_cube_dir="/users/mdurre/OneDrive/"+object+"/Postreduction/H-ScienceCubesTellCorr/"
+  print "Science Cube : "+cube_dir+name
+  print "Telluric Spectrum : "+tellspec_dir+tsname
+  print "Calibration Constant : "+fc
+  print "Exposure : "+exptime
+  cube=readfits(cube_dir+name)
+  tellspec=readfits(tellspec_dir+tsname)
+  cube=cube*fc/exptime
+  print "Writing Flux Constant Corrected Cube : "+fc_cube_dir+name
+  writefits fc_cube_dir+name, cube
+  cubetc=cube_spectrum_divide(cube, tellspec)
+  print "Writing Telluric Corrected Cube : "+tell_cube_dir+name
+  writefits tell_cube_dir+name, cubetc
+  pr_cube_fc_tell=cubetc
+  print "Finished!"
+}
+
+function pr_cube_fluxcalib, cube, scale {
+//Flux calibrate a cube, scale is is units of 1e-16 erg/cm^2/s/nm
+//Input cube values in counts/s - so need to divide by bin width  
+  outcube=cube*scale
+  wdelt=get_WCS_data(cube,3)[3]
+  outcube=outcube/wdelt
+  setfitskey outcube,"BUNIT","1e-16 ERG/CM^2/S/NM","Flux calibration units"
+  pr_cube_fluxcalib=outcube
+}

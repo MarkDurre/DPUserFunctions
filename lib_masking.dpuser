@@ -1,0 +1,99 @@
+//Masking functions
+function mask_from_image, inbuff, level, low {
+  outbuff=inbuff
+  outbuff[where(inbuff>=level)]=1
+  outbuff[where(inbuff<level)]=low
+  mask_from_image=outbuff
+}
+
+function mask_circle, inbuff, x, y, r, v, rev {
+//Mask a cube/image by a circle centered x,y radius r (pixels) and set value v for outside e.g. 0/0
+//If rev is non-zero, reverse mask - useful for excluding stars
+  n1=naxis1(inbuff)
+  n2=naxis2(inbuff)
+  circ=circle(x, y, r, naxis1=n1, naxis2=n2)
+  if (rev!=0) circ=1-circ
+  circ[where(circ==0)]=v
+  mask_circle=inbuff*circ
+}
+
+function mask_data, inbuff, level, low {
+  mask_data=mask_from_image(inbuff,level,low)*inbuff
+}
+
+function mask_data_median, inbuff, level, low {
+  img=median(inbuff,/z)
+  mask_data_median=inbuff*mask_from_image(img,level,low)
+}
+
+function mask_from_image_nan, inbuff, zero {
+  if nparams()<2 zero=0
+  work=inbuff
+  for (i=1;i<=naxis1(inbuff);i++) {
+    for (j=1;j<=naxis2(inbuff);j++) {
+      if (isnan(work[i,j])==0) {
+        work[i,j]=1 
+      } else {
+        if (zero!=0) work[i,j]=0
+      }
+    }
+  }
+  mask_from_image_nan = work
+}
+
+function mask_set_nan_min, inbuff, minvalue {
+  work=inbuff
+  minv=minvalue
+  if (minv==0) minv=min(work)
+  for (i=1;i<=naxis1(inbuff);i++) {
+    for (j=1;j<=naxis2(inbuff);j++) {
+      if (isnan(work[i,j])==0) work[i,j]=minv
+    }
+  }
+  mask_set_nan_min = work
+}
+  
+function mask_cone, inbuff, xc1, yc1, xc2, yc2, pa, beta, mask {
+//Make mask for cone area
+  n1=naxis1(inbuff)
+  n2=naxis2(inbuff)
+  outbuff=fits(n1,n2)
+  for (i=1;i<=n1;i++) {
+    for (j=1;j<=n2;j++) {
+      yl11=(xc1-i)*tan(deg2rad(pa-beta/2))+j
+      yl21=(xc2-i)*tan(deg2rad(pa+beta/2))+j
+      if (yl11>=yc1) outbuff[i,j]++
+      if (yl21>=yc2) outbuff[i,j]++
+      yl12=(xc2-i)*tan(deg2rad(pa-beta/2))+j
+      yl22=(xc1-i)*tan(deg2rad(pa+beta/2))+j
+      if (yl12>=yc2) outbuff[i,j]++
+      if (yl22>=yc1) outbuff[i,j]++
+    }
+  }
+  outbuff[where(outbuff>3)]=0
+  outbuff[where(outbuff<1)]=0
+  clip outbuff, 0,1
+  if (mask==0) {
+    mask_cone=outbuff
+  } else {
+    mask_cone=inbuff*outbuff
+  }
+}
+
+function mask_line, inbuff, x1, y1, x2, y2, side {
+//Mask either side of line
+//x1, y1, x2, y2 in pixel location
+//Side = 0 for left, other for right
+  n1=naxis1(inbuff)
+  n2=naxis2(inbuff)
+  outbuff=inbuff
+  for (i=1;i<=n1;i++) {
+    for (j=1;j<=n2;j++) {
+      s=sign((x2-x1)*(j-y1)-(y2-y1)*(i-x1))
+      if (s>0)&&(side==0) outbuff[i,j]=0/0
+      if (s<0)&&(side!=0) outbuff[i,j]=0/0
+    }
+  }
+  mask_line=outbuff
+}
+      

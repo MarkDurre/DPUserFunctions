@@ -1,0 +1,456 @@
+//Astronomical function - black-body, redshift, extinction
+function redshift_data, inbuff, z, rdflag, nanflag, smth, fcons {
+//Redshift data, always assume that last axis in spectral one
+//rdflag=1, redisperse final spectrum to original wavelength range
+//z -ve to shift data to higher redshifts, z +ve to shift to rest-frame
+  if (nparams()==0) {
+    print "REDSHIFT_DATA : Paramaters data, z, rdflag, nanflag, smooth"
+    redshift_data=0
+    break
+  }
+  if (nparams()<6) fcons=1 //Flux conserve flag
+  if (nparams()<5) smth=0
+  if (nparams()<4) nanflag=0
+  if (nparams()<3) rdflag=0
+  saxis=naxis(inbuff)
+  zshift=z+1
+  if (z<0) zshift=1/(abs(z)+1)
+  wcsold=get_WCS_data(inbuff,saxis)
+  wcsnew=wcsold
+  wcsnew[2]=wcsold[2]/zshift
+  wcsnew[3]=wcsold[3]/zshift
+  outbuff=cblank(inbuff)
+  nans=outbuff*0
+  nans[where(outbuff==0)]=1
+  newnans=nans
+  set_WCS_data outbuff, wcsnew, saxis
+  set_WCS_data nans, wcsnew, saxis
+  if (smth>0) outbuff=smooth(outbuff,smth)
+  if (rdflag==1) {
+    oldspec=spectrum_make_disp_data(inbuff,saxis)
+    newspec=spectrum_make_disp_data(outbuff,saxis)
+    newbuff=outbuff
+    newnans=outbuff
+    if (saxis==1) {
+      newbuff=interpol(outbuff,newspec,oldspec)
+      newnans=interpol(nans, newspec, oldspec)
+    } else {
+      for (i=1;i<=naxis1(inbuff);i++) {
+        for (j=1;j<=naxis2(inbuff);j++) {
+          newbuff[i,j,*]=interpol(outbuff[i,j,*],newspec,oldspec)
+          newnans[i,j,*]=interpol(nans[i,j,*],newspec,oldspec)
+        }
+      }
+    }
+    clip newnans,0,1
+    n=newnans
+    n[where(newnans>0.05)]=1
+    n[where(newnans<=0.05)]=0 
+    newnans=n  
+    outbuff=newbuff
+    set_WCS_data outbuff, wcsold, saxis
+  }
+  if (nanflag==1) outbuff[where(newnans>0.05)]=0/0
+  if (fcons==1) outbuff=outbuff*(1+z)
+  redshift_data=outbuff
+}
+
+function bb, t, l {
+//Black-body value for temperature and wavelength (m)
+    h=6.62618e-34 //Plank's constant
+    cl=2.998e8 //Speed of light
+    k=1.3807e-23 //Boltzmann's constant
+    k1=2*h*cl*cl
+    k2=h*cl/k
+//    print k1
+//    print k2
+    x1=k1/(l^5)
+    x2=(exp(k2/l/t)-1)
+//    print x1
+//    print x2
+    bb=x1/x2
+}
+
+function bb_make_log, t, l1, l2, npix, scale, cutoff {
+//Make bb with wavelength in log range
+//l1, l2 are log wavelength in meters
+  
+  if (nparams()==0) {
+    print "BB_MAKE_LOG : Paramaters temp, wl1, wl2, npix, scale, cutoff"
+    bb_make_log=0
+    break
+  }
+  dl=abs(l1-l2)/(npix+1)
+  bbb=longarray(npix,2)
+  l=l1-dl
+  for (i=1;i<=npix;i++) {
+    l=l+dl
+    ll=10^l
+    bbb[i,1]=ll*scale
+    b=bb(t,ll)
+    if (b<=cutoff){ 
+    	b=0/0 
+    }
+    bbb[i,2]=b
+  }
+  bb_make_log=bbb
+}
+  
+function bb_make,t, l1, l2, npix, flag {
+// Make black body
+//t=temperature
+//l1,l2=wavelength range 
+//flag 0=Angstroms, 1=nm
+//npix=number of pixels
+//Convert wavelengths to m
+    if (nparams()==0) {
+      print "BB_MAKE: Parameters t, l1, l2, npix, flag"
+      bb_make=0
+      break
+    }
+    if (nparams()<5) flag=1
+    if (flag==0) { 
+      fl=1e-10
+      wl=" A"
+    } else if (flag==1) {
+      fl=1e-9
+      wl = " nm"
+    } else if (flag==2) {
+      fl=1e-6
+      wl = " um"
+    }
+    //Convert wavelength to meters
+    lamb1=l1*fl
+    lamb2=l2*fl
+    dl=abs(l1-l2)/(npix-1)
+    print "BB_MAKE: L1 :"+l1+" L2 : "+l2+" DL : "+dl + wl
+    dlamb=dl*fl
+    bbb=fits(npix)
+    lamb=lamb1-dlamb
+    for (i=1;i<=npix;i++) {
+      lamb=lamb+dlamb
+      b=bb(t,lamb)
+      bbb[i]=b
+    }
+    setwcs bbb,1,1,l1,1,dl,1
+    bb_make=bbb
+}
+
+function bb_div, inbuff, temp, scale {
+//Divide spectrum by blackbody
+  if nparams()<3 scale=1  //Assume nm
+  if (nparams()==0) {
+    print "BB_DIV : Param1 = spectrum"
+    print "BB_DIV : Param2 = temperature (deg K)"
+    print "BB_DIV : Param3 = wavelength scale (0=Ang., 1=nm, 2=um, default 1)"
+    bb_div = 0
+  } else {
+    n=naxis1(inbuff)
+    l1=cvt_pixel_WCS_data(inbuff,1,1)
+    l2=cvt_pixel_WCS_data(inbuff,n,1)
+    bb=bb_make(temp,l1,l2,n,scale)
+    outbuff=inbuff/bb
+    bb_div=outbuff
+  }
+}
+
+function extinction_calc, f1, f2, l1, l2, rat, galext, s, flmin1,flmin2 {
+//Calculate extinction A_V
+//f1, f2 flux 
+//l1, l2 wavelengths
+//rat = expected flux ratio
+//galext = galactic extinction
+//s = smooth width
+/* Test values
+  f1=buffer1
+  f2=buffer2
+  l1=1257
+  l2=1644
+  rat=1.36
+  galext=0.16
+  s=2
+  flmin1=0.05
+  flmin2=0.05
+
+  print "Parameters"
+  print "l1 : "+l1
+  print "l2 : "+l2
+  print "R12 : "+rat
+  print "Galactic Extinction : "+galext
+  print "Smoothing : "+s
+  print "Minimum values : "+flmin1+" "+flmin2*/
+  fs1=f1
+  fs2=f2
+  m1=mask_from_image(fs1,flmin1,0/0)
+  m2=mask_from_image(fs2,flmin2,0/0)
+  if (s>0) {
+    fs1=smooth(cblank(fs1),s)
+    fs2=smooth(cblank(fs2),s)
+  }
+  f=fs1/fs2*m1*m2 //flux ratio
+//Calculate conversion from l1,l2 to E(B-V)
+  alpha=2.5/(extn_calc_alambda(l1,r_v)-extn_calc_alambda(l2,r_v))/3.1
+  print "EXTINCTION_CALC: Alpha : "+alpha
+  fr=f/rat
+  ebv=-alpha*lognan(fr) //Calcuate E_B-V
+  a_v= r_v * ebv - galext //Convert to A_V, subtract galactic extinction
+  avm=mask_from_image(a_v, 1e-3, 0/0) //Extinction < 0 is unphysical
+  avb=cblank(a_v)
+  if (s>0) {
+    avb=smooth(avb,s)
+    avm=mask_from_image(avb, 1e-3, 0/0) //Extinction < 0 is unphysical
+  }
+  extinction_calc = avb*avm
+}
+
+function extinction_correct, inbuff, ebv, law, lscale {
+  if (nparams()<4) lscale=1
+  if (nparams()<3) law=0
+  if (naxis(inbuff)==3) {
+    extinction_correct=extinction_correct_cube(inbuff, ebv, law, lscale)
+  } else {
+    extinction_correct=extinction_correct_spectrum(inbuff, ebv, law, lscale)
+  }
+}
+
+function extinction_correct_cube, inbuff, ebv, law, lscale {
+//Correct data for extinction using single E(B-V) value
+//law=0 -> CCM, law=1 ->Calzetti+00
+  if (nparams()<4) lscale=1
+  if (nparams()<3) law=0
+  outbuff=inbuff
+  lambda=spectrum_make_disp_data(inbuff, 3)*lscale
+  if (law==0) l=extinction_ccm(lambda, ebv)
+  if (law==1) l=extinction_cal00(lambda, ebv)
+  n1=naxis1(inbuff)
+  n2=naxis2(inbuff)
+  for (i=1;i<=n1;i++) {
+    for (j=1;j<=n2;j++) {
+       outbuff[i,j,*]=inbuff[i,j,*]/l
+    }
+  }
+  extinction_correct_cube=outbuff
+}
+
+function extinction_correct_spectrum, inbuff, ebv, law, lscale {
+//Correct data for extinction using single E(B-V) value
+//law=0 -> CCM, law=1 ->Calzetti+00
+  if (nparams()<4) lscale=1
+  if (nparams()<3) law=0
+  outbuff=inbuff
+  lambda=spectrum_make_disp_data(inbuff, 1)*lscale
+  if (law==0) l=extinction_ccm(lambda, ebv)
+  if (law==1) l=extinction_cal00(lambda, ebv)
+  extinction_correct_spectrum=inbuff/l
+}
+
+function extinction_correct_lambda, data, lambda, ebv, law {
+  if (nparams()<4) law=0
+  if (law==0) l=extinction_ccm(lambda, ebv)
+  if (law==1) l=extinction_cal00(lambda, ebv)
+  extinction_correct_lambda=data/l
+}
+
+function alambda_cal00, lambda, rv {
+//Calculate Calzetti+00 http://adsabs.harvard.edu/abs/2000ApJ...533..682C
+//extinction curve for wavelngth in nm
+  if nparams()<2 rv=4.05
+  l=lambda/1000 //Convert to um
+  f=l*0
+  nl=nelements(l)
+  lmax=max(l)
+  lmin=min(l)
+  if (lmax>2.2)||(lmin<0.12) {
+    print "ALAMBDA_CAL00 : Wavelength out of range for CAL00 calculation"
+    alambda_cal00=0
+    break
+  }
+  if (nl>1) {
+    for (i=1;i<=naxis1(l);i++) {
+      if (l[i]<0.6300) f[i]=2.569*poly(1/l[i],[-2.156,+1.509,-0.198,+0.011])+rv
+      if (l[i]>=0.6300) f[i]=2.569*(-1.857+1.040/l[i])+rv
+    }
+  } 
+  if (nelements(l)==1) {
+    if (l<0.6300) f=2.569*poly(1/l,[-2.156,+1.509,-0.198,+0.011])+rv
+    if (l>=0.6300) f=2.569*(-1.857+1.040/l)+rv
+  }
+  alambda_cal00=f
+}
+
+function extinction_cal00, lambda, ebv, rv {
+  if (nparams()<3) rv=4.05
+  if (nparams()<2) ebv=1
+  l=lambda/1000 //Convert to um
+  f=l*0
+  nav=nelements(av)
+  nl=nelements(l)
+  lmax=max(l)
+  lmin=min(l)
+  if (nav>1)&&(nav!=nl) {
+    print "EXTINCTION_CAL00 : Error N(Av)<> N(lambda)"
+    extinction_cal00=0
+    break
+  }
+  if (lmax>2.2)||(xmin<0.12) {
+    print "EXTINCTION_CAL00 : Wavelength out of range for CAL00 calculation"
+    extinction_cal00=0
+    break
+  }
+  if (nl>1) {
+    for (i=1;i<=naxis1(l);i++) {
+      if (l[i]<0.6300) f[i]=2.569*poly(1/l[i],[-2.156,+1.509,-0.198,+0.011])+rv
+      if (l[i]>=0.6300) f[i]=2.569*(-1.857+1.040/l[i])+rv
+    }
+  } 
+  if (nelements(l)==1) {
+    if (l<0.6300) f=2.569*poly(1/l,[-2.156,+1.509,-0.198,+0.011])+rv
+    if (l>=0.6300) f=2.569*(-1.857+1.040/l)+rv
+  }
+  fact=10^(0.4*ebv*f)
+  extinction_cal00=1/fact
+}
+
+function alambda_ccm, lambda, rv {
+//Calculate Cardelli, Clayton, and Mathis (1989 ApJ. 345, 245)
+//Including the update for the near-UV given by O'Donnell (1994, ApJ, 422, 158)
+//Extinction curve for wavelngth in nm
+  if (nparams()<2) rv=3.1
+  x=1000/lambda //Convert to 1/um
+  f=x*0
+//New coefficients from O'Donnell (1994)
+  c1 = [ 1. , 0.104,   -0.609,    0.701,  1.137, -1.718,   -0.827,    1.647, -0.505 ]
+  c2 = [ 0.,  1.952,    2.908,   -3.989, -7.985, 11.102,    5.491,  -10.805,  3.347 ]
+  c3 = [ -1.073, -0.628,  0.137, -0.070 ]
+  c4 = [ 13.670,  4.257, -0.420,  0.374 ]
+  nl=nelements(x)
+  xmax=max(x)
+  xmin=min(x)
+  if (xmax>11)||(xmin<0.3) {
+    print "EXTINCTION_CCM : Wavelength out of range for CCM calculation"
+    extinction_ccm=0
+    break
+  }
+  if (nl>1) {
+    for (i=1;i<=nl;i++) {
+      if ((x[i]>=0.3)&&(x[i]<1.1)) { //NIR 910-3333 nm
+        a = 0.574*x[i]^1.61
+        b = -0.527*x[i]^1.61
+      }
+      if ((x[i]>=1.1)&&(x[i]<3.3)) { //Optical/IR 303-910 nm
+        y=x[i]-1.82
+        a = poly(y,c1)
+        b = poly(y,c2)
+      }
+      if ((x[i]>=3.3)&&(x[i]<8)) { //UV 125-303 nm
+        fa=0
+        fb=0
+        y=x[i]
+        if (x[i]>5.9) {
+          y1=x[i]-5.9
+          fa = -0.04473 * y1^2 - 0.009779 * y1^3
+          fb = 0.2130 * y1^2  +  0.1207 * y1^3
+        }
+        a =  1.752 - 0.316*y - (0.104 / ( (y-4.67)^2 + 0.341 )) + fa
+        b = -3.090 + 1.825*y + (1.206 / ( (y-4.62)^2 + 0.263 )) + fb
+      }
+      if ((x[i]>=8)&&(x[i]<11)) { //Far UV 90-125 nm
+        y=x[i]-8
+        a = poly(y, c3)
+        b = poly(y, c4)
+      }
+      f[i] = (a + b/rv)
+    }
+  } 
+  if (nl==1) {
+      if ((x>=0.3)&&(x<1.1)) { //NIR 910-3333 nm
+        a = 0.574*x^1.61
+        b = -0.527*x^1.61
+      }
+      if ((x>=1.1)&&(x<3.3)) { //Optical/IR 303-910 nm
+        y=x-1.82
+        a = poly(y,c1)
+        b = poly(y,c2)
+      }
+      if ((x>=3.3)&&(x<8)) { //UV 125-303 nm
+        fa=0
+        fb=0
+        y=x
+        if (x>5.9) {
+          y1=x-5.9
+          fa = -0.04473 * y1^2 - 0.009779 * y1^3
+          fb = 0.2130 * y1^2  +  0.1207 * y1^3
+        }
+        a =  1.752 - 0.316*y - (0.104 / ( (y-4.67)^2 + 0.341 )) + fa
+        b = -3.090 + 1.825*y + (1.206 / ( (y-4.62)^2 + 0.263 )) + fb
+      }
+      if ((x>=8)&&(x<11)) { //Far UV 90-125 nm
+        y=x-8
+        a = poly(y, c3)
+        b = poly(y, c4)
+      }
+      f = (a + b/rv)
+  }
+  alambda_ccm=f
+}
+
+function extinction_ccm, lambda, ebv, rv {
+//Calculate Cardelli, Clayton, and Mathis (1989 ApJ. 345, 245)
+//Including the update for the near-UV given by O'Donnell (1994, ApJ, 422, 158)
+//Extinction curve for wavelngth in nm
+  if (nparams()<3) rv=3.1
+  if (nparams()<2) ebv=1
+//  print "EXTINCTION_CCM - a : "+a+" b : "+b
+  fact=10^(0.4*alambda_ccm(lambda, ebv, rv))
+  extinction_ccm=1/fact
+}
+
+function sextodec, sexstr {
+//Convert sexadecimal string to decimal number
+  sexcomps=strsplit(sexstr,":")
+  h=float(sexcomps[1])
+  m=float(sexcomps[2])
+  s=float(sexcomps[3])
+  hh=abs(h)
+  ss=(hh+m/60+s/3600)*sign(h)
+  sextodec=ss
+}
+
+function dectosex, decnum {
+  dd=abs(decnum)
+  s=sign(decnum)
+  ss=""
+  if (s<0) ss="-"
+  d1=int(dd)
+  d2=int((dd-d1)*60)
+  d3=float((dd-d1-d2/60)*3600)
+  d2s=right("00"+d2,2)
+  d3s="00"+d3
+  p=strpos(d3s,".")
+  if (p<0) d3s+=".00"
+  p=strpos(d3s,".")
+  d3l=strlen(d3s)
+  d3ss=d3s[p-2:d3l]  
+  dectosex=ss+d1+":"+d2s+":"+d3ss
+}
+
+function flux_ul, inbuff, lambda, fwhm, ignore {
+//Find upper limit for flux over range, 3-sigma on noise
+//Assume spectrum is in last axis and has correct WCS
+  if (nparams()<4) ignore=-1
+  laxis=naxis(inbuff)
+  p1=cvt_WCS_pixel_data(inbuff, lambda-fwhm/2, laxis)
+  p2=cvt_WCS_pixel_data(inbuff, lambda+fwhm/2, laxis)
+  if (isnan(ignore)==1) {
+    if (laxis==1) sigma=stddev(inbuff[p1:p2], ignore)
+    if (laxis==3) sigma=stddev(inbuff[*,*,p1:p2], ignore)
+  } else {
+    if (laxis==1) sigma=stddev(inbuff[p1:p2])
+    if (laxis==3) sigma=stddev(inbuff[*,*,p1:p2])
+  }      
+  flux_ul=3*sigma*fwhm
+}
+
+
+
+  

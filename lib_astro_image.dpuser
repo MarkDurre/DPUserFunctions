@@ -1,0 +1,182 @@
+//Astronomical functions on images
+function img_flux_to_mag, inbuff, zpm, ssize, flag {
+//Convert flux or counts to magnitude per square arcsec
+//ssize - spaxel size in arcsec (assume square spaxels)
+//If flag=0 flux is scaled relative to zero point magnitude
+//If flag=1 flux is scaled relative to zero magnitude flux
+//If ssize=0 or not given, then uses the actual spaxel size from WCS
+//If inbuff is a number, just convert by the zpm
+  if (nparams()<4) flag=0
+  if (nparams()<3) ssize=0
+  if (nparams()<2) zpm=1
+  if (nparams()<1) {
+    print "IMG_FLUX_TO_MAG: Parameters - inbuff, zpm, ssize, flag"
+  }
+  if (nelements(inbuff)==1) { //Single number
+  size=1
+  } else { //Image
+  size=ssize
+  if (size==0) { //Find actual spzel size
+    if (check_header_key(inbuff,"CDELT1")==1) { //We have CDELT keys
+      cd1=getfitskey(inbuff,"CDELT1")
+      cd2=getfitskey(inbuff,"CDELT2")
+      size=sqrt(cd1^2+cd2^2)*3600/sqrt(2)
+    } else { //Using CD keys
+      if (check_header_key(inbuff,"CD1_1")==0) { //don't have CD keys therefore quit
+        print "IMG_FLUX_TO_MAG: No WCS keys"
+        break
+      }
+      cd11=getfitskey(inbuff,"CD1_1")
+      cd12=getfitskey(inbuff,"CD1_2")
+      cd21=getfitskey(inbuff,"CD2_1")
+      cd22=getfitskey(inbuff,"CD2_2")
+      size=sqrt(cd11^2+cd12^2+cd21^2+cd22^2)*3600/sqrt(2)
+    }
+    print "IMG_FLUX_TO_MAG: Spaxel size - "+size
+  }
+  }
+  f=inbuff/size^2
+  if (flag==0) {
+    if (nelements(inbuff)==1) {
+      outbuff=-2.5*log(f)+zpm
+    } else {
+      outbuff=-2.5*lognan(f)+zpm
+    }
+  } else {
+    if (flag==1) {
+      fz=f/zpm
+      if (nelements(inbuff)==1) {
+        outbuff=-2.5*log(fz)
+      } else {
+        outbuff=-2.5*lognan(fz)
+      }
+    } else {
+      print "IMG_FLUX_TO_MAG: Flag error!"
+      outbuff=0
+    }
+  }
+  img_flux_to_mag=outbuff
+}
+
+function img_apphot_annular, img, xcen, ycen, r, ib, ob {
+//Get total and average flux and pixel count over circular-annular aperture
+//Circle specified by xce, xyen, r
+//Annulus specified by xcen, ycen, ib, ob (inner and outer radius)
+//If ib=0 then annulus is twice the size of circle
+  if (nparams()<6) ib=0
+  n1=naxis1(img)
+  n2=naxis2(img)
+  if (ib==0) {
+    ib=r
+    ob=r*2
+  }
+  mask1=circle(xcen,ycen,r,naxis1=n1,naxis2=n2)
+  mask2=circle(xcen,ycen,ob,naxis1=n1,naxis2=n2)-circle(xcen,ycen,ib,naxis1=n1,naxis2=n2)
+  flux=total(img*mask1)
+  fluxcnt=total(mask1)
+  bckcnt=total(mask2)
+  bck=total(img*mask2)
+  img_apphot_annular=flux-bck*fluxcnt/bckcnt
+}
+
+function img_apphot_simple, img, xcen, ycen, r, pixsize, scale, prn {
+//Get total and average flux and pixel count over circle for surface density
+//Circle xcen, ycen, r
+//1 pixel per "pixsize" pc
+//if r=0, then single pixel [xcen, ycen]
+//Returns total flux, average flux and pixel count
+  if (nparams()<8) prn=0
+  if (nparams()<7) scale=0
+  if (nparams()<6) pixsize=1
+  n1=naxis1(img)
+  n2=naxis2(img)
+  if (scale==0) {
+    scale=1
+  }
+  if (r>0) {
+    mask=circle(xcen,ycen,r,naxis1=n1,naxis2=n2)
+  } else {
+    mask=floatarray(n1,n2)
+    mask[xcen,ycen]=1
+  }
+  mi=mask_from_image_nan(img)
+  ncount=total(mask*mi)
+  tot=total(img*mask)
+  av=tot/ncount
+  fpc=tot/pixsize^2*scale
+  if (prn!=0) {
+    print "IMG_APPHOT_SIMPLE: Total flux : "+tot
+    print "IMG_APPHOT_SIMPLE: Avg flux   : "+av
+    print "IMG_APPHOT_SIMPLE: Pixel Count: "+ncount
+    print "IMG_APPHOT_SIMPLE: Total/pc^2 : "+fpc
+  }
+  img_apphot_simple=[tot,av,ncount,fpc]
+}
+
+function img_convert_filters, image1, image2, coeffs12, coeffs21, tol, zpt {
+//Convert images in 2 filters to other filter set
+//Methodology of ﻿Holtzman, J. A., Burrows, C. J., Casertano, S., et al. 1995, PASP, 107, 1065
+//Coefficients for WFPC2/WFC3 from Holtzmann, ACS from﻿ Sirianni, et al. 2005, PASP, 117, 1049
+//Convert to intial magnitudes
+  if (nparams()<6) zpt=-21.1//Standard HST ZPT
+  if (nparams()<5) tol=0.01//Tolereance to 0.01 mag
+  print "IMG_CONVERT_FILTERS : Setup...."
+  print "IMG_CONVERT_FILTERS : Image 1 -> mag"
+  smag1=-2.5*lognan(image1)+zpt
+  print "IMG_CONVERT_FILTERS : Image 2 -> mag"
+  smag2=-2.5*lognan(image2)+zpt
+//Coeffcients
+  c012=coeffs12[1]
+  c112=coeffs12[2]
+  c212=coeffs12[3]
+  c021=coeffs21[1]
+  c121=coeffs21[2]
+  c221=coeffs21[3]
+  tol1=1
+  tol2=1
+  outmag1=smag1+c012
+  outmag2=smag2+c021
+  outmag12=smag1-smag2
+  niter=0
+  while (tol1>tol)||(tol2>tol){
+    trmag1=smag1+c012+c112*outmag12+c212*outmag12^2
+    trmag2=smag2+c021+c121*outmag12+c221*outmag12^2
+    outmag12=trmag1-trmag2
+    tolimg1=(trmag1-outmag1)
+    tolimg2=(trmag2-outmag2)
+    outmag1=trmag1
+    outmag2=trmag2
+    niter++
+    tol1=max(abs(tolimg1))
+    tol2=max(abs(tolimg2))
+    print "IMG_CONVERT_FILTERS : No.of iteration = "+niter+" Tolerances = "+"["+tol1+","+tol2+"]"
+  }
+  outdata=outmag1
+  resize outdata, naxis1(outdata), naxis2(outdata), 3
+  outdata[*,*,2]=outmag2
+  outdata[*,*,3]=outmag1-outmag2
+//  print "IMG_CONVERT_FILTERS : No.of iteration = "+niter+" Tolerances = "+"["+tol1+","+tol2+"]"
+  img_convert_filters=outdata
+}
+
+function SFD_dust_pos, dustimgn, dustimgs, lat, long {
+//Returns E(B-V) at Gal lat/long position for Schlegel etal. 1995 dust map
+//Check which image to use
+  img=dustimgn
+  if (lat<=0) img=dustimgs
+//Get scale and NSGP sign
+  scale=getfitskey(img,"LAM_SCAL")
+  nsgp=getfitskey(img, "LAM_NSGP")
+  crpix1=getfitskey(img,"CRPIX1")
+  crpix2=getfitskey(img,"CRPIX2")
+  x=sqrt(1-nsgp*sin(lat,/deg))*cos(long,/deg)*scale+crpix1
+  y=-nsgp*sqrt(1-nsgp*sin(lat,/deg))*sin(long,/deg)*scale+crpix2
+  ix=int(x)
+  iy=int(y)
+//  print "Dust Position X : "+ix+" Y : "+iy
+  SFD_dust_pos=img[ix,iy]
+}
+  
+function SF_dust_pos, dustimgn, dustimgs, lat, long {
+  SF_dust_pos=SFD_dust_pos(dustimgn, dustimgs, lat, long) *0.86
+}

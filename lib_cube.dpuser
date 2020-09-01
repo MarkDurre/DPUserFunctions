@@ -1,0 +1,936 @@
+function cube_test_dim, inbuff, x1, x2, y1, y2, z1, z2 {
+//Test for cube dimensions
+  n1=naxis1(inbuff)
+  n2=naxis2(inbuff)
+  n3=naxis3(inbuff)
+  res=0
+//Test x-axis
+  if (x1!=0) {
+    if ((x1<1)||(x2>n1)) {
+      print "CUBE_TEST_DIM Error : X-axis "+x1+":"+x2+" - "+n1
+      res=1
+    }
+  }
+
+//Test y-axis
+  if (y1!=0) {
+    if ((y1<1)||(y2>n2)) {
+      print "CUBE_TEST_DIM Error : Y-axis "+y1+":"+y2+" - "+n2
+      res=1
+    }
+  }
+
+//Test z-axis
+  if (z1!=0) {
+    if ((z1<1)||(z2>n3)) {
+      print "CUBE_TEST_DIM Error : Z-axis "+z1+":"+z2+" - "+n3
+      res=1
+    }
+  }
+  cube_test_dim=res
+}
+
+function cube_trim_xy, cube_in, x1, x2, y1, y2 {
+//Trim cube in x and y coords (values are pixels)
+//Remove all nan and inf values, set to zero
+  if (cube_test_dim(cube_in, x1, x2, y1, y2, 0, 0)==0) {
+  cube_out = cblank(cube_in)
+  n1=naxis1(cube_in)
+  n2=naxis2(cube_in)
+  n3=naxis3(cube_in)
+  if (x1>0) {
+    cube_out[1:x1,*,*]=0
+  }
+  if (x2>0) {
+    cube_out[x2:n1,*,*]=0
+  }
+  if (y1>0) {
+    cube_out[*,1:y1,*]=0
+  }
+  if (x1>0) {
+    cube_out[*,y2:n2,*]=0
+  }
+  cube_trim_xy = cube_out
+  }
+}
+
+function cube_trim_wl, cube_in, l1, l2, value, trim {
+//Trim cube in wavelength (values in WCS, e.g. nm)
+  cube_out = cube_in
+  n1=naxis1(cube_in)
+  n2=naxis2(cube_in)
+  n3=naxis3(cube_in)
+  pl1=cvt_WCS_pixel_data(cube_in, l1, 3)
+  pl2=cvt_WCS_pixel_data(cube_in, l2, 3)
+  if ((pl1>=1) && (pl1<=n3)) {
+     cube_out[*,*,1:pl1]=value
+  }
+  if ((pl2>=1) && (pl2<=n3)) {
+     cube_out[*,*,pl2:n3]=value
+  }
+  if (trim>0) cube_out=cube_out[*,*,pl1+1:pl2-1]
+  cube_trim_wl=cube_out
+}
+
+function cube_spectrum_mask, cube, mask, level {
+//Mask spectral elements in cube
+  outbuff=cube
+  nmask=nelements(mask)/2
+  for (i=1;i<=nmask;i++) {
+     l1=mask[i*2-1]
+     l2=mask[i*2]
+     print "CUBE_SPECTRUM_MASK: Masking pixels : ["+l1+":"+l2+"]"
+     outbuff[*,*,l1:l2]=level
+   }
+   cube_spectrum_mask=outbuff
+}
+  
+function cube_clip, cube_in, lvl, thresh, mask {
+//Smooth where bad pixels, <0 and >lvl
+  cube_out = cube_in
+  fixed_tot=0
+  n3=naxis3(cube_in)
+//Mask out spectral lines
+  line_save=cube_in*0
+  cube_out=cube_spectrum_mask(cube_out, mask, 0)
+  for (i=1;i<=n3;i++) {
+//Image smooth at each wavelength
+    frame=cube_out[*,*,i]
+    bpix1=frame * 0
+    bpix1[where(frame<0)]=1
+    bpix1[where(frame>lvl)]=1
+    framesmth=frame-boxcar(frame,1,/median)
+    bpix2=dpixcreate(framesmth, thresh, 3, 1)
+    bpix=clip(bpix1+bpix2,0,1)
+    frame=dpixapply2(frame,bpix,5)
+    fixed_tot += total(bpix)
+    cube_out[*,*,i]=frame
+    fc=i-int(i/10)*i
+    if (fc==1) {
+    	print "CUBE_CLIP: Frame: "+i+"/"+n3
+    }
+  }
+  cube_clip=cube_out
+  print "CUBE_CLIP: Total clipped : "+fixed_tot
+}
+
+function cube_clip_y, cube_in, lvl, thresh {
+//Smooth where bad pixels, <0 and >lvl
+  cube_out = cube_in
+  fixed_tot=0
+  for (i=1;i<=naxis1(cube_in);i++) {
+    print "CUBE_CLIP_Y: Layer : "+i
+//Image smooth at each wavelength    
+    frame=cube_in[i,*,*]
+    bpix1=frame * 0
+
+    bpix1[where(frame<0)]=1
+    bpix1[where(frame>lvl)]=1
+    frame_smth=frame-boxcar(frame,1,/median)
+    bpix2=dpixcreate(frame_smth, thresh, 3, 1)
+    bpix=clip(bpix1+bpix2,0,1)
+    frame=dpixapply2(frame,bpix,5)
+    fixed_tot += total(bpix)
+    cube_out[i,*,*]=frame
+  }
+  cube_clip_y=cube_out
+  print "CUBE_CLIP_Y: Total clipped : "+fixed_tot
+}
+
+function cube_interp_z, cube_in, x1, x2, y1, y2, z1,z2 {
+//Smooth over bad pixels
+//   check_limits cube_in, x1, x2, y1, y2, z1, z2, 3
+   if (cube_test_dim(cube_in, x1, x2, y1, y2, z1, z2)==0) {
+   z0=z1-1
+   z3=z2+1
+   outbuff=cube_in
+   for (k=y1;k<=y2;k++) {
+     for (j=x1;j<=x2;j++) {
+       v0=cube_in[j,k,z0]
+       v2=cube_in[j,k,z3]
+       for (i=z1;i<=z2;i++) {
+         v=(i-z0)/(z3-z0)*(v2-v0)+v0
+         outbuff[j,k,i]=v
+       }
+//       print j+","+k+","+v0+","+v2
+     }
+   }
+   cube_interp_z=outbuff
+   }
+}
+
+function cube_interp_x, cube_in, x1, x2, y1, y2, z1,z2 {
+//Smooth over bad pixels
+   if (cube_test_dim(cube_in, x1, x2, y1, y2, z1, z2)==0) {
+   x0=x1-1
+   x3=x2+1
+   outbuff=cube_in
+   for (k=y1;k<=y2;k++) {
+     for (j=z1;j<=z2;j++) {
+       v0=cube_in[x0,k,j]
+       v2=cube_in[x3,k,j]
+       for (i=x1;i<=x2;i++) {
+         v=(i-x0)/(x3-x0)*(v2-v0)+v0
+         outbuff[i,k,j]=v
+       }
+//       print j+","+k+","+v0+","+v2
+     }
+   }
+   cube_interp_x=outbuff
+   }
+}
+
+function cube_interp_y, cube_in, x1, x2, y1, y2, z1,z2 {
+//Smooth over bad pixels
+   if (cube_test_dim(cube_in, x1, x2, y1, y2, z1, z2)==0) {
+   y0=y1-1
+   y3=y2+1
+   outbuff=cube_in
+   for (k=z1;k<=z2;k++) {
+     for (j=x1;j<=x2;j++) {
+       v0=cube_in[j,y0,k]
+       v2=cube_in[j,y3,k]
+       for (i=y1;i<=y2;i++) {
+         v=(i-y0)/(y3-y0)*(v2-v0)+v0
+         outbuff[j,i,k]=v
+       }
+//       print j+","+k+","+v0+","+v2
+     }
+   }
+   cube_interp_y=outbuff
+   }
+}
+
+function cube_interp_xy, cube_in, x1, x2, y1, y2, z1,z2 {
+//Smooth over bad pixels
+   if (cube_test_dim(cube_in, x1, x2, y1, y2, z1, z2)==0) {
+   x0=x1-1
+   x3=x2+1
+   y0=y1-1
+   y3=y2+1
+   outbuff=cube_in
+   zmin=z1
+   zmax=z2
+   if (z1==0) zmin=1
+   if (z2==0) zmax=naxis3(cube_in)
+   print "CUBE_INTERP_XY: Interpolating X - ["+x1+","+x2+"] Y - ["+y1+","+y2+"] Z - ["+z1+","+z2+"]"
+   for (z=z1;z<=z2;z++) {
+     for (x=x1;x<=x2;x++) {
+       vy0=cube_in[x,y0,z]
+       vy3=cube_in[x,y3,z]
+       for (y=y1;y<=y2;y++) {
+         vx0=cube_in[x0,y,z]
+         vx3=cube_in[x3,y,z]
+         vi1=(y-y0)/(y3-y0)*(vy3-vy0)+vy0
+         vi2=(x-x0)/(x3-x0)*(vx3-vx0)+vx0
+//         print z+","+x+","+y+","+vy0+","+vy3+","+vx0+","+vx3+","+vi1+","+vi2
+         outbuff[x,y,z]=(vi1+vi2)/2
+       }
+     }
+   }
+   cube_interp_xy=outbuff
+   }
+}
+
+function cube_set_value, cube_in, x1, x2, y1, y2, z, xv, yv {
+//set absolute values at a wavelength based on another pixel
+   if (cube_test_dim(cube_in, x1, x2, y1, y2, z1, z2)==0) {
+   outbuff=cube_in
+   value=cube_in[xv, yv, z]
+   for (k=y1;k<=y2;k++) {
+     for (j=x1;j<=x2;j++) {
+       outbuff[j,k,*]=value
+     }
+   }
+   cube_set_value=outbuff
+   }
+}
+
+function cube_pixfix_xy, inbuff, pixfixdata, n {
+//Fix pixels from data file
+  outbuff=inbuff
+  n1=naxis1(inbuff)
+  n2=naxis2(inbuff)
+  n3=naxis3(inbuff)
+  for (i=1;i<=n;i++) {
+    params=pixfixdata[*,i]
+    z1=int(params[1])
+    z2=int(params[2])
+    x1=int(params[3])
+    x2=int(params[4])
+    y1=int(params[5])
+    y2=int(params[6])
+    print "CUBE_PIXPFIX_XY: mooth:"+i+" "+x1+","+y1+","+y2+","+z1+","+z2
+    if ((z1>=1)&&(z2<=n3)&&(x1>=1)&&(x2<=n1)&&(y1>=1)&&(y1<=n2)) {
+      outbuff=cube_interp_xy(outbuff,x1,x2,y1,y2,z1,z2)
+    } else {
+      print "CUBE_PIXPFIX_XY: Parameters error : "+pixfixdata[i]
+    }
+  }
+  cube_pixfix_xy=outbuff
+}
+
+function cube_single_pixel_fix, inbuff, x, y {
+  outbuff=inbuff
+  n1=naxis1(inbuff)
+  n2=naxis2(inbuff)
+  n3=naxis3(inbuff)
+  cube_single_pixel_fix=cube_interp_xy(inbuff, x, x, y, y, 1, n3)
+}
+
+function cube_clean_dpix, inbuff, divisor {
+//Clean cube by dpixcreate/apply
+//divisor =  scale set from maximum of median image
+  cm=cubemedian(inbuff)
+  outbuff=inbuff
+  m=max(cm)
+  count=0
+  for (i=1;i<=naxis3(inbuff);i++) {
+    layer=inbuff[*,*,i]
+    dp=dpixcreate(layer,m/divisor,3,1)
+    tdp=total(dp)
+    count=count+total(dp)
+    if (tdp>0) outbuff[*,*,i]=dpixapply(layer,dp,3)
+  }
+  print "CUBE_CLEAN_DPIX: Total pixels fixed : "+count
+  cube_clean_dpix=outbuff
+}
+
+function cube_resize_center, inbuff, xcen, ycen, xsize, ysize {
+//Resize and center cube
+  outbuff=inbuff
+  resize outbuff, xsize, ysize
+  xc=int(xsize/2)
+  yc=int(ysize/2)
+  shift outbuff, xc-xcen, yc-ycen
+  cube_resize_center=outbuff
+}
+
+procedure cube_bit_nan, inbuff,x,y {
+ inbuff[x,y,*]=0/0
+}
+
+function cube_shift_xy, inbuff, xshift, yshift {
+//Shift cubes - standard shift only allows pixel shift
+  outbuff=inbuff
+  n3=naxis3(inbuff)
+  print "CUBE_SHIFT_XY: Shifting "+n3+" spectral pixels X :"+xshift+" Y: "+yshift
+  for (i=1;i<=n3;i++) {
+    outbuff[*,*,i]=shift(inbuff[*,*,i],xshift,yshift)
+    if ((i%10)==1) print i+"/"+n3
+  }
+  cube_shift_xy=outbuff
+}
+
+function cube_redisp, cube, val_new, delt_new, n_new, prnt {
+//Redisperse a data cube
+  xold=spectrum_make_disp_data(cube, 3)
+  xnew=spectrum_make_disp(val_new,  delt_new, 1, n_new)
+  n1=naxis1(cube)
+  n2=naxis2(cube)
+  outbuff=resize(cube,n1,n2,n_new)*0
+  for (i=1;i<=n1;i++) {
+    if (prnt==1) print "Col : "+i
+    for (j=1;j<=n2;j++) {
+      outbuff[i,j,*]=interpol(cube[i,j,*],xold,xnew)
+    }
+  }
+//  copyheader outbuff,cube
+  setfitskey outbuff, "CRVAL3",val_new
+  setfitskey outbuff, "CRPIX3",1
+  setfitskey outbuff, "CDELT3",delt_new
+  setfitskey outbuff, "CD3_3", delt_new
+  cube_redisp=outbuff
+}
+
+function cube_symm_flip, cube, lambda, width, part {
+//Trim cube to lambda+-width and symmetric flip
+  l1=lambda-width
+  l2=lambda+width
+  p1=cvt_WCS_pixel_data(cube, l1, 3)
+  p2=cvt_WCS_pixel_data(cube, l2, 3)
+  work=cube[*,*,p1:p2]
+  for (i=1;i<=naxis1(cube);i++) {
+    print "CUBE_SYMM_FLIP: Flipping column : "+i
+    for (j=1;j<=naxis2(cube);j++) {
+      x=3dspec(work, i, j, /sum)
+      z=spectrum_symm_flip(x, lambda, part)
+      work[i,j,*]=z
+    }
+  }
+  cube_symm_flip=work
+}
+
+function cube_rotate, inbuff, xcen, ycen, platescale, rot_angle   {
+//Rotate 3D cube to standard orientation, i.e. X is E -ve, Y is N +ve
+//xcen, ycen = central pixel
+//platescale = plate scale in seconds (hard to work out from original)
+//rot_angle = rotation angle in QFitsView sense 
+//Works on 2D images as well
+//Cube is resized to max(n1,n2)
+  n1=naxis1(inbuff)
+  n2=naxis2(inbuff)
+  n3=naxis3(inbuff)
+  inbuff=set_WCS_default(inbuff)
+  ra_center=cvt_pixel_WCS_data(inbuff, xcen, 1)
+  dec_center=cvt_pixel_WCS_data(inbuff, ycen, 2)
+  if (n3>1) axis3=get_WCS_data(inbuff,3)
+//  print sprintf("%15.9f",ra_center)+" : "+sprintf("%15.9f",dec_center)+" Platescale: "+platescale*3600+" sec"
+  ns=int(max(n1,n2))
+  outbuff=cube_resize_center(inbuff,xcen,ycen,ns,ns)
+//Resize and shift to center
+//Rotate about central pixel - assume xy is right size (e.g. use cube_resize_center
+  if (n3>1) {
+    for (i=1;i<=n3;i++) {
+      img=outbuff[*,*,i]
+      rotate img, rot_angle, ns/2, ns/2
+      outbuff[*,*,i]=img
+    } 
+  } else {
+      img=outbuff
+      rotate img, rot_angle, ns/2, ns/2
+      outbuff=img
+  }
+//Reset all WCS co-ordinates correctly
+  setfitskey outbuff, "CRPIX1", xcen
+  setfitskey outbuff, "CRPIX2", ycen
+  setfitskey outbuff, "CRVAL1", ra_center
+  setfitskey outbuff, "CRVAL2", dec_center
+  setfitskey outbuff, "CDELT1", -platescale
+  setfitskey outbuff, "CDELT2", platescale
+  setfitskey outbuff, "CD1_1", -platescale
+  setfitskey outbuff, "CD1_2", 0
+  setfitskey outbuff, "CD2_1", 0
+  setfitskey outbuff, "CD2_2", platescale
+  if (n3>1) {
+    setfitskey outbuff, "CRPIX3", axis3[1]
+    setfitskey outbuff, "CRVAL3", axis3[2] 
+    setfitskey outbuff, "CDELT3", axis3[3]
+    setfitskey outbuff, "CD3_3", axis3[3]
+  }
+  cube_rotate=outbuff
+}
+
+function cube_centroids, inbuff {
+//Get x and y xentroids at each wavelength pixel
+  n3=naxis3(inbuff)
+  cen=fits(n3,2)
+  for (i=1;i<=n3;i++) {
+    cen[i,1]=xcen(inbuff[*,*,i])
+    cen[i,2]=ycen(inbuff[*,*,i])
+  }
+  cube_centroids=cen
+}
+
+function cube_centroids_gauss, inbuff, xe, ye, we, mask {
+//Get x and y xentroids at each wavelength pixel
+  if nelements(mask)>1 {
+    cube=spectrum_mask(inbuff, mask, 0/0, 0)
+  } else {
+    cube=inbuff
+  }
+  n3=naxis3(cube)
+  cen=fits(n3,7)
+  for (i=1;i<=n3;i++) {
+    gf=gauss2dsimplefit(cube[*,*,i],xe,ye,we)
+    cen[i,*]=gf[*,1]
+  }
+  cube_centroids_gauss=cen
+}
+
+function cube_centroid_gauss_align, inbuff, xc, yc, xe, ye, we, mask {
+//Align cube to [xc, yc] from centroid of each image
+  if nparams()<1 {
+    print "CUBE_CENTROID_GAUSS_ALIGN: Parameters - inbuff, xc, yc, xe, yc, we, mask"
+    break
+  }
+  n1=naxis1(inbuff)
+  n2=naxis2(inbuff)
+  n3=naxis3(inbuff)
+  if nparams()<3 {
+    xc=n1/2
+    yc=n2/2
+  }
+  if nparams()<7 mask=0
+  if nparams()<6 we=1
+  if nparams()<5 {
+    xe=xc
+    ye=yc
+  }
+  cents=cube_centroids_gauss(inbuff, xe, ye, we, mask)
+  centx=cents[*,3]
+  centy=cents[*,4]
+  bck=cblank(cents[*,1])
+//Fit 3rd order polynomial to x and y centroids
+  wl=[1:naxis1(centx)]
+  centx[where(bck==0)]=0/0
+  px=polyfit(centx,3)
+  sx=poly(wl,px[*,1])
+  centy[where(bck==0)]=0/0
+  py=polyfit(centy,3)
+  sy=poly(wl,py[*,1])
+//Shift each wavelength element to center
+  outbuff=inbuff*0
+  for (i=1;i<=n3;i++) {
+    outbuff[*,*,i]=shift(inbuff[*,*,i],(xc-sx[i]),(yc-sy[i]))
+//    if ((i%10)==1) print i+"/"+n3
+  }
+  if nelements(mask)>1 outbuff=spectrum_mask(outbuff,mask,0/0,0)
+  print "CUBE_CENTROID_GAUSS_ALIGN: Finished"
+  cube_centroid_gauss_align=outbuff
+}
+
+function cube_cont_slope, inbuff, mask, flag {
+   if (nparams()<3) flag=0
+   if (nparams()<2) mask=0
+   n1=naxis1(inbuff)
+   n2=naxis2(inbuff)
+   outbuff=fits(n1,n2)
+   icube=spectrum_mask(inbuff, mask, 0/0, flag)
+   for (i=1;i<=n1;i++) {
+     for (j=1;j<=n2;j++) {
+       s=3dspec(icube,i,j,/sum)
+       p=polyfit(s,1)
+       outbuff[i,j]=p[2,1]
+     }
+   }
+   cube_cont_slope=outbuff
+}
+
+function cube_spectrum_subtract, inbuff, spectrum, x1, x2, y1, y2 {
+//Subtract spectrum for each spaxel of cube, ignoring those that total 0
+   n1=naxis1(inbuff)
+   n2=naxis2(inbuff)
+   n3=naxis3(inbuff)
+   ns=naxis1(spectrum)
+   outbuff=inbuff
+   if (ns==n3) {
+     i1=1
+     if (x1>0) i1=x1
+     i2=n1
+     if (x2>0) i2=x2
+     j1=1
+     if (y1>0) j1=y1
+     j2=n2
+     if (y2>0) j2=y2
+     for (i=i1;i<=i2;i++) {
+       for (j=j1;j<=j2;j++) {
+         spaxel=outbuff[i,j,*]
+         if (total(spaxel)!=0) spaxel=spaxel-spectrum
+         outbuff[i,j,*]=spaxel
+       }
+     }
+   } else {
+     print "CUBE_SPECTRUM_SUBTRACT: Error: axis lengths not equal!"
+     outbuff=0
+   }
+   cube_spectrum_subtract=outbuff
+}
+
+function cube_spectrum_divide, cube, spec {
+  dataout=cube*0
+  n1=naxis1(cube)
+  n2=naxis2(cube)
+  n3=naxis3(cube)
+  print "CUBE_SPECTRUM_DIVIDE: Cube divide by spectrum, dimensions : "+n1+" "+n2+" "+n3+" ("+naxis1(spec)+")"
+  if (naxis1(spec)!=n3) {
+    print "CUBE_SPECTRUM_DIVIDE: error - spectral axis not equal!!"
+  } else {
+    for (i=1;i<n1;i++) {
+      for (j=1;j<=n2;j++) {
+        dataout[i,j,*]=cube[i,j,*]/spec
+      }
+    }
+  }
+  cube_spectrum_divide=dataout
+}
+
+function cube_spectrum_multiply, cube, spec {
+  dataout=cube*0
+  n1=naxis1(cube)
+  n2=naxis2(cube)
+  n3=naxis3(cube)
+  print "CUBE_SPECTRUM_MULTIPLY: Cube multiplied by spectrum, dimensions : "+n1+" "+n2+" "+n3+" ("+naxis1(spec)+")"
+  if (naxis1(spec)!=n3) {
+    print "CUBE_SPECTRUM_MULTIPLY: error - spectral axis not equal!!"
+  } else {
+    for (i=1;i<n1;i++) {
+      for (j=1;j<=n2;j++) {
+        dataout[i,j,*]=cube[i,j,*]*spec
+      }
+    }
+  }
+  cube_spectrum_multiply=dataout
+}
+
+function cube_set_pixlayers, inbuff, pixl, pix1, pix2 {
+//Set multiple spectral pixels from a single pixel layer
+  outbuff=inbuff
+  lyr=inbuff[*,*,pixl]
+  for (i=pix1;i<=pix2;i++) outbuff[*,*,i]=lyr
+  cube_set_pixlayers=outbuff
+}
+
+function cube_wavelength_correct, cube, correction {
+// Correct wavelength solution for data cube
+// correction=amount (in wavelength) to shift each spaxel
+  outbuff=cube
+  n1=naxis1(cube)
+  n2=naxis2(cube)
+  cdelt=get_WCS_data(cube,3)[3]
+  for (i=1;i<=n1;i++) {
+    for (j=1;j<=n2;j++) {
+      cshift=correction[i,j]/cdelt
+      if (cshift!=0) outbuff[i,j,*]=shift(outbuff[i,j,*],cshift,0)
+    }
+  }
+  cube_wavelength_correct=outbuff
+}
+
+function cube_to_2d, inbuff {
+//Convert data cube to 2d apertures for iraf
+  n1=naxis1(inbuff)
+  n2=naxis2(inbuff)
+  n3=naxis3(inbuff)
+  if (n3<=1) {
+    print "CUBE_TO_2D: Error! Input must be data cube!"
+    cube_to_2d=0
+  }  else {
+//Get old WCS co-ords
+    cpix1=getfitskey(inbuff,"CRPIX1")
+    cpix2=getfitskey(inbuff,"CRPIX2")
+    cpix3=getfitskey(inbuff,"CRPIX3")
+    cval1=getfitskey(inbuff,"CRVAL1")
+    cval2=getfitskey(inbuff,"CRVAL2")
+    cval3=getfitskey(inbuff,"CRVAL3")
+    cdel1=getfitskey(inbuff,"CDELT1")
+    cdel2=getfitskey(inbuff,"CDELT2")
+    cdel3=getfitskey(inbuff,"CDELT3")
+    outbuff=fits(n3,n1*n2)
+    for (i=1;i<=n1;i++) {
+      for (j=1;j<=n2;j++) {
+        l=(j-1)*n1+i
+        outbuff[*,l]=inbuff[i,j,*]
+      }
+    }
+    copyheader outbuff,inbuff
+    setfitskey outbuff, "NAXIS", 2
+    setfitskey outbuff, "CTYPE1", "Wave"
+    setfitskey outbuff, "CTYPE2", ""
+    setfitskey outbuff, "CTYPE3", ""
+    setfitskey outbuff, "OCRPIX1", cpix1
+    setfitskey outbuff, "OCRPIX2", cpix2
+    setfitskey outbuff, "OCRPIX3", cpix3
+    setfitskey outbuff, "OCRVAL1", cval1
+    setfitskey outbuff, "OCRVAL2", cval2
+    setfitskey outbuff, "OCRVAL3", cval3
+    setfitskey outbuff, "OCDELT1", cdel1
+    setfitskey outbuff, "OCDELT2", cdel2
+    setfitskey outbuff, "OCDELT3", cdel3
+    
+    setwcs outbuff, cpix3, 1, cval3, 1, cdel3, 1
+    cube_to_2d=outbuff
+  }
+}
+
+function cube_set_flags_nan, cube, layer {
+//Create flags from cube with nan values to be interpolated over
+  f1=cube[*,*,layer]
+  f2=mask_from_image_nan(f1,0)
+  f3=cblank(f2)
+  cube_set_flags_nan=1-f3
+}
+  
+function cube_interp_flags, cube, flags, xi1, xi2, yi1, yi2, dmax {
+//Interpolate over flagged spaxels
+//cube - input data cube, x/y axes are spaxels
+//flags - 2D data with same x/y axes size as cube, with value=1 to be interpolated, value=0 - good pixels
+//xi1,xi2,yi1,yi2 - co-ordinate range to interpolate over. If not input, then do all spaxels
+//dmax - maximum pixel distance for interpolation (=0 don't test)
+  
+  if (cube_test_dim(cube, xi1, xi2, yi1, yi2, 0, 0)==0) {
+  n1=naxis1(cube)
+  n2=naxis2(cube)
+  n3=naxis3(cube)
+  outbuff=cube
+  if (xi1>0) {
+    x1=xi1
+    x2=xi2
+    y1=yi1
+    y2=yi2
+  } else {
+    x1=1
+    x2=n1
+    y1=1
+    y2=n2
+  }
+  if (naxis1(flags)!=n1)||(naxis2(flags)!=n2) {
+    print "CUBE_INTERP_FLAGS: Error! : cube and flags size mismatch"
+    break
+  }
+
+//Get range to good pixels
+  for (i=x1;i<=x2;i++) {
+    print "CUBE_INTERP_FLAGS Col: "+i
+    cx1=max(x1,i-dmax)
+    cx2=min(x2,i+dmax)
+    for (j=y1;j<=y2;j++) {
+      if (flags[i,j]==1) {
+        cy1=max(y1,j-dmax)
+        cy2=min(y2,j+dmax)
+        checksize=(cx2-cx1+1)*(cy2-cy1+1)
+//Check if any good pixels within range
+        totflags=total(flags[cx1:cx2,cy1:cy2])
+        if (totflags<checksize) {
+        xx=flags[*,j]
+        yy=flags[i,*]
+        xlo=-1
+        for (m=i;m>1;m--) {
+          isn=xx[m-1]
+          if (isn==0)&&(xlo==-1) xlo=m-1
+        }
+        xhi=-1
+        for (m=i;m<n1;m++)  {
+          isn=xx[m+1]
+          if (isn==0)&&(xhi==-1) xhi=m+1
+        }
+        ylo=-1
+        for (m=j;m>1;m--) {
+          isn=yy[m-1]
+          if (isn==0)&&(ylo==-1) ylo=m-1
+        }
+        yhi=-1
+        for (m=j;m<n2;m++)  {
+          isn=yy[m+1]
+          if (isn==0)&&(yhi==-1) yhi=m+1
+        }
+//Check maximum distance 
+        if (dmax>0) {
+          if (abs(i-xlo)>dmax) xlo=-1
+          if (abs(i-xhi)>dmax) xhi=-1
+          if (abs(j-ylo)>dmax) ylo=-1
+          if (abs(j-yhi)>dmax) yhi=-1
+        }
+//Interpolate method, in x (=1), y (=2) or both (=3) directions
+        mm=0
+        if (xlo>0) && (xhi>0) mm=mm+1
+        if (ylo>0) && (yhi>0) mm=mm+2
+/*        print "["+i+","+j+"] "+xlo+" "+xhi+" "+ylo+" "+yhi+" "+mm
+        print checksize+" "+totflags*/
+//Interpolate
+        if (mm>0) {
+          for (k=1;k<=n3;k++) {
+            ii=[0/0,0/0]
+            xdata=cube[*,j,k]
+            ydata=cube[i,*,k]
+            if (mm==1)||(mm==3) ii[1]=interp(xdata,i,xlo,xhi)
+            if (mm==2)||(mm==3) ii[2]=interp(ydata,j,ylo,yhi)
+            outbuff[i,j,k]=avg(ii) 
+          } //for k
+        } //if method
+      } //if isnan
+      } //good pixels
+    } //for j
+  } //for i
+  print "CUBE_INTERP_FLAGS: Done!"
+  cube_interp_flags=outbuff
+  }
+}
+
+function cube_deslope, inbuff, mask, flag, order, sub {
+  outbuff=inbuff*0
+  o=order
+  for (i=1;i<=naxis1(inbuff);i++) {
+    for (j=1; j<=naxis2(inbuff);j++) {
+      sp=inbuff[i,j,*]
+      if (sub==1) {
+        spm=spectrum_slope_sub(sp, mask, flag, o)
+      } else {
+        spm=spectrum_deslope(sp, mask, flag, o)
+      }
+      outbuff[i,j,*]=spm
+    }
+  }
+  cube_deslope=outbuff
+}
+
+function cube_clean_pixels, inbuff, layer, npix {
+//Remove singleton pixels surronded by Nan's
+//Opposite of cube_interp_flags
+//Clean up boundaries
+  np=npix
+  if (np==0) np=1
+  cube=inbuff
+  n1=naxis1(cube)
+  n2=naxis2(cube)  
+  f1=cube[*,*,layer]
+  f1[*,1]=0/0
+  f1[*,n2]=0/0
+  f1[1,*]=0/0
+  f1[n1,*]=0/0
+  mask=cblank(f1)*0+1
+  f2=mask_from_image_nan(f1)
+  f3=cblank(f2)
+  good_pixels=where(f3>0)
+  ngood=nelements(good_pixels)
+  for (i=1;i<=ngood;i++) {
+    p=good_pixels[i]
+    ii=indexreform(p,n1,n2,0)
+    x1=ii[1]-1
+    x2=x1+2
+    y1=ii[2]-1
+    y2=y1+2
+    t=total(f3[x1:x2,y1:y2])
+//    print p+" - ["+x1+":"+x2+","+y1+":"+y2+"] - "+t
+    if (t<=np) {
+      mask[ii[1],ii[2]]=0/0
+//      print "Blanked : "+ii[1]+":"+ii[2]
+    }
+  }
+  cube_clean_pixels=inbuff*mask
+}
+
+function cube_radial_spectrum, cube, xc, yc, rstep, nstep, ann {
+//Radial spectra of cube, centered [xc,yc] radial steps rstep, number of steps nstep. If ann=1, output annular spectra
+  n1=naxis1(cube)
+  n2=naxis2(cube)
+  n3=naxis3(cube)
+  spectra=fits(n3,nstep)
+  cdelt3=getfitskey(cube,"CDELT3",/text)
+  cd33=getfitskey(cube,"CD3_3",/text)
+  cp3=getfitskey(cube,"CRPIX3")
+  cv3=getfitskey(cube,"CRVAL3")
+  if (cdelt3=="") cd3=getfitskey(cube,"CD3_3")
+  if (cd33=="") cd3=getfitskey(cube,"CDELT3")
+  setwcs spectra, cp3,1,cv3,rstep,cd3,rstep
+  for (i=1;i<=nstep;i++) {
+    spectra[*,i]=3dspec(cube,xc,yc,rstep*i,/sum)
+  }
+  if (ann==1) {
+    dspec=spectra
+    for (i=2;i<=nstep;i++) {
+      dspec[*,i]=spectra[*,i]-spectra[*,i-1]
+    }
+    spectra=dspec
+  }
+  cube_radial_spectrum=spectra
+}
+
+function cube_rebin, cube, psize {
+//Rebin cube to pixel size psize (arcsec)
+  n1=naxis1(cube)
+  n2=naxis2(cube)
+  n3=naxis3(cube)
+  outbuff=cube*0
+  bin=psize/3600
+//Get rotation angle of old cube, so can set CD values in new cube
+  crpix1=getfitskey(cube,"CRPIX1")
+  crpix2=getfitskey(cube,"CRPIX2")
+  crval1=getfitskey(cube,"CRVAL1")
+  crval2=getfitskey(cube,"CRVAL2")
+  cd12=getfitskey(cube, "CD1_2")
+  cd22=getfitskey(cube, "CD2_2")
+  cd11=getfitskey(cube, "CD1_1")
+  cd21=getfitskey(cube, "CD2_1")
+  xscale=abs(bin/cd11)
+  yscale=abs(bin/cd22)
+  cdelt1=sqrt(cd11^2+cd21^2)
+  cdelt2=sqrt(cd12^2+cd22^2)
+  dsign=sign(cd11*cd22-cd12*cd21)
+  rotang=atan(sign(cdelt1*cdelt2)*cd12, cd22, /deg)
+  cdelt1=dsign*cdelt1
+//Set up new grid in pixels
+  nx=int(abs(n1/xscale)+1)
+  ny=int(abs(n2/yscale)+1)
+  print "CUBE_REBIN: Old cube size = "+n1 + "x"+n2+"x"+n3
+  print "CUBE_REBIN: New cube size = "+nx + "x"+ny+"x"+n3
+  print "CUBE_REBIN: Scale factor X= "+xscale+" Y= "+yscale
+  print "CUBE_REBIN: Rotation angle= "+rotang
+  resize outbuff, nx, ny, n3
+  xrebin=[1:nx]*n1/nx
+  yrebin=[1:ny]*n2/ny
+//Rebin each image
+  imgnew=fits(nx, ny)
+  print "CUBE_REBIN: Interpolating..."
+  for (i=1;i<=n3;i++) {
+    if ((i%10)==1) print "CUBE_REBIN: Layer ="+i
+    img=cube[*,*,i]
+    imgnew*=0
+    for (j=1;j<=nx;j++) {
+      x=xrebin[j]
+      for (k=1;k<=ny;k++) {
+        y=yrebin[k]
+        if ((x<=n1)&&(y<=n2)) {
+          imgnew[j,k]=interpolate(img, x, y)
+        }
+      }
+    }
+    outbuff[*,*,i]=imgnew*total(img)/total(imgnew)
+  }
+//Reset CD values
+  setfitskey outbuff, "CRPIX1", crpix1/xscale
+  setfitskey outbuff, "CRPIX2", crpix2/yscale
+  rr=bin*sign(cd12)*tan(rotang,/deg)
+  setfitskey outbuff, "CD1_1", bin*sign(cd11)
+  setfitskey outbuff, "CD1_2", rr
+  setfitskey outbuff, "CD2_1", rr
+  setfitskey outbuff, "CD2_2", bin*sign(cd22)
+  cube_rebin=outbuff   
+}
+
+function cube_from_image_spectrum, image, spectrum {
+//Creates a cube from an image and spectrum
+  cube=image
+  resize cube, naxis1(image),naxis2(image),naxis1(spectrum)
+  for (i=1;i<=naxis1(cube);i++) {
+    for (j=1;j<=naxis2(cube);j++) {
+      cube[i,j,*]=image[i,j]*spectrum
+    }
+  }
+  cube_from_image_spectrum=cube
+}
+
+function cube_average_cubes, inbuff, omit {
+//Average multiple cubes (up to 10) at each spectral element
+//inbuff is multi-extension fits list
+//Created by list(buffer1, buffer2,...)
+  if (nparams()<2) omit=0/0
+  navg=nelements(inbuff)
+  outbuff=inbuff[0]*0
+  n1=naxis1(outbuff)
+  n2=naxis2(outbuff)
+  n3=naxis3(outbuff)
+  print "CUBE_AVERAGE_CUBES: Axis sizes - "+n1+"x"+n2+"x"+n3
+  print "CUBE_AVERAGE_CUBES: # of cubes to average - "+navg
+  selement=fits(n1,n2,navg)
+  ic=int(n3/20)
+  for (k=1;k<=n3;k++) { //Go through each spectral element
+    for (i=1;i<=navg;i++) { //Go though cubes
+      b=inbuff[i-1]
+      selement[*,*,i]=b[*,*,k]
+    }
+    if isnan(omit)==1 {
+      outbuff[*,*,k]=cubeavg(selement)
+    } else {
+      outbuff[*,*,k]=cubeavg(selement,omit)
+    }
+    if ((k%ic)==0) print "CUBE_AVERAGE_CUBES: Layer - "+k+"/"+n3
+  }
+  print "CUBE_AVERAGE_CUBES: Finished"
+  cube_average_cubes=outbuff
+}
+/*
+buffer1=readfits("/Volumes/Data/OneDrive - Swinburne University/1H0707-495/Postreduction/I-ScienceCubesComb/1H0707-495_H+K_250_VSI_20131205_01.fits")
+buffer2=readfits("/Volumes/Data/OneDrive - Swinburne University/1H0707-495/Postreduction/I-ScienceCubesComb/1H0707-495_H+K_250_VSI_20140124_01.fits")
+buffer3=readfits("/Volumes/Data/OneDrive - Swinburne University/1H0707-495/Postreduction/I-ScienceCubesComb/1H0707-495_H+K_250_VSI_20140128_01.fits")
+buffer4=readfits("/Volumes/Data/OneDrive - Swinburne University/1H0707-495/Postreduction/I-ScienceCubesComb/1H0707-495_H+K_250_VSI_20140130_01.fits")
+buffer5=readfits("/Volumes/Data/OneDrive - Swinburne University/1H0707-495/Postreduction/I-ScienceCubesComb/1H0707-495_H+K_250_VSI_20140131_01.fits")
+buffer6=readfits("/Volumes/Data/OneDrive - Swinburne University/1H0707-495/Postreduction/I-ScienceCubesComb/1H0707-495_H+K_250_VSI_20140206_01.fits")
+buffer7=readfits("/Volumes/Data/OneDrive - Swinburne University/1H0707-495/Postreduction/I-ScienceCubesComb/1H0707-495_H+K_250_VSI_20140227_01.fits")
+buffer8=readfits("/Volumes/Data/OneDrive - Swinburne University/1H0707-495/Postreduction/I-ScienceCubesComb/1H0707-495_H+K_250_VSI_20140302_01.fits")
+buffer9=readfits("/Volumes/Data/OneDrive - Swinburne University/1H0707-495/Postreduction/I-ScienceCubesComb/1H0707-495_H+K_250_VSI_20140303_01.fits")
+buffer10=readfits("/Volumes/Data/OneDrive - Swinburne University/1H0707-495/Postreduction/I-ScienceCubesComb/1H0707-495_H+K_250_VSI_20140303_02.fits")
+inbuff=list(buffer1,buffer2,buffer3,buffer4,buffer5,buffer6,buffer7,buffer8,buffer9,buffer10)
+*/
+
+  

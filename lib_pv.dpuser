@@ -1,0 +1,174 @@
+function pv_array, cube, ystart, wslit, nslit, lcent, lwidth {
+//Create p-v diagram set of psudo longslits along x axis
+//Start at y pixel = ystart, width of each slit = wslit, number of slits = nslit
+//Extract over range l1, l2
+//Construct output cube
+  l1=lcent-lwidth
+  l2=lcent+lwidth
+  cc=299792
+  v1=-lwidth/lcent*cc
+  v2=-v1
+  p1=cvt_WCS_pixel_data(cube, l1, 3)
+  p2=cvt_WCS_pixel_data(cube, l2, 3)
+
+//axis1 is the wavelength/velocity, axis2 is the x axis of the cube, axis3 is the number of slits
+  xc=int(naxis1(cube)/2)
+  print "PV_ARRAY: PV Diagram"
+  print "PV_ARRAY: Start : "+ystart+" Slit Width : "+wslit+" # of Slits : "+nslit
+  print "PV_ARRAY: Wavelength Range : "+l1+"-"+l2+" nm"
+  print "PV_ARRAY: Pixel Range : "+p1+"-"+p2
+  n1=p2-p1+1
+  n2=naxis1(cube)
+  n3=nslit
+  print "PV_ARRAY: Output Size : "+n1+" X "+n2+" X "+n3
+  outcube=fits(n1,n2,n3)  
+  for (i=1;i<=nslit;i++) {
+//Move the slit up
+    y=ystart+(i-1)*wslit
+//Get the longslit
+    ls=cube[*,y:y+wslit-1,p1:p2]
+    if (wslit>1) ls=total(ls,/y)/wslit
+    swapaxes ls,2,1,3
+    print "PV Slit "+i
+    lsavg=median(ls,/x, 0)
+    lss=ls
+//Divide by the continuum median
+    for (j=1;j<=naxis1(ls);j++) {
+      lss[j,*]=ls[j,*]/lsavg
+    }
+//Set up the output cube on first pass
+    outcube[*,*,i]=lss
+  }
+  w1=get_WCS_data(cube,1)
+  set_WCS_data outcube, w1, 2
+  w2=[1,v1,(v2-v1)/(n1-1)]
+  set_WCS_data outcube, w2, 1
+  w3=[1,ystart,wslit]
+  set_WCS_data outcube, w3, 3
+  pv_array=outcube
+}
+
+function pv_single, cube,  xc, yc, angle, width, lcent, vwidth, npix, cont_flag {
+//Create p-v diagram for a single cut at xc/yc/angle/width
+//Convert to velocity on x axis using lcent (central wavelength) and vwidth in npix
+//div_flag
+// = 0 - don't remove continuum
+// = 1 - continuum subtract (flux)
+// = 2 - continuum divide (EW)
+  n1=naxis1(cube)
+  n2=naxis2(cube)
+  n3=naxis3(cube)
+  wcscube=get_WCS_data(cube,1)
+  cc=299792
+  work1=longslit(cube,xc,yc,angle,width)
+  work1/=width //Average over width to get real flux
+  w=get_WCS_data(work1,1)
+  pcent=(lcent-w[2])/w[3]+w[1]
+  lwidth=vwidth*lcent/cc
+  pwidth=lwidth/w[3]
+  p1=pcent-pwidth
+  p2=pcent+pwidth
+//Get width for median
+  pw1=pcent-4*pwidth
+  if (pw1<1) pw1=1
+  pw2=pcent+4*pwidth
+  if (pw2>n3) pw2=n3
+  i1=int(p1-1)
+  i2=int(p2+1)
+  i3=int(pw1)
+  i4=int(pw2)
+  work2=work1[i1:i2,*]
+  workm=work1[i3:i4,*]
+  workmed=median(workm,/x,0)
+  li1=(i1-w[1])*w[3]+w[2]
+  li2=(i2-w[1])*w[3]+w[2]
+  xold=[i1:i2]
+  xnew=[0:npix-1]*(p2-p1)/npix+p1
+  work3=work2*0
+  n2=naxis2(work3)
+  resize work3,npix,n2
+  for (i=1;i<=n2;i++) {
+    if (cont_flag==1) {
+      yold=cblank(work2[*,i]-workmed[i]) //Subtract median to get flux
+    } else if (cont_flag==2) {
+      yold=cblank(work2[*,i]/workmed[i]) //Divide by median to get EW
+    } else yold=cblank(work2[*,i])
+    work3[*,i]=interpol(yold,xold,xnew)*nelements(xold)/npix
+    if (workmed[i]==0) work3[*,i]=0/0
+  }
+  wcsx=[1,-vwidth,vwidth*2/(npix-1)]
+  set_WCS_data work3, wcsx, 1
+  cp=naxis2(work3)/2
+  cv=0
+  wcsy=[cp,cv,wcscube[3]]
+  set_WCS_data work3, wcsy, 2
+  pv_single=work3
+}
+
+function pv_meddev, image {
+  med=median(image, /x, 0)
+  work=image
+  for (i=1;i<=naxis2(image);i++) {
+    work[*,i]=work[*,i]/med[i] 
+  }
+  pv_meddev=work
+}
+
+function pv_ratio, cube,  xc, yc, angle, width, lcent1, lcent2, vwidth, npix {
+  pv1=pv_single(cube, xc, yc, angle, width, lcent1, vwidth, npix, 1)
+  pv2=pv_single(cube, xc, yc, angle, width, lcent2, vwidth, npix, 1)
+  pvr=pv1/pv2
+  pv_ratio=pvr//pv_meddev(pvr)
+}
+ 
+function pv_chan_norm, inbuff, r1, r2 {
+  outbuff=inbuff*0
+  n1=naxis1(inbuff)
+  n2=naxis2(inbuff)
+  if (r1==0) {
+    rr1=1
+    rr2=n2
+  } else {
+    rr1=r1
+    rr2=r2
+  }
+  for (i=1;i<=n1;i++) outbuff [i,rr1:rr2]= norm(inbuff[i,rr1:rr2])
+  if (r1>1) {
+     outbuff[*,r1-1]=0/0
+     outbuff[*,r2+1:n2]=0/0
+  }
+  pv_chan_norm=outbuff
+}
+
+function pv_med_sub, inbuff, p1, p2 {
+  outbuff=inbuff
+  work=inbuff[p1:p2,*]
+  med=avg(work,/x,0)
+  for (i=1;i<=naxis2(inbuff);i++) outbuff[*,i]-=med[i]
+  pv_med_sub=outbuff
+}
+
+function pv_cont_sub, inbuff, cont {
+  outbuff=inbuff
+  for (i=1;i<=naxis2(inbuff);i++) outbuff[*,i]-=cont[i]
+  pv_cont_sub=outbuff
+}
+//mask=[1,124,1150,1180,1300,1380,1580,1630,1840,2236]
+//mask=[1,124,1120,1390,1580,1630,1840,2236]
+function pv_slope_sub, inbuff, mask, order {
+  outbuff=inbuff*0
+  n1=naxis1(inbuff)
+  n2=naxis2(inbuff)
+  wdata=spectrum_make_disp_data(inbuff,1)
+  for (i=1;i<=n2;i++) {
+    spec=inbuff[*,i]
+    spec_masked=spectrum_mask(spec, mask, 0/0, 0)
+    p=polyfit(spec_masked,order)
+    l=poly(wdata,p[*,1])
+    sss=spec-l
+    sss[where(spec==0)]=0/0
+    outbuff[*,i]=sss
+  }
+  pv_slope_sub=outbuff
+}
+
