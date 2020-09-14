@@ -22,6 +22,6 @@ cd dpuserdir
 @functions/lib_pv.dpuser
 @functions/lib_chmap.dpuser
 @functions/lib_post_reduction.dpuser
-@instruments/kcwi/lib_kcwi.dpuser
+//@instruments/kcwi/lib_kcwi.dpuser
 //@/users/mdurre/dropbox/dpuser/functions/lib_chmap.dpuser
 cd dir_save_all
