@@ -1,4 +1,4 @@
-//All functions
+//All functions - comment out those not needed
 dir_save_all=pwd()
 dpuserdir=getenv("DPUSER_DIR")
 if dpuserdir[1]=="D" {
