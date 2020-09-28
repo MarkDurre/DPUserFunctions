@@ -7,8 +7,11 @@ function mask_from_image, inbuff, level, low {
 }
 
 function mask_circle, inbuff, x, y, r, v, rev {
-//Mask a cube/image by a circle centered x,y radius r (pixels) and set value v for outside e.g. 0/0
+//Mask a cube/image by a circle centered x,y radius r (pixels) 
+//and set value v for outside e.g. 0/0
 //If rev is non-zero, reverse mask - useful for excluding stars
+  if nparams()<5 rev=1
+  if nparams()<4 v=0
   n1=naxis1(inbuff)
   n2=naxis2(inbuff)
   circ=circle(x, y, r, naxis1=n1, naxis2=n2)
@@ -42,9 +45,14 @@ function mask_from_image_nan, inbuff, zero {
 }
 
 function mask_set_nan_min, inbuff, minvalue {
+//Set all nan values to minimum value
+//If minvalue not entered, use minimum value of data
   work=inbuff
-  minv=minvalue
-  if (minv==0) minv=min(work)
+  if nparams()<2 {
+    minv=min(work)
+  } else {
+    minv=minvalue
+  }
   for (i=1;i<=naxis1(inbuff);i++) {
     for (j=1;j<=naxis2(inbuff);j++) {
       if (isnan(work[i,j])==0) work[i,j]=minv
@@ -53,8 +61,19 @@ function mask_set_nan_min, inbuff, minvalue {
   mask_set_nan_min = work
 }
   
-function mask_cone, inbuff, xc1, yc1, xc2, yc2, pa, beta, mask {
+function mask_cone, inbuff, xc1, yc1, xc2, yc2, pa, beta, maskflag {
 //Make mask for cone area
+  if nparams()<8 maskflag=0
+  if nparams()<7 {
+    print "MASK_CONE: ERROR - Insufficient parameters!"
+    print "MASK_CONE: inbuff - image data "
+    print "MASK_CONE: xc1, yc1, xc2, yc2 - cone apexes "
+    print "MASK_CONE: pa - position angle of cone axis "
+    print "MASK_CONE: beta - opening angle of cone  "
+    print "MASK_CONE: maskflag - =0 (default), result is just cone mask, =1, result is multiplied by input"
+    mask_cone=0
+    break
+  }
   n1=naxis1(inbuff)
   n2=naxis2(inbuff)
   outbuff=fits(n1,n2)
@@ -73,7 +92,7 @@ function mask_cone, inbuff, xc1, yc1, xc2, yc2, pa, beta, mask {
   outbuff[where(outbuff>3)]=0
   outbuff[where(outbuff<1)]=0
   clip outbuff, 0,1
-  if (mask==0) {
+  if (maskflag==0) {
     mask_cone=outbuff
   } else {
     mask_cone=inbuff*outbuff
@@ -83,7 +102,8 @@ function mask_cone, inbuff, xc1, yc1, xc2, yc2, pa, beta, mask {
 function mask_line, inbuff, x1, y1, x2, y2, side {
 //Mask either side of line
 //x1, y1, x2, y2 in pixel location
-//Side = 0 for left, other for right
+//Side = 0 for left, other for right (default 0)
+  if nparams()<6 side=0
   n1=naxis1(inbuff)
   n2=naxis2(inbuff)
   outbuff=inbuff
