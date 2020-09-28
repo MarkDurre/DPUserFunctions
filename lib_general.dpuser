@@ -92,10 +92,21 @@ function axiscentroids, inbuff, axis {
   axiscentroids=outbuff
 }
 
-function myhist, inbuff, low, high, bin, norm {
+function myhist, inbuff, low, high, bin, normflag {
 //Create histogram
-//low, high - range of values
-//bin - binsize
+//low, high - range of values (default min/max of data range)
+//bin - binsize (default set so there are 100 bins)
+  myhist=0
+  if nparams()<5 normflag=0
+  if nparams()<2 {
+    low=min(inbuff)
+    high=max(inbuff)
+  }
+  if nparams()<4 bin=(high-low)/100
+  if (bin>(high-low)) {
+    print "MYHIST: Error - Bin size is greater than data range!"
+    break
+  }
   hsize=round((high-low)/bin)
   outbuff=fits(hsize)
   for (i=1; i<=nelements(inbuff); i++) {
@@ -103,14 +114,14 @@ function myhist, inbuff, low, high, bin, norm {
     if ((hi>=1)&&(hi<=hsize)&&(inbuff[i]>low)) outbuff[hi]=outbuff[hi]+1
   }
   setwcs outbuff,1,1,low,1,bin,1
-  if (norm==1) outbuff=norm(outbuff,/total)
+  if (normflag==1) outbuff=norm(outbuff,/total)
   myhist=outbuff
 }
 
 function profile_export, inbuff, scale1, scale2, scale3, offset{
 //Export 1D profiles with up to 3 separate scales, e.g. arcsec, pc, Re
 //plus the pixel scale
-//Offset ofsets by 1/2 a pixel (e.g. for log scale plot)
+//Offset=1 offsets by 1/2 a pixel (e.g. for log scale plot)
   if (nparams()<5) offset=1 //Do the offset by default
   if (nparams()<4) scale3=1
   if (nparams()<3) scale2=1
@@ -128,4 +139,16 @@ function profile_export, inbuff, scale1, scale2, scale3, offset{
   profile_export=outbuff
 }
 
-  
+function butterworth_filter, order, cutoff, size{
+//Create a Butterworth filter for order "order" for a square of sides "size"
+//Cutoff is cutoff Nyquist frequency
+  f=fits(size,size)
+  cent=size/2
+  for (i=1;i<=size;i++) {
+    for (j=1;j<=size;j++) {
+      f[i,j]=1/(1+sqrt(((i-cent)^2+(j-cent)^2)/(cutoff*size)^2)^(2*order))
+    }
+  }
+  butterworth_filter=f
+}
+
