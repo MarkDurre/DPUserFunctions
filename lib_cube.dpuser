@@ -21,7 +21,7 @@ function cube_test_dim, inbuff, x1, x2, y1, y2, z1, z2 {
   }
 
 //Test z-axis
-  if (z1!=0) {
+  if (z1!=0)&&(n3>1) { //Don't test if an image
     if ((z1<1)||(z2>n3)) {
       print "CUBE_TEST_DIM Error : Z-axis "+z1+":"+z2+" - "+n3
       res=1
@@ -31,31 +31,51 @@ function cube_test_dim, inbuff, x1, x2, y1, y2, z1, z2 {
 }
 
 function cube_trim_xy, cube_in, x1, x2, y1, y2 {
-//Trim cube in x and y coords (values are pixels)
+//Trim cube/image in x and y coords (values are pixels)
 //Remove all nan and inf values, set to zero
   if (cube_test_dim(cube_in, x1, x2, y1, y2, 0, 0)==0) {
   cube_out = cblank(cube_in)
   n1=naxis1(cube_in)
   n2=naxis2(cube_in)
   n3=naxis3(cube_in)
-  if (x1>0) {
-    cube_out[1:x1,*,*]=0
-  }
-  if (x2>0) {
-    cube_out[x2:n1,*,*]=0
-  }
-  if (y1>0) {
-    cube_out[*,1:y1,*]=0
-  }
-  if (x1>0) {
-    cube_out[*,y2:n2,*]=0
+  if (n3>1) { //For cube
+    if (x1>0) {
+      cube_out[1:x1,*,*]=0
+    }
+    if (x2>0) {
+      cube_out[x2:n1,*,*]=0
+    }
+    if (y1>0) {
+      cube_out[*,1:y1,*]=0
+    }
+    if (x1>0) {
+      cube_out[*,y2:n2,*]=0
+    }
+  } else { //For image
+    if (x1>0) {
+      cube_out[1:x1,*]=0
+    }
+    if (x2>0) {
+      cube_out[x2:n1,*]=0
+    }
+    if (y1>0) {
+      cube_out[*,1:y1]=0
+    }
+    if (x1>0) {
+      cube_out[*,y2:n2]=0
+    }
   }
   cube_trim_xy = cube_out
   }
 }
 
-function cube_trim_wl, cube_in, l1, l2, value, trim {
-//Trim cube in wavelength (values in WCS, e.g. nm)
+function cube_trim_wl, cube_in, l1, l2, value, truncate {
+//Trim cube in wavelength 
+//Wavelength range, l1, l2 from WCS
+//Set layers outside range to value (default 0)
+//Truncate flag, if 1 truncate cube outside wl range (default 0)
+  if nparams()<5 truncate=0
+  if nparams()<4 value=0
   cube_out = cube_in
   n1=naxis1(cube_in)
   n2=naxis2(cube_in)
@@ -72,8 +92,10 @@ function cube_trim_wl, cube_in, l1, l2, value, trim {
   cube_trim_wl=cube_out
 }
 
-function cube_spectrum_mask, cube, mask, level {
+function cube_spectrum_mask, cube, mask, value {
 //Mask spectral elements in cube
+//Mask is vector with pixel value pairs (low, high, low, high...)
+  if nparams()<3 value=0
   outbuff=cube
   nmask=nelements(mask)/2
   for (i=1;i<=nmask;i++) {
@@ -234,6 +256,7 @@ function cube_interp_xy, cube_in, x1, x2, y1, y2, z1,z2 {
 
 function cube_set_value, cube_in, x1, x2, y1, y2, z, xv, yv {
 //set absolute values at a wavelength based on another pixel
+   cube_set_value=0
    if (cube_test_dim(cube_in, x1, x2, y1, y2, z1, z2)==0) {
    outbuff=cube_in
    value=cube_in[xv, yv, z]
@@ -260,7 +283,7 @@ function cube_pixfix_xy, inbuff, pixfixdata, n {
     x2=int(params[4])
     y1=int(params[5])
     y2=int(params[6])
-    print "CUBE_PIXPFIX_XY: mooth:"+i+" "+x1+","+y1+","+y2+","+z1+","+z2
+    print "CUBE_PIXPFIX_XY: Smooth:"+i+" "+x1+","+y1+","+y2+","+z1+","+z2
     if ((z1>=1)&&(z2<=n3)&&(x1>=1)&&(x2<=n1)&&(y1>=1)&&(y1<=n2)) {
       outbuff=cube_interp_xy(outbuff,x1,x2,y1,y2,z1,z2)
     } else {
@@ -499,6 +522,7 @@ function cube_cont_slope, inbuff, mask, flag {
 
 function cube_spectrum_subtract, inbuff, spectrum, x1, x2, y1, y2 {
 //Subtract spectrum for each spaxel of cube, ignoring those that total 0
+   if nparams()<3 x1=x2=y1=y2=0
    n1=naxis1(inbuff)
    n2=naxis2(inbuff)
    n3=naxis3(inbuff)
@@ -589,6 +613,8 @@ function cube_wavelength_correct, cube, correction {
 
 function cube_to_2d, inbuff {
 //Convert data cube to 2d apertures for iraf
+//Similar results to "reform" function, but flipped by 90 degrees so
+//wavelength is along x-axis
   n1=naxis1(inbuff)
   n2=naxis2(inbuff)
   n3=naxis3(inbuff)
@@ -597,15 +623,9 @@ function cube_to_2d, inbuff {
     cube_to_2d=0
   }  else {
 //Get old WCS co-ords
-    cpix1=getfitskey(inbuff,"CRPIX1")
-    cpix2=getfitskey(inbuff,"CRPIX2")
-    cpix3=getfitskey(inbuff,"CRPIX3")
-    cval1=getfitskey(inbuff,"CRVAL1")
-    cval2=getfitskey(inbuff,"CRVAL2")
-    cval3=getfitskey(inbuff,"CRVAL3")
-    cdel1=getfitskey(inbuff,"CDELT1")
-    cdel2=getfitskey(inbuff,"CDELT2")
-    cdel3=getfitskey(inbuff,"CDELT3")
+    wcs1=get_WCS_data(inbuff,1)
+    wcs2=get_WCS_data(inbuff,2)
+    wcs3=get_WCS_data(inbuff,3)
     outbuff=fits(n3,n1*n2)
     for (i=1;i<=n1;i++) {
       for (j=1;j<=n2;j++) {
@@ -618,17 +638,7 @@ function cube_to_2d, inbuff {
     setfitskey outbuff, "CTYPE1", "Wave"
     setfitskey outbuff, "CTYPE2", ""
     setfitskey outbuff, "CTYPE3", ""
-    setfitskey outbuff, "OCRPIX1", cpix1
-    setfitskey outbuff, "OCRPIX2", cpix2
-    setfitskey outbuff, "OCRPIX3", cpix3
-    setfitskey outbuff, "OCRVAL1", cval1
-    setfitskey outbuff, "OCRVAL2", cval2
-    setfitskey outbuff, "OCRVAL3", cval3
-    setfitskey outbuff, "OCDELT1", cdel1
-    setfitskey outbuff, "OCDELT2", cdel2
-    setfitskey outbuff, "OCDELT3", cdel3
-    
-    setwcs outbuff, cpix3, 1, cval3, 1, cdel3, 1
+    set_WCS_data outbuff,wcs3,3    
     cube_to_2d=outbuff
   }
 }
@@ -647,6 +657,7 @@ function cube_interp_flags, cube, flags, xi1, xi2, yi1, yi2, dmax {
 //flags - 2D data with same x/y axes size as cube, with value=1 to be interpolated, value=0 - good pixels
 //xi1,xi2,yi1,yi2 - co-ordinate range to interpolate over. If not input, then do all spaxels
 //dmax - maximum pixel distance for interpolation (=0 don't test)
+  if nparams()<3 xi1=xi2=yi1=y12=dmax=0
   
   if (cube_test_dim(cube, xi1, xi2, yi1, yi2, 0, 0)==0) {
   n1=naxis1(cube)
@@ -817,7 +828,7 @@ function cube_radial_spectrum, cube, xc, yc, rstep, nstep, ann {
 }
 
 function cube_rebin, cube, psize {
-//Rebin cube to pixel size psize (arcsec)
+//Rebin cube or image to pixel size psize (arcsec)
   n1=naxis1(cube)
   n2=naxis2(cube)
   n3=naxis3(cube)
@@ -852,9 +863,24 @@ function cube_rebin, cube, psize {
 //Rebin each image
   imgnew=fits(nx, ny)
   print "CUBE_REBIN: Interpolating..."
-  for (i=1;i<=n3;i++) {
-    if ((i%10)==1) print "CUBE_REBIN: Layer ="+i
-    img=cube[*,*,i]
+  if (n3>1) { //Do cube
+    for (i=1;i<=n3;i++) {
+      if ((i%10)==1) print "CUBE_REBIN: Layer ="+i
+      img=cube[*,*,i]
+      imgnew*=0
+      for (j=1;j<=nx;j++) {
+        x=xrebin[j]
+        for (k=1;k<=ny;k++) {
+          y=yrebin[k]
+          if ((x<=n1)&&(y<=n2)) {
+            imgnew[j,k]=interpolate(img, x, y)
+          }
+        }
+      }
+      outbuff[*,*,i]=imgnew*total(img)/total(imgnew)
+    }
+  } else { //Do image
+    img=cube[*,*]
     imgnew*=0
     for (j=1;j<=nx;j++) {
       x=xrebin[j]
@@ -865,7 +891,7 @@ function cube_rebin, cube, psize {
         }
       }
     }
-    outbuff[*,*,i]=imgnew*total(img)/total(imgnew)
+    outbuff[*,*]=imgnew*total(img)/total(imgnew)
   }
 //Reset CD values
   setfitskey outbuff, "CRPIX1", crpix1/xscale
@@ -918,6 +944,113 @@ function cube_average_cubes, inbuff, omit {
   }
   print "CUBE_AVERAGE_CUBES: Finished"
   cube_average_cubes=outbuff
+}
+
+function cube_rebinfrac, inbuff, xscale, yscale {
+//Fractionally rebin cube/image to xscale, yscale
+//Check if this is a data cube
+  iscube=0
+  if (naxis(inbuff)==3) iscube=1
+//Compute new image size
+  ox=naxis1(inbuff)
+  oy=naxis2(inbuff)
+  if iscube oz=naxis3(inbuff)
+  nx=int(ox*xscale+1)
+  ny=int(oy*yscale+1)
+  if iscube {
+    outimg=resize(inbuff,nx,ny, oz)*0
+  } else {
+    outimg=resize(inbuff,nx,ny)*0
+  }
+  posold=floatarray(ox, oy, 4)
+  posnew=floatarray(nx, ny, 4)
+//Set pixel boundaries for old and new arrays
+  for (i=1;i<=ox;i++) {
+    for (j=1;j<=oy;j++) {
+      posold[i,j,*]=[(i-1),i,(j-1),j]
+    }
+  }
+  xsnew=1/xscale
+  ysnew=1/yscale
+  for (i=1;i<=nx;i++) {
+    for (j=1;j<=ny;j++) {
+      posnew[i,j,*]=[(i-1)*xsnew,i*xsnew,(j-1)*ysnew,j*ysnew]
+    }
+  }
+//Go through all pixels of old cube (single layer)
+  db=0
+  dbtxt=stringarray(nx*ny)
+  dbn=2
+  dbtxt[1]="i,j,l,m,rx1,rx2,ry1,ry2,pox1,pox2,poy1,poy2,pnx1,pnx2,pny1,pny2,ox1in,ox2in,ox3in,oy1in,oy2in,oy3in,xlen,ylen,olfrac"
+
+  for (i=1;i<=ox;i++) {
+    print "CUBE_REBINFRAC Col : "+i
+    for (j=1;j<=oy;j++) {
+      po=posold[i,j,*]
+      pox1=po[1]
+      pox2=po[2]
+      poy1=po[3]
+      poy2=po[4]
+//Go through all pixels of new image
+      w=1
+      rx1=max(int((i-w)*xscale),1)
+      rx2=min(int((i+w)*xscale),nx)
+      if (xscale==1) rx1=rx2=i
+      ry1=max(int((j-w)*yscale),1)
+      ry2=min(int((j+w)*yscale),ny)
+      if (yscale==1) ry1=ry2=j
+      if (db==1) print "Debug 0: "+i+","+j+","+rx1+","+rx2+","+ry1+","+ry2
+      for (l=rx1;l<=rx2;l++) { //Speed this up by fixing the range
+        for (m=ry1;m<=ry2;m++) {
+          pn=posnew[l,m,*]
+          pnx1=pn[1]
+          pnx2=pn[2]
+          pny1=pn[3]
+          pny2=pn[4]
+          ox1in=(pox1>=pnx1)&&(pox1<=pnx2)//Left side in
+          ox2in=(pox2>=pnx1)&&(pox2<=pnx2)//Right side in
+          ox3in=(pox1<pnx1)&&(pox2>pnx2)//Complete overlap
+          oy1in=(poy1>=pny1)&&(poy1<=pny2)
+          oy2in=(poy2>=pny1)&&(poy2<=pny2)
+          oy3in=(poy1<pny1)&&(pox2>pny2)
+          if (db==1) {
+            print "Debug 3: "+pox1+","+pox2+","+poy1+","+poy2
+            print "Debug 4: "+pnx1+","+pnx2+","+pny1+","+pny2
+            print "Debug 5: "+ox1in+","+ox2in+","+ox3in+","+oy1in+","+oy2in+","+oy3in
+            dbtxt[dbn]=i+","+j+","+l+","+m+","+rx1+","+rx2+","+ry1+","+ry2+","+pox1+","+pox2+","+poy1+","+poy2+","+pnx1+","+pnx2+","+pny1+","+pny2+","+ox1in+","+ox2in+","+ox3in+","+oy1in+","+oy2in+","+oy3in
+            dbn++
+          }
+          if (ox1in)||(ox2in)||(ox3in) { //x old within range
+            if (oy1in)||(oy2in)||(oy3in) { //y old within range
+              xlen=0
+              ylen=0
+              if (ox1in&&ox2in) xlen=1 //Compute overlap x length depending on case
+              if (ox1in&&(ox2in==0)) xlen=abs(pnx2-pox1)
+              if ((ox1in==0)&&ox2in) xlen=abs(pnx1-pox2)
+              if (ox3in) xlen=1/xscale
+              if (oy1in&&oy2in) ylen=1 //Compute overlap y length depending on case
+              if (oy1in&&(oy2in==0)) ylen=abs(pny2-poy1)
+              if ((oy1in==0)&&oy2in) ylen=abs(pny1-poy2)
+              if (oy3in) ylen=1/yscale
+              olfrac=(xlen*ylen)
+              if iscube {
+                outimg[l,m,*]+=olfrac*inbuff[i,j,*]
+              } else {
+                outimg[l,m]+=olfrac*inbuff[i,j]
+              }           
+              if (db==1) {
+                print "Debug 6: "+xlen+","+ylen+","+olfrac
+                dbtxt[dbn-1]+=","+xlen+","+ylen+","+olfrac
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  print "CUBE_REBINFRAC: Finished!"
+  if (db==1) export "RebinFrac Debug.csv",dbtxt
+  image_rebinfrac=outimg
 }
 /*
 buffer1=readfits("/Volumes/Data/OneDrive - Swinburne University/1H0707-495/Postreduction/I-ScienceCubesComb/1H0707-495_H+K_250_VSI_20131205_01.fits")
