@@ -59,7 +59,9 @@ function image_arith, image, data, func, direc {
         if (func=="*") out[*,i]=image[*,i]*data
         if (func=="/") out[*,i]=image[*,i]/data
       }
-    } else err=1
+    } else {
+      err=1
+    }
   }
   if (direc=="y") {
     if (nd==n2) {
@@ -70,7 +72,9 @@ function image_arith, image, data, func, direc {
         if (func=="*") out[i,*]=image[i,*]*data
         if (func=="/") out[i,*]=image[i,*]/data
       }
-    } else err=1
+    } else {
+      err=1
+    }
   }
   if (err==1) print "IMAGE_ARITH: Error! Data and image axis lengths not equal"
   image_arith=out
@@ -138,11 +142,25 @@ function image_erodenan, inbuff {
 
 function image_from_profile, profile, xp, yp, xc, yc {
 //create 2D image from 1D profile
-//xp, yp size of output image
-//xc, yc - center of rebuilt profile
+//This is opposite of "radialprofile" function
+//xp, yp - size of output image (default length of profile)
+//xc, yc - center of rebuilt profile (default center of output image)
+  np=nelements(profile)
+  if nparams()<2 {
+  	xp=yp=np
+  	xc=yc=xp/2
+  }
+  if nparams()==4 yc=xc
+  if nparams()==3 {
+    xc=xp/2
+    yc=yp/2
+  }
+  if nparams()==2 {
+    yp=xp
+    xc=yc=xp/2
+  }
   heights=profile*0
   outbuff=fits(xp,yp)
-  np=nelements(profile)
   for (i=1;i<=np-1;i++) {
     heights[i]=(profile[i]-profile[i+1])
   }
@@ -168,19 +186,6 @@ function image_enclosed_flux, inbuff, xc, yc, r, smth {
    outbuff[where(outbuff==0)]=1
    if (smth>0) outbuff=smooth(outbuff,smth)
    image_enclosed_flux=outbuff
-}
-
-function butterworth_filter, order, cutoff, size{
-//Create a Butterworth filter for order "order" for a square of sides "size"
-//Cutoff is cutoff Nyquist frequency
-  f=fits(size,size)
-  cent=size/2
-  for (i=1;i<=size;i++) {
-    for (j=1;j<=size;j++) {
-      f[i,j]=1/(1+sqrt(((i-cent)^2+(j-cent)^2)/(cutoff*size)^2)^(2*order))
-    }
-  }
-  butterworth_filter=f
 }
 
 function image_bfilter, image, order, cutoff {
@@ -299,6 +304,7 @@ function image_interp_flags, image, flags, xi1, xi2, yi1, yi2, dmax {
 }
   
 function image_cut, inbuff, x, y, a {
+//Image 2D cut, then setting WCS values correctly and setting OOB to N/A
   work=twodcut(inbuff,x,y,a,1)
   work[where(work==0)]=0/0
   n=naxis1(work)
@@ -310,13 +316,21 @@ function image_cut, inbuff, x, y, a {
   image_cut=work
 }
 
-function image_comb_sigma, inbuff, sigma, omit, toler {
+function image_comb_sigma, inbuff, sigma, toler, omit {
 //Image combine with sigma clipping algorithm
 //imbuff is a cube of images with n images in 3rd dimension
-//sigma is standard deviations allowed
+//sigma is standard deviations allowed (default 3 sigma)
+//toler is tolerance for convergence on clipping algorithm (default 0.1)
+//omit is value to omit on averaging (if parameter not entered, don't omit any value)
   n1=naxis1(inbuff)
   n2=naxis2(inbuff)
   n3=naxis3(inbuff)
+  noomit=0
+  if nparams()<4 {
+    noomit=1
+  }
+  if nparams()<3 toler=0.1
+  if nparams()<2 sigma=3
 /*  print "Average with sigma clipping"
   print "Image dimensions : ["+n1+","+n2+"]"
   print "# of images : "+n3
@@ -347,7 +361,11 @@ function image_comb_sigma, inbuff, sigma, omit, toler {
         if (t<toler) tol=0
 //        print "Coords: "+i+","+j+" tol :"+tol+" m: "+m+" s: "+s+" sigold: "+sigold+" signew: "+signew+" t: "+t
       }
-      outbuff[i,j]=avg(inbuff[i,j,*],omit)
+      if (noomit==0) {
+      	outbuff[i,j]=avg(inbuff[i,j,*],omit)
+      } else {
+        outbuff[i,j]=avg(inbuff[i,j,*],omit)
+      }
     }
   }
   image_comb_sigma=outbuff
@@ -367,8 +385,8 @@ function image_coord_map, image1, image2 {
   ry1=cvt_WCS_pixel_data(image2, y1, 2)
   rx2=cvt_WCS_pixel_data(image2, x2, 1)
   ry2=cvt_WCS_pixel_data(image2, y2, 2)
-  print "IMAGE_COORD_MAP : IMAGE1 CO-ORDS ["+sprintf("%10.8f",x1)+","+sprintf("%10.8f",y1)+"] - ["+sprintf("%10.8f",x2)+","+sprintf("%10.8f",y2)+"]"
-  print "IMAGE_COORD_MAP : IMAGE1 CO-ORDS ["+dectosex(x1/15)+","+dectosex(y1)+"] - ["+dectosex(x2/15)+","+dectosex(y2)+"]"
+  print "IMAGE_COORD_MAP: IMAGE1 CO-ORDS ["+sprintf("%10.8f",x1)+","+sprintf("%10.8f",y1)+"] - ["+sprintf("%10.8f",x2)+","+sprintf("%10.8f",y2)+"]"
+  print "IMAGE_COORD_MAP: IMAGE1 CO-ORDS ["+dectosex(x1/15)+","+dectosex(y1)+"] - ["+dectosex(x2/15)+","+dectosex(y2)+"]"
   image_coord_map=[[rx1,ry1],[rx2,ry2]]
 }
 
