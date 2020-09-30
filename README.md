@@ -327,13 +327,13 @@ Weighted Voronoi Tesselation functions
 - sn1, sn2 - S/N ratios for inside/outside mask. If sn2=0, just use sn1 over whole cube
 
 **function wvt_sn_mask, cube, l1, l2, mask, cutoff, sn1, sn2** - as above, except returns WVT image data:
- 1 Signal
- 2 Noise
- 3  S/N
- 4  Mask
- 5  Signal binned
- 6  Signal bin map
- 7  Bin density (1=maximum - smallest bins , 0=minimum - biggest bins)
+ 1. Signal
+ 2. Noise
+ 3.  S/N
+ 4.  Mask
+ 5.  Signal binned
+ 6.  Signal bin map
+ 7.  Bin density (1=maximum - smallest bins , 0=minimum - biggest bins)
 
 **function wvt_build_from_map_cube, cube, wvtmap, prntflag** - make WVT cube from cube and wvtmap. If prntflag =1 print diagnostic every 100 regions
 
@@ -441,18 +441,18 @@ Runs all libraries
 * Use “velmap_std_to_ext” to create extended velmap format
 
 ## Extended VELMAP Format
-1 Continuum
-2 Peak height above continuum
-3 Wavelength
-4 FWHM
-5 e_Continuum
-6 e_Peak
-7 e_Wavelength
-8 e_FWHM
-9 Chi-squared
-10 Velocity (zero-point calculated/set by “method” parameter)
-11 Dispersion (sigma) velocity, corrected for spectral resolution
-12 Flux (Peak*FWHM*1.0699)
-13 Equivalent width (flux/continuum)
-14 Support (√V^2+σ^2)
-15 Order vs turbulence (|V/σ|)
+1. Continuum
+2. Peak height above continuum
+3. Wavelength
+4. FWHM
+5. e_Continuum
+6. e_Peak
+7. e_Wavelength
+8. e_FWHM
+9. Chi-squared
+10. Velocity (zero-point calculated/set by “method” parameter)
+11. Dispersion (sigma) velocity, corrected for spectral resolution
+12. Flux (Peak*FWHM*1.0699)
+13. Equivalent width (flux/continuum)
+14. Support (√V^2+σ^2)
+15. Order vs turbulence (|V/σ|)
