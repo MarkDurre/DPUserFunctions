@@ -183,3 +183,37 @@ function WCS_cd_cdelt, inbuff {
 
   WCS_cd_cdelt=[cd1,cd2,r1]
 }
+
+function get_WCS_cube, cube {
+//Get all WCS data for cube (image) and calculate CDELT and rotation angle from CD keys
+  crpix1=getfitskey(cube,"CRPIX1")
+  crpix2=getfitskey(cube,"CRPIX2")
+  crval1=getfitskey(cube,"CRVAL1")
+  crval2=getfitskey(cube,"CRVAL2")
+  cd12=getfitskey(cube, "CD1_2")
+  cd22=getfitskey(cube, "CD2_2")
+  cd11=getfitskey(cube, "CD1_1")
+  cd21=getfitskey(cube, "CD2_1")
+  cdelt1=sqrt(cd11^2+cd21^2)
+  cdelt2=sqrt(cd12^2+cd22^2)
+  dsign=sign(cd11*cd22-cd12*cd21)
+  rotang=atan(sign(cdelt1*cdelt2)*cd12, cd22, /deg)
+  cdelt1=dsign*cdelt1
+  get_WCS_cube=[crpix1,crval1,cd11,cd12,crpix2,crval2,cd21,cd22,cdelt1,cdelt2,rotang]
+}
+
+procedure set_WCS_cube_scale, cube, wcs, xscale, yscale{
+//Rescales and sets WCS data for cubes, including cd keys - removes cdelt and crota keywords}
+//Reset CD values
+  setfitskey outbuff, "CRPIX1", crpix1/xscale
+  setfitskey outbuff, "CRPIX2", crpix2/yscale
+  rr=bin*sign(cd12)*tan(rotang,/deg)
+  setfitskey outbuff, "CD1_1", bin*sign(cd11)
+  setfitskey outbuff, "CD1_2", rr
+  setfitskey outbuff, "CD2_1", rr
+  setfitskey outbuff, "CD2_2", bin*sign(cd22)
+  if check_header_key(cube, "CDELT1") deletefitskey cube, "CDELT1"
+  if check_header_key(cube, "CDELT2") deletefitskey cube, "CDELT2"
+  if check_header_key(cube, "CROTA2") deletefitskey cube, "CROTA2"
+}
+
