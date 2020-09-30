@@ -1,21 +1,31 @@
 # QFitsView DPUser
 ### Setting Up QFitsView DPUSER Library
-1. Place all libraries (files with “lib_*.dpuser” name) in a convenient location (e.g. “/Users/
+1. Place all libraries (files with “lib_*.dpuser” name) in a convenient location (e.g. “/Users/*user*/DPUser/"
 2. Place “startup.dpuser” in “/Users/*user*/DPUser/Functions"
 3. Create a directory under root “/dpuserlib”
 4. Make a file in that directory “startup.dpuser” - this will be automatically run when you start QFitsView.
 5. @/Users/*user**/DPUser/startup.dpuser
+
 This runs all libraries to make the functions available to QFitsView - you will see a whole bunch of “Stored function…” and “Stored procedure…” plus “Finished General Functions”
 The file consists of a single line:
+
 ###  Global Variables
 c          =     299792458.0
+
 pi         =     3.14159
+
 e          =     2.71828
+
 naxis1     =     256
+
 naxis2     =     256
+
 plotdevice =     /XSERVE
+
 method     =     0
+
 tmpmem     =     20971520
+
 ###  Parameter data types
 * FITS or buffer input - "cube" is 3D, "image" is 2D, "spectrum" is 1D, "data" is 1, 2 or 3D
 	* Pixel co-ordinates
