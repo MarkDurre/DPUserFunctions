@@ -30,7 +30,7 @@ tmpmem     =     20971520<br>
 	* velmap - velocity map cube (either standard or extended format)
 	* wvtmap - weighted Voronoi tessellation map (region numbers)
 ### Libraries
-**lib_wcs**
+## lib_wcs
 
 Transform to and from World Coordinate Systems and Pixels
 
@@ -84,7 +84,6 @@ Data cube functions
 **function cube_spectrum_mask, cube, mask, level** - mask cube on spectral wavelength with mask (pixel pairs), set masked pixels to level
 
 **function cube_clip, cube, lvl, thresh, mask** - clips cube <0 and > lvl in image (x-y) plane, does dpixapply using threshold, cube is spectrally masked
-
 
 **function cube_clip_y, cube, lvl, thresh** - as above, but in the x-z plane    
 
@@ -224,7 +223,7 @@ Input/output to and from text and fits files
 ## lib_masking
 Masking functions for images and cubes
 
-**function mask_from_image, image, level, low** - create a mask from data image, setting to 1 if > level, to low(usually 0) if <level
+**function mask_from_image, image, level, low** - create a mask from data image, setting to 1 if > level, to low(usually 0) if \<level
 
 **function mask_from_image_nan, image, zero** - create a mask from data image, setting to 1 if  value<>Nan. If zero = 0/1, set mask to Nan/0 at Nan values.
 
@@ -286,12 +285,6 @@ Channel and position/velocity map functions
 - threshold - % of maximum for cutoff
 - width_factor - wavelength widow (multiple of lambda_width)
 - smooth - integer=boxcar, non-integer=gauss, 0=no smoothing 
-* lambda_cent - estimate of central wavelength
-* lambda_width - estimate of FWHM
-* threshold - % of maximum for cutoff
-* width_factor - wavelength widow (multiple of lambda_width)
-- smooth - integer=boxcar, non-integer=gauss, 0=no smoothing 
-
 
 Returns cube, axis 3 in velocity difference from median. Spaxel values are FLUX (not flux density) in that channel
 
