@@ -327,13 +327,13 @@ Weighted Voronoi Tesselation functions
 - sn1, sn2 - S/N ratios for inside/outside mask. If sn2=0, just use sn1 over whole cube
 
 **function wvt_sn_mask, cube, l1, l2, mask, cutoff, sn1, sn2** - as above, except returns WVT image data:
-1. Signal
- 2     Noise
- 3     S/N
- 4     Mask
- 5     Signal binned
- 6     Signal bin map
- 7     Bin density (1=maximum - smallest bins , 0=minimum - biggest bins)
+ 1 Signal
+ 2 Noise
+ 3  S/N
+ 4  Mask
+ 5  Signal binned
+ 6  Signal bin map
+ 7  Bin density (1=maximum - smallest bins , 0=minimum - biggest bins)
 
 **function wvt_build_from_map_cube, cube, wvtmap, prntflag** - make WVT cube from cube and wvtmap. If prntflag =1 print diagnostic every 100 regions
 
@@ -388,21 +388,26 @@ Astronomy functions (spectrum)
 
 **spec_fluxdens, spectrum, l1, l2, prflag** - flux density (counts/nm) between l1 and l2 wavelength; data is spectrum (returns single value). If prflag<>0, print results as well.
 
-# lib_astro_image
+## lib_astro_image
  Image astrophysics functions 
 
 **function img_aphot_annular, image, xcen, ycen, r, ib, ob** - aperture photometry on image,centered on xcen,ycen; aperture r, background annulus from ib to ob (inner to outer boundary). If ib and ob are zero, set to r and 2*r
 
 **function img_apphot_simple, image, xcen, ycen, r, pixsize, scale** - simple aperture photometry on image,centered on xcen,ycen; aperture r.
 
-# lib_astro_cube
+## lib_astro_cube
 Cube astrophysics functions 
 
 **function cube_apphot, cube, xcen, ycen, r1, r2, mx, my, mr** - aperture photometry, centered on xcen,yceb; aperture r1, background annulus r2, mask out circle mx/my/mr (mx>0) - result is spectrum
 
 **function cube_apspec, cube, ox, oy, or, bx, by, br** - Get star spectrum from aperture using circular aperture and background, plus a mask circle. 
 
-Inputs - cube is 3D cube of star, used for both telluric and flux calibration. ox, oy, or - center and radius of aperture, r2 - radius of annulus (r1->r2) of background. mx, my, mr - center and radius of mask, if not required then mx=0. mask - any other mask required (2D fits)
+Inputs 
+- cube is 3D cube of star, used for both telluric and flux calibration
+- ox, oy, or - center and radius of aperture
+- r2 - radius of annulus (r1->r2) of background
+- mx, my, mr - center and radius of mask, if not required then mx=0
+- mask - any other mask required (2D fits)
 
 Output is spectrum of aperture less average of background (with mask) - values <0 set to Nan
 
@@ -421,33 +426,33 @@ Output is spectrum of aperture less average of background (with mask) - values <
 ## lib_all
 Runs all libraries
 
-### Standard Procedures
+# Standard Procedures
 ## CHMAP
 
 - Create basic channel map using “chmap_create” (usually do not smooth)
 - Rebin to required # of channels (e.g. 9 or 16) using “chmap_rebin” (smoothing if required)
 - Output individual channel maps using “chmap_comps"
 
-##VELMAP
-- Create QFitsView velmap with wavelength, fwhm estimate
+## VELMAP
+* Create QFitsView velmap with wavelength, fwhm estimate
 * Examine velmap for continuum, height, wavelength and fwhm “sensible” ranges
 * Use “velmap_fix” to clean up velmap
 * Use “velmap_fix_interp” to interpolate over NaN values (if required)
 * Use “velmap_std_to_ext” to create extended velmap format
 
 ## Extended VELMAP Format
-1 = Continuum
-2 = Peak height above continuum
-3 = Wavelength
-4 = FWHM
-5 = e_Continuum
-6 = e_Peak
-7 = e_Wavelength
-8 = e_FWHM
-9 = Chi-squared
-10 = Velocity (zero-point calculated/set by “method” parameter)
-11 = Dispersion (sigma) velocity, corrected for spectral resolution
-12 = Flux (Peak*FWHM*1.0699)
-13 = Equivalent width (flux/continuum)
-14 = Support (√V^2+σ^2)
-15 = Order vs turbulence (|V/σ|)
+1 Continuum
+2 Peak height above continuum
+3 Wavelength
+4 FWHM
+5 e_Continuum
+6 e_Peak
+7 e_Wavelength
+8 e_FWHM
+9 Chi-squared
+10 Velocity (zero-point calculated/set by “method” parameter)
+11 Dispersion (sigma) velocity, corrected for spectral resolution
+12 Flux (Peak*FWHM*1.0699)
+13 Equivalent width (flux/continuum)
+14 Support (√V^2+σ^2)
+15 Order vs turbulence (|V/σ|)
