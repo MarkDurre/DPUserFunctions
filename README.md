@@ -10,22 +10,14 @@ This runs all libraries to make the functions available to QFitsView - you will 
 The file consists of a single line:
 
 ###  Global Variables
-c          =     299792458.0
-
-pi         =     3.14159
-
-e          =     2.71828
-
-naxis1     =     256
-
-naxis2     =     256
-
-plotdevice =     /XSERVE
-
-method     =     0
-
-tmpmem     =     20971520
-
+c          =     299792458.0<br>
+pi         =     3.14159<br>
+e          =     2.71828<br>
+naxis1     =     256<br>
+naxis2     =     256<br>
+plotdevice =     /XSERVE<br>
+method     =     0<br>
+tmpmem     =     20971520<br>
 ###  Parameter data types
 * FITS or buffer input - "cube" is 3D, "image" is 2D, "spectrum" is 1D, "data" is 1, 2 or 3D
 	* Pixel co-ordinates
