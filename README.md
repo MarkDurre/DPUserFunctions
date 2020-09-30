@@ -31,7 +31,6 @@ tmpmem     =     20971520<br>
 	* wvtmap - weighted Voronoi tessellation map (region numbers)
 ### Libraries
 ## lib_wcs
-
 Transform to and from World Coordinate Systems and Pixels
 
 **function get_WCS_values, spectrum** - create WCS array [1,cv,cd] from dispersion spectrum
