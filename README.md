@@ -254,12 +254,14 @@ Masking functions for images and cubes
 ## lib_velmap
 Velocity map (velmap) extension functions
 
-**function velmap_std_to_ext, velmpstd, r, cmin, vmethod, vcenter, vx, vy** - convert standard QFitsView velmap velmpstd to extended form, r=instrumental resolution, cmin= minimum continuum value - output is xtended velmap format - see below
-- vmethod=0 - median   
-- vmethod=1 - average
-- vmethod=2 - flux-weighted average
-- vmethod=3 - manual (vcenter value)
-- vmethod=4 - pixel ([vx,vy] is set to zero)
+**function velmap_std_to_ext, velmpstd, r, cmin, vmethod, vcenter, vx, vy** - convert standard QFitsView velmap velmpstd to extended form, r=instrumental resolution, cmin= minimum continuum value - output is extended velmap format - see below:
+
+vmethod
+- 0 - median   
+- 1 - average
+- 2 - flux-weighted average
+- 3 - manual (vcenter value)
+- 4 - pixel ([vx,vy] is set to zero)
 
 **function velmap_vel_center, velmap, vmethod, vcenter, vx, vy** - returns the wavelength value from the velmap cube, using the methods as above
 
@@ -389,14 +391,14 @@ Astronomy functions (spectrum)
 **spec_fluxdens, spectrum, l1, l2, prflag** - flux density (counts/nm) between l1 and l2 wavelength; data is spectrum (returns single value). If prflag<>0, print results as well.
 
 ## lib_astro_image
- Image astrophysics functions 
+Astronomy functions (image) 
 
 **function img_aphot_annular, image, xcen, ycen, r, ib, ob** - aperture photometry on image,centered on xcen,ycen; aperture r, background annulus from ib to ob (inner to outer boundary). If ib and ob are zero, set to r and 2*r
 
 **function img_apphot_simple, image, xcen, ycen, r, pixsize, scale** - simple aperture photometry on image,centered on xcen,ycen; aperture r.
 
 ## lib_astro_cube
-Cube astrophysics functions 
+Astronomy functions (cube) 
 
 **function cube_apphot, cube, xcen, ycen, r1, r2, mx, my, mr** - aperture photometry, centered on xcen,yceb; aperture r1, background annulus r2, mask out circle mx/my/mr (mx>0) - result is spectrum
 
@@ -427,13 +429,13 @@ Output is spectrum of aperture less average of background (with mask) - values <
 Runs all libraries
 
 # Standard Procedures
-## CHMAP
+## Channel map
 
 - Create basic channel map using “chmap_create” (usually do not smooth)
 - Rebin to required # of channels (e.g. 9 or 16) using “chmap_rebin” (smoothing if required)
 - Output individual channel maps using “chmap_comps"
 
-## VELMAP
+## Velocity map
 * Create QFitsView velmap with wavelength, fwhm estimate
 * Examine velmap for continuum, height, wavelength and fwhm “sensible” ranges
 * Use “velmap_fix” to clean up velmap
