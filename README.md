@@ -1,10 +1,10 @@
 # QFitsView DPUser
 ### Setting Up QFitsView DPUSER Library
-1. Place all libraries (files with “lib_*.dpuser” name) in a convenient location (e.g. “/Users/*user*/DPUser/"
-2. Place “startup.dpuser” in “/Users/*user*/DPUser/Functions"
+1. Place all libraries (files with “lib_*.dpuser” name) in a convenient location (e.g. “/Users/"user"/DPUser/"
+2. Place “startup.dpuser” in “/Users/"user"/DPUser/Functions"
 3. Create a directory under root “/dpuserlib” (for macOS 10.15+ use the `synthetic.conf` symbolic links - reference [here](https://stackoverflow.com/questions/58396821/what-is-the-proper-way-to-create-a-root-sym-link-in-catalina))
 4. Make a file in that directory “startup.dpuser” - this will be automatically run when you start QFitsView. 
-The file consists of a single line: `@/Users/*user*/DPUser/startup.dpuser`. This runs all libraries to make the functions available to QFitsView - you will see a whole bunch of “Stored function…” and “Stored procedure…” plus “Finished General Functions”
+The file consists of a single line: `@/Users/"user"/DPUser/startup.dpuser`. This runs all libraries to make the functions available to QFitsView - you will see a whole bunch of “Stored function…” and “Stored procedure…” plus “Finished General Functions”
 
 ###  Global Variables
 c          =     299792458.0<br>
@@ -54,8 +54,7 @@ Transform to and from World Coordinate Systems and Pixels
 **function get_WCS_cube, cube** - Get all WCS data for cube (image) and calculate CDELT and rotation angle from CD keys
 
 **procedure set_WCS_cube_scale, cube, wcs, xscale, yscale** - Rescales and sets WCS data for cubes, including cd keys - removes cdelt and crota keywords}
-##lib_general
-
+## lib_general
 General functions
 
 **function indexreform, index, xsize, ysize, zsize** - returns 3D co-ords from 1D **index**, given dimensions **xsize, ysize, zsize**. Values returned as array.
@@ -414,6 +413,16 @@ Runs all libraries
 * Use “velmap_fix” to clean up velmap
 * Use “velmap_fix_interp” to interpolate over NaN values (if required)
 * Use “velmap_std_to_ext” to create extended velmap format
+## Standard QFitsView VELMAP Format
+1. Continuum
+2. Peak height above continuum
+3. Wavelength
+4. FWHM
+5. e_Continuum
+6. e_Peak
+7. e_Wavelength
+8. e_FWHM
+9. Chi-squared
 ## Extended VELMAP Format
 1. Continuum
 2. Peak height above continuum
@@ -430,15 +439,3 @@ Runs all libraries
 13. Equivalent width (flux/continuum)
 14. Support (√V^2+σ^2)
 15. Order vs turbulence (|V/σ|)
-## PROFIT Cube Format
-1. Flux from fit
-2. Centroid velocity
-3. Velocity dispersion
-4. h3 moment
-5. h4 moment
-6. Flux from integrated line
-7. Continuum
-8. Continuum standard deviation
-9. χ^2 of fit
-
-
