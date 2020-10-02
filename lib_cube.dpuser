@@ -901,13 +901,18 @@ function cube_rebinfrac, inbuff, xscale, yscale {
     }
   }
 //Go through all pixels of old cube (single layer)
-  db=0
-  dbtxt=stringarray(nx*ny)
-  dbn=2
-  dbtxt[1]="i,j,l,m,rx1,rx2,ry1,ry2,pox1,pox2,poy1,poy2,pnx1,pnx2,pny1,pny2,ox1in,ox2in,ox3in,oy1in,oy2in,oy3in,xlen,ylen,olfrac"
+  print "CUBE_REBINFRAC: Interpolating by pixel fraction..."
+  if (iscube==1) {
+    print "CUBE_REBINFRAC: Old cube size = "+ox + "x"+oy+"x"+oz
+    print "CUBE_REBINFRAC: New cube size = "+nx + "x"+ny+"x"+oz
+  } else {
+    print "CUBE_REBINFRAC: Old cube size = "+ox + "x"+oy
+    print "CUBE_REBINFRAC: New cube size = "+nx + "x"+ny
+  }
+  print "CUBE_REBINFRAC: Scale factor X= "+xscale+" Y= "+yscale
 
   for (i=1;i<=ox;i++) {
-    print "CUBE_REBINFRAC Col : "+i
+    print "CUBE_REBINFRAC: Col "+i
     for (j=1;j<=oy;j++) {
       po=posold[i,j,*]
       pox1=po[1]
@@ -922,7 +927,6 @@ function cube_rebinfrac, inbuff, xscale, yscale {
       ry1=max(int((j-w)*yscale),1)
       ry2=min(int((j+w)*yscale),ny)
       if (yscale==1) ry1=ry2=j
-      if (db==1) print "Debug 0: "+i+","+j+","+rx1+","+rx2+","+ry1+","+ry2
       for (l=rx1;l<=rx2;l++) { //Speed this up by fixing the range
         for (m=ry1;m<=ry2;m++) {
           pn=posnew[l,m,*]
@@ -936,13 +940,6 @@ function cube_rebinfrac, inbuff, xscale, yscale {
           oy1in=(poy1>=pny1)&&(poy1<=pny2)
           oy2in=(poy2>=pny1)&&(poy2<=pny2)
           oy3in=(poy1<pny1)&&(pox2>pny2)
-          if (db==1) {
-            print "Debug 3: "+pox1+","+pox2+","+poy1+","+poy2
-            print "Debug 4: "+pnx1+","+pnx2+","+pny1+","+pny2
-            print "Debug 5: "+ox1in+","+ox2in+","+ox3in+","+oy1in+","+oy2in+","+oy3in
-            dbtxt[dbn]=i+","+j+","+l+","+m+","+rx1+","+rx2+","+ry1+","+ry2+","+pox1+","+pox2+","+poy1+","+poy2+","+pnx1+","+pnx2+","+pny1+","+pny2+","+ox1in+","+ox2in+","+ox3in+","+oy1in+","+oy2in+","+oy3in
-            dbn++
-          }
           if (ox1in)||(ox2in)||(ox3in) { //x old within range
             if (oy1in)||(oy2in)||(oy3in) { //y old within range
               xlen=0
@@ -961,10 +958,6 @@ function cube_rebinfrac, inbuff, xscale, yscale {
               } else {
                 outimg[l,m]+=olfrac*inbuff[i,j]
               }           
-              if (db==1) {
-                print "Debug 6: "+xlen+","+ylen+","+olfrac
-                dbtxt[dbn-1]+=","+xlen+","+ylen+","+olfrac
-              }
             }
           }
         }
@@ -972,34 +965,36 @@ function cube_rebinfrac, inbuff, xscale, yscale {
     }
   }
   print "CUBE_REBINFRAC: Finished!"
-  if (db==1) export "RebinFrac Debug.csv",dbtxt
   cube_rebinfrac=outimg
 }
 
-function cube_rebinxy, cube, xscale, yscale {
+function cube_rebinxy, cube, xscale, yscale, kernel {
 //Rebin cube or image pixel scaling in x and y directions
 //Uses the "interpolate" dpuser function
 //Note this function DOES NOT handle the WCS co-ordinates scaling
 //Use get_WCS_cube and set_WCS_cube_scale functions
+  if nparams()<4 kernel=4
+  if nparams()<3 yscale=1
   n1=naxis1(cube)
   n2=naxis2(cube)
   n3=naxis3(cube)
   outbuff=cube*0
 //Set up new grid in pixels
-  nx=int(abs(n1/xscale)+1)
-  ny=int(abs(n2/yscale)+1)
-  print "CUBE_REBIN: Old cube size = "+n1 + "x"+n2+"x"+n3
-  print "CUBE_REBIN: New cube size = "+nx + "x"+ny+"x"+n3
-  print "CUBE_REBIN: Scale factor X= "+xscale+" Y= "+yscale
+  nx=int(abs(n1*xscale)+1)
+  ny=int(abs(n2*yscale)+1)
+  print "CUBE_REBINXY: Interpolating by 2D polynomial..."
+  print "CUBE_REBINXY: Old cube size = "+n1 + "x"+n2+"x"+n3
+  print "CUBE_REBINXY: New cube size = "+nx + "x"+ny+"x"+n3
+  print "CUBE_REBINXY: Scale factor X= "+xscale+" Y= "+yscale
+  print "CUBE_REBINXY: Binning kernel = "+kernel
   resize outbuff, nx, ny, n3
   xrebin=[1:nx]*n1/nx
   yrebin=[1:ny]*n2/ny
 //Rebin each image
   imgnew=fits(nx, ny)
-  print "CUBE_REBIN: Interpolating..."
-  if (n3>1) { //Do cube
+   if (n3>1) { //Do cube
     for (i=1;i<=n3;i++) {
-      if ((i%10)==1) print "CUBE_REBIN: Layer ="+i
+      if ((i%10)==1) print "CUBE_REBINXY: Layer "+i
       img=cube[*,*,i]
       imgnew*=0
       for (j=1;j<=nx;j++) {
@@ -1021,12 +1016,13 @@ function cube_rebinxy, cube, xscale, yscale {
       for (k=1;k<=ny;k++) {
         y=yrebin[k]
         if ((x<=n1)&&(y<=n2)) {
-          imgnew[j,k]=interpolate(img, x, y)
+          imgnew[j,k]=interpolate(img, x, y, kernel)
         }
       }
     }
     outbuff[*,*]=imgnew*total(img)/total(imgnew)
   }
+  print "CUBE_REBINXY: Finished!"
   cube_rebinxy=outbuff   
 }
 
@@ -1035,19 +1031,27 @@ function cube_rebinx, cube, xscale {
 //Uses the "interpol" dpuser function (quicker than"interpolate")
 //Note this function DOES NOT handle the WCS co-ordinates scaling
 //Use get_WCS_cube and set_WCS_cube_scale functions
+  n1=naxis1(cube)
+  n2=naxis2(cube)
+  n3=naxis3(cube)
   newx=int(n1*xscale)+1
   xold=[1:n1]
   xnew=[1:newx]/xscale
   outbuff=resize(cube,newx,n2,n3)*0
+  print "CUBE_REBINX: Interpolating in 1D by cubic spline..."
+  print "CUBE_REBINX: Old cube size = "+n1 + "x"+n2+"x"+n3
+  print "CUBE_REBINX: New cube size = "+newx + "x"+n2+"x"+n3
+  print "CUBE_REBINX: Scale factor X= "+xscale
   for (i=1;i<=n2;i++) {
-    print "CUBE_REBIN: Row "+i
+    print "CUBE_REBINX: Row "+i
     for (j=1;j<=n3;j++) {
       yold=cblank(cube[*,i,j])
       ynew=interpol(yold,xold,xnew)
       outbuff[*,i,j]=cblank(ynew)
     }
   }
-  cube_rebinx=outbuff
+  print "CUBE_REBINX: Finished!"
+  cube_rebinx=outbuff/xscale
 }
 
   
