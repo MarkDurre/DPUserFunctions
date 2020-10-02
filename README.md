@@ -2,12 +2,10 @@
 ### Setting Up QFitsView DPUSER Library
 1. Place all libraries (files with “lib_*.dpuser” name) in a convenient location (e.g. “/Users/*user*/DPUser/"
 2. Place “startup.dpuser” in “/Users/*user*/DPUser/Functions"
-3. Create a directory under root “/dpuserlib”
-4. Make a file in that directory “startup.dpuser” - this will be automatically run when you start QFitsView.
-5. @/Users/*user**/DPUser/startup.dpuser
+3. Create a directory under root “/dpuserlib” (for macOS 10.15+ use the `synthetic.conf` symbolic links - reference [here](https://stackoverflow.com/questions/58396821/what-is-the-proper-way-to-create-a-root-sym-link-in-catalina))
+4. Make a file in that directory “startup.dpuser” - this will be automatically run when you start QFitsView. 
+The file consists of a single line: `@/Users/*user**/DPUser/startup.dpuser`. This runs all libraries to make the functions available to QFitsView - you will see a whole bunch of “Stored function…” and “Stored procedure…” plus “Finished General Functions”
 
-This runs all libraries to make the functions available to QFitsView - you will see a whole bunch of “Stored function…” and “Stored procedure…” plus “Finished General Functions”
-The file consists of a single line:
 ###  Global Variables
 c          =     299792458.0<br>
 pi         =     3.14159<br>
@@ -312,13 +310,13 @@ Weighted Voronoi Tesselation functions
 - sn1, sn2 - S/N ratios for inside/outside mask. If sn2=0, just use sn1 over whole cube
 
 **function wvt_sn_mask, cube, l1, l2, mask, cutoff, sn1, sn2** - as above, except returns WVT image data:
- 1. Signal
- 2. Noise
- 3.  S/N
- 4.  Mask
- 5.  Signal binned
- 6.  Signal bin map
- 7.  Bin density (1=maximum - smallest bins , 0=minimum - biggest bins)
+1. Signal
+2. Noise
+3.  S/N
+4.  Mask
+5.  Signal binned
+6.  Signal bin map
+7.  Bin density (1=maximum - smallest bins , 0=minimum - biggest bins)
 
 **function wvt_build_from_map_cube, cube, wvtmap, prntflag** - make WVT cube from cube and wvtmap. If prntflag =1 print diagnostic every 100 regions
 
@@ -407,7 +405,6 @@ Runs all libraries
 
 # Standard Procedures
 ## Channel map
-
 - Create basic channel map using “chmap_create” (usually do not smooth)
 - Rebin to required # of channels (e.g. 9 or 16) using “chmap_rebin” (smoothing if required)
 - Output individual channel maps using “chmap_comps"
@@ -433,3 +430,15 @@ Runs all libraries
 13. Equivalent width (flux/continuum)
 14. Support (√V^2+σ^2)
 15. Order vs turbulence (|V/σ|)
+## PROFIT Cube Format
+1. Flux from fit
+2. Centroid velocity
+3. Velocity dispersion
+4. h3 moment
+5. h4 moment
+6. Flux from integrated line
+7. Continuum
+8. Continuum standard deviation
+9. χ^2 of fit
+
+
