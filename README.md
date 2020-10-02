@@ -4,7 +4,7 @@
 2. Place “startup.dpuser” in “/Users/*user*/DPUser/Functions"
 3. Create a directory under root “/dpuserlib” (for macOS 10.15+ use the `synthetic.conf` symbolic links - reference [here](https://stackoverflow.com/questions/58396821/what-is-the-proper-way-to-create-a-root-sym-link-in-catalina))
 4. Make a file in that directory “startup.dpuser” - this will be automatically run when you start QFitsView. 
-The file consists of a single line: `@/Users/*user**/DPUser/startup.dpuser`. This runs all libraries to make the functions available to QFitsView - you will see a whole bunch of “Stored function…” and “Stored procedure…” plus “Finished General Functions”
+The file consists of a single line: `@/Users/*user*/DPUser/startup.dpuser`. This runs all libraries to make the functions available to QFitsView - you will see a whole bunch of “Stored function…” and “Stored procedure…” plus “Finished General Functions”
 
 ###  Global Variables
 c          =     299792458.0<br>
