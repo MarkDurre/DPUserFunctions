@@ -1,12 +1,14 @@
 # QFitsView DPUser
-### Setting Up QFitsView DPUSER Library
+[TOC]
+
+## Setting Up QFitsView DPUSER Library
 1. Place all libraries (files with “lib_*.dpuser” name) in a convenient location (e.g. “/Users/"user"/DPUser/"
 2. Place “startup.dpuser” in “/Users/"user"/DPUser/Functions"
 3. Create a directory under root “/dpuserlib” (for macOS 10.15+ use the `synthetic.conf` symbolic links - reference [here](https://stackoverflow.com/questions/58396821/what-is-the-proper-way-to-create-a-root-sym-link-in-catalina))
 4. Make a file in that directory “startup.dpuser” - this will be automatically run when you start QFitsView. 
 The file consists of a single line: `@/Users/"user"/DPUser/startup.dpuser`. This runs all libraries to make the functions available to QFitsView - you will see a whole bunch of “Stored function…” and “Stored procedure…” plus “Finished General Functions”
 
-###  Global Variables
+##  Global Variables
 c          =     299792458.0<br>
 pi         =     3.14159<br>
 e          =     2.71828<br>
@@ -15,7 +17,8 @@ naxis2     =     256<br>
 plotdevice =     /XSERVE<br>
 method     =     0<br>
 tmpmem     =     20971520<br>
-###  Parameter data types
+
+##  Parameter data types
 * FITS or buffer input - "cube" is 3D, "image" is 2D, "spectrum" is 1D, "data" is 1, 2 or 3D
 	* Pixel co-ordinates
 	* p, p1, p2,… (general pixels co-ordinates)
@@ -27,8 +30,8 @@ tmpmem     =     20971520<br>
 * Maps
 	* velmap - velocity map cube (either standard or extended format)
 	* wvtmap - weighted Voronoi tessellation map (region numbers)
-### Libraries
-## lib_wcs
+## Libraries
+### lib_wcs
 Transform to and from World Coordinate Systems and Pixels
 
 **function get_WCS_values, spectrum** - create WCS array [1,cv,cd] from dispersion spectrum
@@ -54,7 +57,7 @@ Transform to and from World Coordinate Systems and Pixels
 **function get_WCS_cube, cube** - Get all WCS data for cube (image) and calculate CDELT and rotation angle from CD keys
 
 **procedure set_WCS_cube_scale, cube, wcs, xscale, yscale** - Rescales and sets WCS data for cubes, including cd keys - removes cdelt and crota keywords}
-## lib_general
+### lib_general
 General functions
 
 **function indexreform, index, xsize, ysize, zsize** - returns 3D co-ords from 1D **index**, given dimensions **xsize, ysize, zsize**. Values returned as array.
@@ -70,7 +73,7 @@ General functions
 **function profile_export, inbuff, scale1, scale2, scale3, offset** - Export 1D profiles with up to 3 separate scales, e.g. arcsec, pc, Re plus the pixel scale, _offset_=1 offsets by 1/2 a pixel (e.g. for log scale plot) (default 0). Scales default to 1 if not given.
 
 **function butterworth_filter, order, cutoff, size** - Create a Butterworth filter for order _order_ for a square of sides “_size_”, with _cutoff_ Nyquist frequency
-## lib_cube
+### lib_cube
 Data cube functions
 
 **function cube_trim_xy, cube, x1, x2, y1, y2**- sets cube to zero x<x1, x>x2, y<y1, y>y2 (cblank cube first)
@@ -123,7 +126,7 @@ Data cube functions
 
 **function cube_set_pixlayers, cube, pixl, pix1, pix2** - set cube layers [pix1,pix2] to the values for layer pixl
 
-**function cube_wavelength_correct, cube, correctio**n - correct wavelength solution at each spaxel by “correction” values (in wavelength)
+**function cube_wavelength_correct, cube, correction** - correct wavelength solution at each spaxel by “correction” values (in wavelength)
 
 **function cube_to_2d, cube** - Convert data cube to 2d apertures for IRAF
 
@@ -140,7 +143,7 @@ Data cube functions
 **function cube_rebin, cube, psize** - Rebin cube to pixel size psize (arcsec). Uses “interpolate” function. Useful for e.g. KCWI data which has rectangular spaxels on the sky.
 
 **function cube_from_image_spectrum, image, spectrum** - Creates a cube from an image and spectrum. Wavelength axis of cube is spectrum scaled by image value
-## lib_image
+### lib_image
 Image functions
 
 **function image_erodenan, image** - erode image, pixels set to Nan if any neighbour is Nan
@@ -166,7 +169,7 @@ Image functions
 **function image_interp_flags, image, flags, xi1, xi2, yi1, yi2, dmax** - Interpolate over flagged spaxels, flags - 2D data with same x/y axes size as image, with value=1 to be interpolated, value=0 - good pixels, [xi1:xi2, yi1:yi2] - co-ordinate range to interpolate over. If not input, then do all spaxels. dmax - maximum pixel distance for interpolation (=0 don't test)
 
 **function image_cut, image, x, y, a** - do twodcut at [x,y] angle a and reset WCS correctly.
-## lib_spectrum
+### lib_spectrum
 Spectrum functions
 
 **function spectrum_make_disp, val, delt, pix, n** - make 1D vector over range defined by WCS val, delt, pix, n.
@@ -196,7 +199,7 @@ Spectrum functions
 **function spectrum_from_data, xdata, ydata, w1, w2, delt** - re-disperse spectrum from 2D x and y data to wavelength range (w1, w2) and same number of points (from w1, w2 and  delt)
 
 **function spectrum_interp, spectrum, x1, x2** - Smooth over bad pixels [x1:x2]
-## lib_io
+### lib_io
 Input/output to and from text and fits files
 
 **function io_text_FITS_1D, bintable2d** - converts text, format of "wavelength, data" to spectrum fits data, setting WCS values. Assumes wavelength is evenly spaced. Note “Import” function of QFitsView does very similar.
@@ -216,7 +219,7 @@ Input/output to and from text and fits files
 **function io_cube_from_xyz, cube,bintable2d, n** - make a cube from bintable2d, cube is template, resized to n on axis 3,  first 2 values in data are x,y co-ords, rest are values along z axis
 
 **function io_import_TXT_1D, fname** - import data from file fname in text format
-## lib_masking
+### lib_masking
 Masking functions for images and cubes
 
 **function mask_from_image, image, level, low** - create a mask from data image, setting to 1 if > level, to low(usually 0) if \<level
@@ -234,7 +237,7 @@ Masking functions for images and cubes
 **function mask_cone, data, xc1, yc1, xc2, yc2, pa, beta, maskflag** - mask cone area, equator [xc1, yc1], [xc2, yc2] (can be same coordinate), centerline angle pa, internal full-angle beta. If mask=0, return the mask, if maskflag=1, return the masked input data
 
 **function mask_line, data, x1, y1, x2, y2, side** - creates a mask of data dimensions on one side of a line [x1, y1], [x2, y2]. side =0 for left, =1 for right side of line
-## lib_velmap
+### lib_velmap
 Velocity map (velmap) extension functions
 
 **function velmap_std_to_ext, velmpstd, r, cmin, vmethod, vcenter, vx, vy** - convert standard QFitsView velmap velmpstd to extended form, r=instrumental resolution, cmin= minimum continuum value - output is extended velmap format - see below:
@@ -272,7 +275,7 @@ vmethod
 **function velmap_mask, velmap** - set velmap to Nan where continuum=0
 
 **procedure velmap_comps, velmap, prefix, hmax** - Output velmap components, to the current working directory. prefix sets file names, terminated with _Flux/_Flux_Norm/_Vel/_EW/_Sig/_VelHist/_SigHist - histograms produced if hmax>0, velocities -hmax -> hmax, dispersion 0->hmax, 50 bins
-## lib_chmap 
+### lib_chmap 
 Channel and position/velocity map functions
 
 **function chmap_create, cube, lambda_cent, lambda_width, cutoff, width_factor, smooth** - make a channel map from the cube
@@ -287,7 +290,7 @@ Returns cube, axis 3 in velocity difference from median. Spaxel values are FLUX 
 **function chmap_rebin, cube, lnew, velwidth, sm, minval**- rebin channel maps into lnew bins between v1 and v2 (usually symmetric about 0, but not necessarily). sm smoothing, integer=boxcar, non-integer=gauss, 0=no smoothing, set output to NaN where < minval
 
 **procedure chmap_comps, cube, dirout, fnameout** - splits channel map into components and writes images to dirout, named fname plus velocity (e.g. “/users/mdurre/data/chmaps/ic630_pa_beta-450.fits”, “/users/mdurre/data/chmaps/ic630_pa_beta+100.fits”)
-## lib_pv
+### lib_pv
 Position Velocity Diagram functions
 
 **function pv_array, cube, ystart, wslit, nslit, lcent, lwidth** - create pv diagram from cube parallel to x axis, ystart - y pixel to start, wslit - slit width, nslit - number of slits, extract over range lcent-lwidth/lcenter+lwidth
@@ -297,7 +300,7 @@ Position Velocity Diagram functions
 **function pv_ratio, cube,  xc, yc, angle, width, lcent1, lcent2, vwidth, npix** - create PV diagram for ratio of 2 lines lcent1, lcent2
 
 **function pv_meddev, image** - divide image by median along x axis (useful for EW for PV diagrams)
-## lib_wvt
+### lib_wvt
 Weighted Voronoi Tesselation functions
 
 **function wvt_cube, cube, sn_target** - make wvt cube using noise in each spaxel. Bad pixels where S/N is > 10x brightest pixel S/N
@@ -328,7 +331,7 @@ Weighted Voronoi Tesselation functions
 **function wvt_cube_to_specarray, cube, wvtmap, normflag, prntflag** - convert cube inbuff to spectrum array, using wvt_map regions. If normflag = 1, divide each spectrum in array by the first one. If prntflag = 1, print running diagnostics
 
 **function wvt_specarray_to_cube, image, wvtmap** - reverse of “wvt_cube_to_specarray"
-## lib_astro_general
+### lib_astro_general
 General astrophysics functions 
 
 **function redshift_data, data, z, rdflag** - redshift data by “z”, assuming last axis is wavelength. WCS values set. If rdflag = 1, redisperse shifted data to same wavelength wcs as input
@@ -348,7 +351,7 @@ General astrophysics functions
 **function extinction_correct_lambda, data, av, lambda** - correct value/image for extinction av at wavelength lambda can be used on value or image
 
 **function flux_to_mag, image, zpm, ssize, zpflag** - convert flux image image to mag, zpm is either zero-point magnitude (zpflag=0) or zero-magnitude flux (zpflag=1). ssize = pixel size in arcsec to convert to mag/arcsec^2
-## lib_astro_mapping
+### lib_astro_mapping
 Astronomy functions (mapping)
 
 **function map_compare_diagram, image1, image2, min1, max1, min2, max2, nbin, lgaxesflag** - Map diagram density plot. image1, image2 - value maps, x and y axes. min1/2, max1/2 - min and maximum values for axes 1/2. nbin - no of bins on each axis. lgaxesflag - 1=plot in log space (min,max must be in log values)
@@ -362,17 +365,17 @@ Astronomy functions (mapping)
 **function map_regime_ir, image1, image2, a1, a2, a3, b1, b2** - create position excitation map. If a1=0, use the standard Riffel 2013 excitation regimes. inbuff1 is H_2/Br_gamma, inbuff2 is [Fe II]/Pa_beta. Both in log values. Output values are SF=1, AGN=2, LINER=3, TO1=4, TO2=5
 
 **function map_regime_optical, image1, image2, typeflag**- create position excitation map for optical line ratios. typeflag = 1 ([N II]/H_alpha diagram), =2 ([S II]/H_alpha diagram), =3 ([O I]/H_alpha diagram). Returns 1=SF, 2=Seyfert, 3=LINER, 4=Composite
-## lib_astro_spectrum
+### lib_astro_spectrum
 Astronomy functions (spectrum)
 
 **spec_fluxdens, spectrum, l1, l2, prflag** - flux density (counts/nm) between l1 and l2 wavelength; data is spectrum (returns single value). If prflag<>0, print results as well.
-## lib_astro_image
+### lib_astro_image
 Astronomy functions (image) 
 
 **function img_aphot_annular, image, xcen, ycen, r, ib, ob** - aperture photometry on image,centered on xcen,ycen; aperture r, background annulus from ib to ob (inner to outer boundary). If ib and ob are zero, set to r and 2*r
 
 **function img_apphot_simple, image, xcen, ycen, r, pixsize, scale** - simple aperture photometry on image,centered on xcen,ycen; aperture r.
-## lib_astro_cube
+### lib_astro_cube
 Astronomy functions (cube) 
 
 **function cube_apphot, cube, xcen, ycen, r1, r2, mx, my, mr** - aperture photometry, centered on xcen,yceb; aperture r1, background annulus r2, mask out circle mx/my/mr (mx>0) - result is spectrum
@@ -399,7 +402,7 @@ Output is spectrum of aperture less average of background (with mask) - values <
 **function clean_cube_bp_limits, cube, ll, ul** - create bad pixel cube for input to “clean_cube_bp”, flagging pixels below ll and above ul values
 
 **function clean_cube_bp, cube, threshold** - create bad pixel cube using threshold scanning over wavelength slices.
-## lib_all
+### lib_all
 Runs all libraries
 
 # Standard Procedures
@@ -437,5 +440,5 @@ Runs all libraries
 11. Dispersion (sigma) velocity, corrected for spectral resolution
 12. Flux (Peak*FWHM*1.0699)
 13. Equivalent width (flux/continuum)
-14. Support (√V^2+σ^2)
-15. Order vs turbulence (|V/σ|)
+14. Total support (order + turbulence) ($\sqrt{V^{2}+\sigma^{2}}$)
+15. Order vs turbulence ($|V/\sigma}|$)
