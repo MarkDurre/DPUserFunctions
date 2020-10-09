@@ -389,4 +389,17 @@ function spectrum_fitwext, inbuff, template, extinction, wlflag {
   rext=extinction_correct(rinbuff, -1*extinction)
   spectrum_fitwext=rext/template
 }
+
+function spectrum_sn, inbuff, window {
+//Estimate spectrum S/N from itself - not 100% accurate but good for comparisons
+//Window is smoothing and noise estimation window
+  signal=smooth(inbuff, window) //Estimate signal
+  no1=inbuff-signal
+  no2=no1*0
+  for (i=int(window/2)+1;i<=naxis1(inbuff)-int(window/2)-1;i++) {
+    no2[i]=stddev(no1[i-int(window/2):i+int(window/2)],0)
+  }
+  no2[where(inbuff==0)]=0
+  spectrum_sn=signal/no2
+}
   
