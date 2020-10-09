@@ -29,8 +29,9 @@ function cube_apphot, cube, xcen, ycen, r1, r2, mx, my, mr {
 function cube_apspec, cube, ox, oy, or, bx, by, br, br2, mask {
 //Get star spectrum from aperture using circular aperture and background, plus a mask circle
 //Inputs - cube is 3D cube of star, used for both telluric and flux calibration
-//xc, yc, r1 - center and radius of aperture, r2 - radius of annulus (r1->r2) of background
-//mx, my, mr - center and radius of mask, if not required then mx=0
+//ox, oy, or - center and radius of aperture
+//bx, by, br - center and radius of mask, if not required then bx = 0
+//br2 - inner radius of mask annulus 
 //mask - any other mask required (2D fits)
 //Output is spectrum of aperture less average of background (with mask) - values <0 set to Nan
   if (nparams()==0) {
