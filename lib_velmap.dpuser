@@ -40,6 +40,13 @@ function velmap_std_to_ext, velmpstd, r, fmin, vmethod, vcenter, vx, vy {
 //Clips flux<fmin
   n1=naxis1(velmpstd)
   n2=naxis2(velmpstd)
+//Set defaults
+  if nparams()<7 vy=int(n2/2)
+  if nparams()<6 vx=int(n1/2)
+  if nparams()<5 vcenter=0
+  if nparams()<4 vmethod=1 
+  if nparams()<3 fmin=0
+  if nparams()<2 r=0
   cc=299796
   lvelmpstd=velmpstd
   mask=lvelmpstd[*,*,1]*0+1
