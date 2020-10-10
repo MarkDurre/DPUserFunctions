@@ -1,9 +1,6 @@
-if (getenv("OS")=="Windows_NT") {
-  setenv "DPUSER_DIR", "D:\Users\Mark Durre\OneDrive - Swinburne University\DPUser" 	
-} else {
-  setenv "DPUSER_DIR", "/users/mdurre/onedrive/dpuser"
-  setenv "DPUSER_PYTHONLIB","/anaconda3/envs/GIST/lib/libpython3.7m.dylib"
-}
+//These lines must be modified for individual users
+setenv "DPUSER_DIR", "/users/mdurre/onedrive/dpuser"
+setenv "DPUSER_PYTHONLIB","/Users/mdurre/opt/anaconda3/pkgs/python-3.8.3-h26836e1_2/lib/libpython3.8.dylib"
 dpuserdir=getenv("DPUSER_DIR")
 print "Running General Functions : DPUser Directory - "+dpuserdir
 run dpuserdir+"/functions/lib_all.dpuser"
