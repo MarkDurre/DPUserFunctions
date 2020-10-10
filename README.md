@@ -1,13 +1,18 @@
 # QFitsView DPUser
-## Setting Up QFitsView DPUSER Library
-1. Place all libraries (files with “lib_*.dpuser” name) in a convenient location (e.g. “/Users/"user"/DPUser/"
-2. Place “startup.dpuser” in “/Users/"user"/DPUser/Functions"
+## Setting Up DPUSER Functions Library
+1. Place all libraries (files with “lib\_\*.dpuser” name) in a convenient location (e.g. “/Users/*username*/DPUser/Functions"
+2. Place “startup.dpuser” in that location. This assumes that all the library functions are located in the "Function" sub-folder and runs the "lib\_all.dpuser" script. This file must be modified for your own requirements; it also sets the *DPUSER_DIR* environment variable that can be accessed by other scriupts, using the **getenv** function in QFitsView.
 3. Create a directory under root “/dpuserlib” (for macOS 10.15+ use the `synthetic.conf` symbolic links - reference [here](https://stackoverflow.com/questions/58396821/what-is-the-proper-way-to-create-a-root-sym-link-in-catalina))
-4. Make a file in that directory “startup.dpuser” - this will be automatically run when you start QFitsView. 
-The file consists of a single line: `@/Users/"user"/DPUser/startup.dpuser`. This runs all libraries to make the functions available to QFitsView - you will see a whole bunch of “Stored function…” and “Stored procedure…” plus “Finished General Functions”
+4. Make a file in that directory “startup.dpuser” - this will be automatically run when you start QFitsView. The file consists of a single line:
+ `@/Users/*username*/DPUser/startup.dpuser`
+i.e. it runs the script set up above. This runs all libraries to make the functions available to QFitsView - you will see a whole bunch of “Stored function…” and “Stored procedure…” plus “Finished General Functions”.
+5. If the above folder conventions are not used, the following files must be modified:
+    -  /dpuserlib/startup.dpuser
+    - /Users/*username*/DPUser/startup.dpuser
+    - /Users/*username*/DPUser/Functions/lib\_all.dpuser
 
 ##  Global Variables
-These are defined internally in dpuser; they can be overwritten in a QFitsView session.
+These are defined internally; they can be overwritten in a QFitsView session.
 
 c          =     299792458.0<br>
 pi         =     3.14159<br>
@@ -17,6 +22,19 @@ naxis2     =     256<br>
 plotdevice =     /XSERVE<br>
 method     =     0<br>
 tmpmem     =     20971520<br>
+
+## Editing DPUser Code
+
+The main documentation for DPUser is through [this link](https://www.mpe.mpg.de/~ott/dpuser/). DPUser code can be edited with QFItsView *DPUSER > Script Editor*. It can also be edited by various external text editors; e.g. **BBEdit**. To facilitate this, a language module has been implemented - "DPUser.plist", with the following highlighting features: 
+
+- Syntax - both structural commands - e.g. "if", "else" etc. and internal DPUser functions/procedures. As new functions/procdures are implemented in QFitsView, the "BBLMPredefinedNameList" array must be updated.
+- Comments (both for "/\*..\*/" and "//").
+- Strings ("..")
+- Function and procedure prefixes
+
+The file is installed in BBEdit's language module directory - by default "/Users/*username*/Library/Application Support/BBEdit/Language Modules".
+
+Note that after editing code in an external text editor, the script must be executed again with QFitsView.
 
 ##  Parameter data types
 * FITS or buffer input - "cube" is 3D, "image" is 2D, "spectrum" is 1D, "data" is 1, 2 or 3D
@@ -34,7 +52,9 @@ tmpmem     =     20971520<br>
 ## Libraries
 ### lib_all
 
-Runs all the following libraries.
+Runs all the following libraries; this just consists of script lines to execute other scripts in the "Functions" sub-folder. Other scripts can be executed by adding appropriate lines, e.g.
+
+`@SomeFolder/SomeScript.dpuser`
 
 ### lib_wcs
 
@@ -46,7 +66,7 @@ Transform to and from World Coordinate Systems and Pixels
 
 **procedure set_WCS_data, data, wcs, axis** - sets WCS values for *data* for *axis* (1,2 or 3)
 
-**function cvt_pixel_WCS, pix, crpix, crval, cdelt** - convert pixel number *pix* to WCS coordinates using *crpix, crval, cdelt*. Assumes linear conversion (cartesian). Future versions will use <u>worldpos</u> and <u>pixpos</u> functions.
+**function cvt_pixel_WCS, pix, crpix, crval, cdelt** - convert pixel number *pix* to WCS coordinates using *crpix, crval, cdelt*. Assumes linear conversion (cartesian). Future versions will use **worldpos** and **pixpos** functions (to be implemented as QFitsView internal functions in a future version).
 
 **function cvt_WCS_pixel, value, crpix, crval, cdelt** - convert WCS coordinate *value* to pixel using *crpix, crval, cdelt*. 
 
@@ -356,8 +376,25 @@ Weighted Voronoi Tesselation functions
 
 **function wvt_specarray_to_cube, image, wvtmap** - reverse of **wvt_cube_to_specarray**
 
+### lib_astronomy
+
+General astronomy functions, implemented from IDL.
+
+**function G** - gravitational constant (MKS)
+
+**function Msun** - Mass of the sun in kg
+
+**function Pc** - 1 Parsec in meters
+
+**function airtovac, wave** - Convert air wavelengths to vacuum wavelengths, *wave* in Å
+
+**function planck, wave, temp** - Calculates the Planck function in units of ergs/cm2/s/Å. *wave* in Å, *temp* in degrees K.
+
+**function coordstring, ra, dec, rad** - create a nice string of celestial coordinates. *ra* and *dec* should be given in radians; if *rad*>0, convert to degrees
+
 ### lib_astro_general
-General astrophysics functions 
+
+General astrophysics functions. All the "lib\_astro\_*.dpuser" functions are executed from the "lib\_astro.dpuser" script.
 
 **function redshift_data, data, z, rdflag** - redshift data by *z*, assuming last axis is wavelength. WCS values set. If *rdflag* = 1, redisperse shifted data to same wavelength range as input
 
@@ -431,17 +468,14 @@ Output is spectrum of aperture less average of background (with mask) - values <
 **function clean_cube_bp_limits, cube, ll, ul** - create bad pixel cube from *cube* for input to **clean_cube_bp_fix**, flagging pixels below *ll* and above *ul* values
 
 # Standard Procedures
-## Channel map
-- Create basic channel map using “**chmap_create**” (usually do not smooth)
-- Rebin to required # of channels (e.g. 9 or 16) using “**chmap_rebin**” (smoothing if required)
-- Output individual channel maps using “**chmap_comps**
-## Velocity map
+## Velocity maps
 * Create QFitsView **velmap** with wavelength, fwhm estimate
 * Examine velmap for continuum, height, wavelength and fwhm “sensible” ranges
-* Use **velmap_fix** to clean up velmap
+* Use **velmap_fix** to clean up velmap, entering "good" ranges for each fit component. This sets out-of-range spaxels to Nan.
 * Use **velmap_fix_interp** to interpolate over NaN values (if required)
 * Use **velmap_std_to_ext** to create extended velmap format
-## Standard QFitsView VELMAP Format
+### Standard VELMAP Format
+
 1. Continuum
 2. Peak height above continuum
 3. Wavelength
@@ -451,7 +485,7 @@ Output is spectrum of aperture less average of background (with mask) - values <
 7. e_Wavelength
 8. e_FWHM
 9. Chi-squared
-## Extended VELMAP Format
+### Extended VELMAP Format
 1. Continuum
 2. Peak height above continuum
 3. Wavelength
@@ -461,9 +495,17 @@ Output is spectrum of aperture less average of background (with mask) - values <
 7. e_Wavelength
 8. e_FWHM
 9. Chi-squared
-10. Velocity (zero-point calculated/set by “method” parameter)
+10. Velocity (zero-point calculated/set by *method* parameter in the **velmap_std_to_ext** function)
 11. Dispersion (sigma) velocity, corrected for spectral resolution
 12. Flux (Peak\*FWHM*1.0699)
 13. Equivalent width (flux/continuum)
 14. Total support (order + turbulence) (√V^2 +σ^2)
 15. Order vs turbulence (|V/σ|)
+
+## Channel maps
+
+- Create basic channel map using “**chmap_create**” (usually do not smooth)
+- Rebin to required # of channels (e.g. 9 or 16) using “**chmap_rebin**” (smoothing if required)
+- Output individual channel maps using “**chmap_comps**
+
+### 
