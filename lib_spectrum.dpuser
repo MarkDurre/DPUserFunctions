@@ -399,7 +399,7 @@ function spectrum_sn, inbuff, window {
   for (i=int(window/2)+1;i<=naxis1(inbuff)-int(window/2)-1;i++) {
     no2[i]=stddev(no1[i-int(window/2):i+int(window/2)],0)
   }
-  no2[where(inbuff==0)]=0
+  no2[where(inbuff==0)]=0/0
   spectrum_sn=signal/no2
 }
   
