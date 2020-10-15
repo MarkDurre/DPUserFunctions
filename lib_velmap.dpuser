@@ -1,5 +1,7 @@
 dpuserdir=getenv("DPUSER_DIR")
 run dpuserdir+"/functions/lib_general.dpuser"
+run dpuserdir+"/functions/lib_cube.dpuser"
+run dpuserdir+"/functions/lib_wcs.dpuser"
 
 /*
 Functions
@@ -115,17 +117,17 @@ function velmap_std_to_ext, velmpstd, r, fmin, vmethod, vcenter, vx, vy {
   velmap_std_to_ext=vmgauss
 }
 
-function profit_to_velmap, profit_data, velmpstd {
-//Convert cube from PROFIT to standard velmap format using velmpstd as template
+function velmap_from_profit, profit_data {
+//Convert cube from PROFIT to standard velmap format
   n1=naxis1(profit_data)
   n2=naxis2(profit_data)
-  vmgauss=(resize(velmpstd,n1,n2,9))*0
-  vmgauss[*,*,1]=profit_data[*,*,6] //Continuum
-  vmgauss[*,*,2]=profit_data[*,*,12] //Height
-  vmgauss[*,*,4]=profit_data[*,*,11] //FWHM
-  vmgauss[*,*,3]=profit_data[*,*,10] //Wavelength
-  vmgauss[*,*,9]=profit_data[*,*,9]
-  profit_to_velmap=vmgauss
+  vm=(resize(profit_data,n1,n2,9))*0
+  vm[*,*,1]=profit_data[*,*,6] //Continuum
+  vm[*,*,2]=profit_data[*,*,12] //Height
+  vm[*,*,4]=profit_data[*,*,11] //FWHM
+  vm[*,*,3]=profit_data[*,*,10] //Wavelength
+  vm[*,*,9]=profit_data[*,*,9]
+  velmap_from_profit=vm
 }
 
 function velmap_vel, velmap, vmethod, vcenter, vx, vy {
@@ -234,7 +236,7 @@ function velmap_flux, inbuff {
 function velmap_fix, inbuff, contlo, conthi, flo, fhi, vlo, vhi, wlo, whi, setvalue {
 //Fix velocity map
 //  print contlo,conthi,flo,fhi,vlo,vhi,wlo,whi
-  if (nparams()<10) setvalue=0
+  if (nparams()<10) setvalue=0/0
   outbuff=inbuff
   n1=naxis1(inbuff)
   n2=naxis2(inbuff)
@@ -425,14 +427,18 @@ function velmap_rescale, inbuff, scale {
     outbuff[*,*,13]=outbuff[*,*,13]*scale
     velmap_rescale=outbuff
   } else {
-    print "VELMAP_RESCALE: Error! Input is not a velmap!" 
+    print "VELMAP_RESCALE: Error! Input is not an extended velmap!" 
   }
 }
 
 function velmap_vel_set, velmap, method, center, vx, vy {
-  vmap=velmap
-  vmap[*,*,10]=velmap_vel(vmap, method, center, vx, vy)
-  velmap_vel_set=vmap
+  if (naxis3(velmap)==15) {
+    vmap=velmap
+    vmap[*,*,10]=velmap_vel(vmap, method, center, vx, vy)
+    velmap_vel_set=vmap
+  } else {
+    print "VELMAP_VEL_SET: Error! Input is not an extended velmap!" 
+  }
 }
 
 function velmap_fix_interp, velmp, npix,x1,x2,y1,y2 {
