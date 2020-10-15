@@ -294,9 +294,7 @@ Runs all the following libraries; this just consists of script lines to execute 
 
 **function mask_set_nan_min, data, minvalue** - set *data* values to *minvalue* if value = Nan. If minvalue is zero, use the current minimum value. Equivalent to **cblank** function is *minvalue*=0
 
-**function mask_cone, data, xc1, yc1, xc2, yc2, pa, beta, maskflag** - mask cone area over *data* (either image or cube), with equator [*xc1, yc1*], [*xc2, yc2*] (can be same coordinates for ), centerline angle *pa*, internal full-angle *beta*. If *maskflag*=0, return the mask, if *maskflag*=1, return the masked input data. Example, 256x256 image, x1=x2=120, y1=y2=130, pa=60, beta=30:
-
-![image-20201015184014365](README.assets/image-20201015184014365.png)
+**function mask_cone, data, xc1, yc1, xc2, yc2, pa, beta, maskflag** - mask cone area over *data* (either image or cube), with equator [*xc1, yc1*], [*xc2, yc2*] (can be same coordinates for ), centerline angle *pa* (from positive x-axis), internal full-angle *beta*. If *maskflag*=0, return the mask, if *maskflag*=1, return the masked input data.
 
 **function mask_line, data, x1, y1, x2, y2, side** - creates a mask of *data* dimensions on one side of a line [*x1, y1*], [*x2, y2*]. *side* =0 for left, =1 for right side of line
 
