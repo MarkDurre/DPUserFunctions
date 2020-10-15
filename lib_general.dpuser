@@ -45,10 +45,10 @@ function indexreform, index, xsize, ysize, zsize {
   
 function lognan, inbuff {
 //Make log of image with Nans and zeros
-  outbuff=inbuff*0/0
-  mask=where(inbuff>0)
-  outbuff[mask]=log(inbuff[mask])
-  lognan=outbuff
+    outbuff=inbuff*0/0
+    mask=where(inbuff>0)
+    outbuff[mask]=log(inbuff[mask])
+    lognan=outbuff
 }
 
 function clipnan, inbuff, low, high {
