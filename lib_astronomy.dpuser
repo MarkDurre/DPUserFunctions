@@ -142,7 +142,7 @@ function coordstring, ra, dec, rad {
 ; if rad>0, convert to degrees
 */
   decl=dec
-  ral=ral
+  ral=ra
   if (rad > 0) {
     decl = deg2rad(dec)
     ral = deg2rad(ra)
