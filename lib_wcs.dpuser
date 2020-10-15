@@ -73,6 +73,7 @@ procedure set_WCS_data, inbuff, wcs, axis {
 }
 
 function cvt_WCS_pixel, value, cpix, cval, cdelt, prnt {
+  if nparams()<5 prnt=0
   p = ((value-cval)/cdelt+cpix)
   if (prnt>0) print p
   cvt_WCS_pixel = p
@@ -110,6 +111,7 @@ function cvt_pixel_WCS_data, inbuff, value, axis, prnt {
 }
 
 function WCS_range, inbuff, p1, p2, axis, prnt {
+  if nparams()<5 prnt=0
   l1 = cvt_pixel_WCS_data(inbuff, p1, axis)
   l2 = cvt_pixel_WCS_data(inbuff, p2, axis)
   if (prnt>0) print "WCS_RANGE: WCS Range ["+l1+"-"+l2+"]"
@@ -117,6 +119,7 @@ function WCS_range, inbuff, p1, p2, axis, prnt {
 }
   
 function pixel_range, inbuff, w1, w2, axis, prnt {
+  if nparams()<5 prnt=0
   p1 = cvt_WCS_pixel_data(inbuff, w1, axis)
   p2 = cvt_WCS_pixel_data(inbuff, w2, axis)
   if (prnt>0) print "WCS_RANGE: Pixel Range : ["+p1+"-"+p2+"]"
@@ -139,6 +142,7 @@ function set_WCS_default, inbuff {
 function get_aperture_WCS, inbuff, wcs1, wcs2, wsize, prnt {
 //Get aperture from image based on WCS co-ords
 //wcs1/wcs2/wcssize are in WCS units (e.g. if wcs1/wcs2=RA/DEC then wcssize is in degrees i.e sec/3600
+  if nparams()<5 prnt=0
   if (prnt==1) print "GET_APERTURE_WCS: Parameters : "+wcs1+" "+wcs2+" "+wsize
   w1=wcs1-wsize
   w2=wcs1+wsize
@@ -162,7 +166,8 @@ function get_wcs_cd, inbuff, key {
   }
 }
 
-function WCS_cd_cdelt, inbuff {
+function WCS_cd_cdelt, inbuff, prnt {
+  if nparams()<2 prnt=0
   cd11=get_wcs_cd(inbuff,"CD1_1")
   cd12=get_wcs_cd(inbuff,"CD1_2")
   cd21=get_wcs_cd(inbuff,"CD2_1")
@@ -173,13 +178,15 @@ function WCS_cd_cdelt, inbuff {
   scd=sign(cd11*cd22-cd12*cd21)
   r1=atan(sign(cd1*cd2)*cd12,cd22,/deg)
   r2=atan(-1*sign(cd1*cd2)*cd21,cd11,/deg)
-  print "Rotation 1 : "+r1
-  print "Rotation 2 : "+r2
   if (scd<0) {
     cd1=-1*cd1
   }
-  print "CDELT1 : "+cd1+" ("+cd1*3600+")"
-  print "CDELT2 : "+cd2+" ("+cd2*3600+")"
+  if (prnt>0) {
+    print "Rotation 1 : "+r1
+    print "Rotation 2 : "+r2
+    print "CDELT1 : "+cd1+" ("+cd1*3600+")"
+    print "CDELT2 : "+cd2+" ("+cd2*3600+")"
+  }
 
   WCS_cd_cdelt=[cd1,cd2,r1]
 }
