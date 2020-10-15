@@ -1,3 +1,5 @@
+dpuserdir=getenv("DPUSER_DIR")
+
 //Astronomical functions on images
 function img_flux_to_mag, inbuff, zpm, ssize, flag {
 //Convert flux or counts to magnitude per square arcsec
@@ -13,27 +15,27 @@ function img_flux_to_mag, inbuff, zpm, ssize, flag {
     print "IMG_FLUX_TO_MAG: Parameters - inbuff, zpm, ssize, flag"
   }
   if (nelements(inbuff)==1) { //Single number
-  size=1
+    size=1
   } else { //Image
-  size=ssize
-  if (size==0) { //Find actual spzel size
-    if (check_header_key(inbuff,"CDELT1")==1) { //We have CDELT keys
-      cd1=getfitskey(inbuff,"CDELT1")
-      cd2=getfitskey(inbuff,"CDELT2")
-      size=sqrt(cd1^2+cd2^2)*3600/sqrt(2)
-    } else { //Using CD keys
-      if (check_header_key(inbuff,"CD1_1")==0) { //don't have CD keys therefore quit
-        print "IMG_FLUX_TO_MAG: No WCS keys"
-        break
+    size=ssize
+    if (size==0) { //Find actual spaxel size
+      if (check_header_key(inbuff,"CDELT1")==1) { //We have CDELT keys
+        cd1=getfitskey(inbuff,"CDELT1")
+        cd2=getfitskey(inbuff,"CDELT2")
+        size=sqrt(cd1^2+cd2^2)*3600/sqrt(2)
+      } else { //Using CD keys
+        if (check_header_key(inbuff,"CD1_1")==0) { //don't have CD keys therefore quit
+          print "IMG_FLUX_TO_MAG: No WCS keys"
+          break
+        }
+        cd11=getfitskey(inbuff,"CD1_1")
+        cd12=getfitskey(inbuff,"CD1_2")
+        cd21=getfitskey(inbuff,"CD2_1")
+        cd22=getfitskey(inbuff,"CD2_2")
+        size=sqrt(cd11^2+cd12^2+cd21^2+cd22^2)*3600/sqrt(2)
       }
-      cd11=getfitskey(inbuff,"CD1_1")
-      cd12=getfitskey(inbuff,"CD1_2")
-      cd21=getfitskey(inbuff,"CD2_1")
-      cd22=getfitskey(inbuff,"CD2_2")
-      size=sqrt(cd11^2+cd12^2+cd21^2+cd22^2)*3600/sqrt(2)
+      print "IMG_FLUX_TO_MAG: Spaxel size - "+size
     }
-    print "IMG_FLUX_TO_MAG: Spaxel size - "+size
-  }
   }
   f=inbuff/size^2
   if (flag==0) {
@@ -113,18 +115,18 @@ function img_apphot_simple, img, xcen, ycen, r, pixsize, scale, prn {
   img_apphot_simple=[tot,av,ncount,fpc]
 }
 
-function img_convert_filters, image1, image2, coeffs12, coeffs21, tol, zpt {
+function img_convert_filters, image1, image2, coeffs12, coeffs21, tol {
 //Convert images in 2 filters to other filter set
 //Methodology of ﻿Holtzman, J. A., Burrows, C. J., Casertano, S., et al. 1995, PASP, 107, 1065
 //Coefficients for WFPC2/WFC3 from Holtzmann, ACS from﻿ Sirianni, et al. 2005, PASP, 117, 1049
 //Convert to intial magnitudes
-  if (nparams()<6) zpt=-21.1//Standard HST ZPT
-  if (nparams()<5) tol=0.01//Tolereance to 0.01 mag
+  if (nparams()<5) tol=0.01//Tolerance to 0.01 mag
   print "IMG_CONVERT_FILTERS : Setup...."
   print "IMG_CONVERT_FILTERS : Image 1 -> mag"
-  smag1=-2.5*lognan(image1)+zpt
+  smag1=-2.5*lognan(image1)
   print "IMG_CONVERT_FILTERS : Image 2 -> mag"
-  smag2=-2.5*lognan(image2)+zpt
+  smag2=-2.5*lognan(image2)
+  maxiter=10 //Maximum number of iterations
 //Coeffcients
   c012=coeffs12[1]
   c112=coeffs12[2]
@@ -132,13 +134,15 @@ function img_convert_filters, image1, image2, coeffs12, coeffs21, tol, zpt {
   c021=coeffs21[1]
   c121=coeffs21[2]
   c221=coeffs21[3]
+  print "IMG_CONVERT_FILTERS : Coefficients 1->2 "+c012+","+c112+","+c212
+  print "IMG_CONVERT_FILTERS : Coefficients 2->1 "+c021+","+c121+","+c221
   tol1=1
   tol2=1
-  outmag1=smag1+c012
-  outmag2=smag2+c021
+  outmag1=smag1 //Set initial value
+  outmag2=smag2
   outmag12=smag1-smag2
   niter=0
-  while (tol1>tol)||(tol2>tol){
+  while ((tol1>tol)||(tol2>tol)){
     trmag1=smag1+c012+c112*outmag12+c212*outmag12^2
     trmag2=smag2+c021+c121*outmag12+c221*outmag12^2
     outmag12=trmag1-trmag2
@@ -150,16 +154,19 @@ function img_convert_filters, image1, image2, coeffs12, coeffs21, tol, zpt {
     tol1=max(abs(tolimg1))
     tol2=max(abs(tolimg2))
     print "IMG_CONVERT_FILTERS : No.of iteration = "+niter+" Tolerances = "+"["+tol1+","+tol2+"]"
+    if (niter>=maxiter) break
   }
   outdata=outmag1
   resize outdata, naxis1(outdata), naxis2(outdata), 3
   outdata[*,*,2]=outmag2
-  outdata[*,*,3]=outmag1-outmag2
+  outdiff=outmag1-outmag2
+  outdata[*,*,3]=outdiff
+  print "IMG_COVERT_FILTERS : TCOL Range 99.5% : ["+quantile(outdiff,.005)+","+quantile(outdiff,.995)+"]"
 //  print "IMG_CONVERT_FILTERS : No.of iteration = "+niter+" Tolerances = "+"["+tol1+","+tol2+"]"
   img_convert_filters=outdata
 }
 
-function SFD_dust_pos, dustimgn, dustimgs, lat, long {
+function img_SFD_dust_pos, dustimgn, dustimgs, lat, long {
 //Returns E(B-V) at Gal lat/long position for Schlegel etal. 1995 dust map
 //Check which image to use
   img=dustimgn
@@ -174,9 +181,10 @@ function SFD_dust_pos, dustimgn, dustimgs, lat, long {
   ix=int(x)
   iy=int(y)
 //  print "Dust Position X : "+ix+" Y : "+iy
-  SFD_dust_pos=img[ix,iy]
+  img_SFD_dust_pos=img[ix,iy]
 }
   
-function SF_dust_pos, dustimgn, dustimgs, lat, long {
-  SF_dust_pos=SFD_dust_pos(dustimgn, dustimgs, lat, long) *0.86
+function img_SF_dust_pos, dustimgn, dustimgs, lat, long {
+//Dust extinction from Schlafley & Finckbeiner, 2011
+  img_SF_dust_pos=SFD_dust_pos(dustimgn, dustimgs, lat, long) *0.86
 }
