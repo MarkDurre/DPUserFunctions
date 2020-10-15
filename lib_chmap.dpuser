@@ -3,15 +3,18 @@ run dpuserdir+"/functions/lib_wcs.dpuser"
 
 function chmap_create, cube, lambda_cent, lambda_width, cutoff, width_factor, smooth  {
 //Create channel maps with single wavelength element
-  if (lambda_cent==0) {
+  if nparams()<3 {
     print "CHMAP_CREATE: Parameters:"
-    print "  l_est"
-    print "  fwhm_est"
-    print "  thresh"
-    print "  width"
-    print "  smooth (0=no, 1=yes)"
+    print "  l_cent - central wavelength"
+    print "  l_width - estimate of FWHM"
+    print "  cutoff - threshold flux"
+    print "  width_factor - # of FWHM for full map"
+    print "  smooth (0=no, integer=smooth by boxcar, non-integer - smooth by gaussian)"
     chmap_create=0
   } else {
+    if nparams()<6 smooth=0
+    if nparams()<5 width_factor=2.5
+    if nparams()<4 cutoff=0
     c_sol=299792.5
   //Continuum subtract by velmap
     velmp=velmap(cube,lambda_cent, lambda_width, cutoff,/centroid)
@@ -145,10 +148,12 @@ procedure chmap_comps, inbuff, dirout, fnameout {
 }
 
 
-function chmap_from_velmap, cube, velmap, width, res {
+function chmap_from_velmap, velmap, cube_template, width, res {
 //Make a channel map from the velmap and a FWHM factor
 //Evaluate the velmap as pure gaussians
 //Correct fwhm by res - spectral resolution
+  if nparams()<4 res=0
+  if nparams()<3 width=2.5
   cc=299792.5
   fwhm=velmap[*,*,4]
   lcent=median(velmap[*,*,3],0)
@@ -164,29 +169,8 @@ function chmap_from_velmap, cube, velmap, width, res {
   velcorr=velmap
   velcorr[*,*,4]=fcorr
   fwhmmed=median(fcorr)
-  eval=evalvelmap(velcorr, cube)
-//Extract wavelength range - width factor * fwhm
-  wcs=get_WCS_data(cube,3)
-  spix=wcs[1]
-  sval=wcs[2]
-  sdelt=wcs[3]
-  fw=fwhmmed*width
-  l1=lcent-fw
-  l2=lcent+fw
-  pc=cvt_WCS_pixel(lcent, spix,sval,sdelt)  
-  p1=cvt_WCS_pixel(l1, spix,sval,sdelt)  
-  p2=cvt_WCS_pixel(l2, spix,sval,sdelt)
-/*  print "Median Wavelength : "+lcent+" FWHM : "+fwhmmed+" Window : "+fw
-  print "Wavelengths : "+l1+" - "+lcent+" - " +l2
-  print "Pixels : "+p1+" - "+pc+" - "+p2*/
-  ccube=eval[*,*,p1:p2]
-//Convert wavelength to velocity
-  vdelt=sdelt/lcent*cc
-  vval=-(pc-p1)*vdelt
-  vpix=1
-  vwcs=[vpix,vval,vdelt]
-  set_WCS_data ccube, vwcs,3
-  chmap_from_velmap=ccube*sdelt //Convert from height to flux
+  eval=evalvelmap(velcorr, cube_template)
+  chmap_from_velmap=chmap_create(eval, lcent, fwhmmed, 0, width)
 }
 
 function chmap_total_norm, inbuff {
