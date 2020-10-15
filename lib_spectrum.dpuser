@@ -237,7 +237,7 @@ function spectrum_redisp_lin, inbuff, data, daxis, xmin,delt, npix, zero, norms,
   if (nparams()<6) npix=1
   if (nparams()<5) delt=1
   if (nparams()<4) xmin=1
-  if (nparams()<3) daxis=1
+  if (nparams()<3) daxis=naxis(data)
   yold=inbuff
   xold=spectrum_make_disp_data(inbuff, 1)
   xstart=xold[1]
