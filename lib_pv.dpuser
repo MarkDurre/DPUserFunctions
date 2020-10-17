@@ -1,3 +1,6 @@
+dpuserdir=getenv("DPUSER_DIR")
+run dpuserdir+"/functions/lib_wcs.dpuser"
+
 function pv_array, cube, ystart, wslit, nslit, lcent, lwidth {
 //Create p-v diagram set of psudo longslits along x axis
 //Start at y pixel = ystart, width of each slit = wslit, number of slits = nslit

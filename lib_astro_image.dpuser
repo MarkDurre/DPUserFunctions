@@ -1,4 +1,5 @@
 dpuserdir=getenv("DPUSER_DIR")
+run dpuserdir+"/functions/lib_masking.dpuser"
 
 //Astronomical functions on images
 function img_flux_to_mag, inbuff, zpm, ssize, flag {
