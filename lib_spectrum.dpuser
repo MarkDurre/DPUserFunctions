@@ -1,3 +1,8 @@
+dpuserdir=getenv("DPUSER_DIR")
+run dpuserdir+"/functions/lib_general.dpuser"
+run dpuserdir+"/functions/lib_cube.dpuser"
+run dpuserdir+"/functions/lib_wcs.dpuser"
+
 function spectrum_make_disp, val, delt, pix, n {
 //Make a dispersion value vector
 //Val : starting value
@@ -373,8 +378,9 @@ function spectrum_redisp, inbuff, l1, l2, npix, xscl, yscl {
     spectrum_redisp=outbuff
 }
 
-function spectrum_clean, inbuff {
+function spectrum_clean, inbuff, thresh {
 //Clean spectrum using dpixcreate/apply
+  if nparams()<2 thresh=median(inbuff)/2
   inb=cblank(inbuff)
   dead=dpixcreate(inb, median(inb)/2)
   clean=dpixapply(inb, dead, method=1)
@@ -383,8 +389,9 @@ function spectrum_clean, inbuff {
 
 function spectrum_fitwext, inbuff, template, extinction, wlflag {
 //Fit spectrum to template with extinction
-//wlflag = 0 for nm, = 1 for Angstrom
+//wlflag = 0 for nm, = 1 for Angstrom (default 0)
 //Redisperse inbuff to template
+  if nparams()<4 wlflag=0
   rinbuff=spectrum_redisp_lin(cblank(inbuff), cblank(template), 1)
   rext=extinction_correct(rinbuff, -1*extinction)
   spectrum_fitwext=rext/template
@@ -392,8 +399,9 @@ function spectrum_fitwext, inbuff, template, extinction, wlflag {
 
 function spectrum_sn, inbuff, window {
 //Estimate spectrum S/N from itself - not 100% accurate but good for comparisons
-//Window is smoothing and noise estimation window
-  signal=smooth(inbuff, window) //Estimate signal
+//Window is smoothing and noise estimation window - default is 10% of spectrum length
+  if nparams()<2 window=int(naxis1(inbuff)*0.1)
+  signal=smooth(cblank(inbuff), window) //Estimate signal
   no1=inbuff-signal
   no2=no1*0
   for (i=int(window/2)+1;i<=naxis1(inbuff)-int(window/2)-1;i++) {
