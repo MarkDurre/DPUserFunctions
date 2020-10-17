@@ -1,14 +1,30 @@
 # QFitsView DPUser
 ## Setting Up DPUSER Functions Library
-1. Place all libraries (files with “lib\_\*.dpuser” name) in a convenient location  “*my\_program\_location*/DPUser/Functions"
+1. Place all libraries (files with “lib\_\*.dpuser” name) in a convenient location  e.g. “*my\_code\_location*/DPUser/Functions" (subsituting for *my_code_location* e.g. "/Users/mdurre/OneDrive")
 
-2. Place “startup.dpuser” in that location. This assumes that all the library functions are located in the "Function" sub-folder and runs the "lib\_all.dpuser" script. This file must be modified for your own requirements; it also sets the *DPUSER_DIR* environment variable that can be accessed by other scriupts, using the **getenv** function in QFitsView.
+2. Place “startup.dpuser” in e.g. “*my\_code\_location*/DPUser". This assumes that all the library functions are located in the "Function" sub-folder and runs the "lib\_all.dpuser" script. This file must be modified for your own requirements; it also sets the *DPUSER_DIR* environment variable that can be accessed by other scriupts, using the **getenv** function in QFitsView.
+
+    ```
+    //Example startup.dpuser
+    //This line must be modified (change *my_code_location*) for individual users
+    setenv "DPUSER_DIR", "*my_code_location*/dpuser"
+    //dopuserdir is used by libraries to call other libraries if required
+    dpuserdir=getenv("DPUSER_DIR")
+    print "Running General Functions : DPUser Directory - "+dpuserdir
+    run dpuserdir+"/functions/lib_all.dpuser"
+    print "Finished General Functions - "+dpuserdir
+    //You can put your own startup dpuser code here
+    ```
+
+    
 
 3. Create a directory under root “/dpuserlib” (for macOS 10.15+ use the `synthetic.conf` symbolic links - reference [here](https://stackoverflow.com/questions/58396821/what-is-the-proper-way-to-create-a-root-sym-link-in-catalina))
 
 4. Make a file in that directory “startup.dpuser” - this will be automatically run when you start QFitsView. The file consists of a single line:
 
-   @*my\_program\_location*/DPUser/startup.dpuser
+   ```
+   @*my_code_location*/DPUser/startup.dpuser
+   ```
 
    i.e. it runs the script set up above. This runs all libraries to make the functions available to QFitsView - you will see a whole bunch of “Stored function…” and “Stored procedure…” plus “Finished General Functions”.
 
@@ -43,18 +59,18 @@ The file is installed in BBEdit's language module directory - by default "/Users
 Note that after editing code in an external text editor, the script must be executed again with QFitsView.
 
 ##  Parameter data types
-* FITS or buffer input - "cube" is 3D, "image" is 2D, "spectrum" is 1D, "data" is 1, 2 or 3D
+* FITS or buffer input - *cube* is 3D, *image* is 2D, *spectrum* is 1D, *data* is 1, 2 or 3D
 	* Pixel co-ordinates
 	* p, p1, p2,… (general pixels co-ordinates)
 	* x, x1, x2,…, y, y1, y2,…, z, z1, z2,… (for x, y or z axes)
-	* pixel/wavelength masking [x1,x2,x3,x4...] - paired pixel numbers or wavelengths (pairs [x1..x2],[x3..x4] etc.) for spectral masking
+	* pixel/wavelength masking - an array of 2n values [x1,x2,x3,x4...] - paired pixel numbers or wavelengths (pairs x1..x2,x3..x4 etc.) for spectral masking
 * WCS co-ordinates
-	* wcs (for axis set [CRPIXn, CRVALn, CDELTn])
-	* w, w1, w2,…. (for individual coordinates)
-	* l, l1, l2, …. (wavelengths)
+   * wcs - for axis set [CRPIXn, CRVALn, CDELTn]
+  * w, w1, w2,…. (for individual coordinates)
+  * l, l1, l2, …. (wavelengths)
 * Maps
- * velmap - velocity map cube (either standard or extended format)
-* wvtmap - weighted Voronoi tessellation map (region numbers)
+   * velmap - velocity map cube (either standard *velmapstd* or extended *velmapext* format)
+  * wvtmap - weighted Voronoi tessellation map (region numbers)
 ## Libraries
 ### lib_all
 
@@ -62,11 +78,11 @@ Runs all the following libraries; this just consists of script lines to execute 
 
 `@SomeFolder/SomeScript.dpuser`
 
+If full path to script is not given, it is assumed to be relative to the DPUser folder defined above.
+
 ### lib_wcs
 
 **<u>*Transform to and from World Coordinate Systems and Pixels*</u>**
-
-**function get_WCS_values, spectrum** - create WCS array [1,cv,cd] from dispersion *spectrum*
 
 **function get_WCS_data, data, axis** - return array [CRVAL, CRPIX, CDELT] for *axis* (1,2 or 3) of *data*
 
@@ -86,9 +102,13 @@ Runs all the following libraries; this just consists of script lines to execute 
 
 **function set_WCS_default, data** - checks *data* has minimal WCS keys set (to 1 by default)
 
-**function get_WCS_image, image** - Get axis 1 and 2 WCS data for *image* (can be cube) and calculates CDELT and rotation angle from CD keys.
+**function get_WCS_image, image** - Get axis 1 and 2 WCS data for *image* (can be cube) and calculates CDELT and rotation angle from CD keys; result is array of key values [CRPIX1, CRVAL1, CD1_1, CD1_2, CRPIX2, CRVAL2, CD2_1, CD2_2, CDELT1, CDELT2, CROTA2]
 
-**function set_WCS_image_scale, image, wcs, xscale, yscale** - Rescales (e.g. for non-integer re-binning) using *xscale* and *yscale* and sets WCS data for *image* (or cube), including CD keys - removes CDELT and CROTA2 keywords
+**function set_WCS_image_scale, image, wcs2d, xscale, yscale** - Rescales (e.g. for non-integer re-binning) using *xscale* and *yscale* and sets WCS data for *image* (or cube), including CD keys - removes CDELT and CROTA2 keywords. Input *wcs2d* is format as for **get_WCS_image**.
+
+**function get_fits_key, data, key** - substitute for **getfitskey** with check that *key* exists; returns blank if not found.
+
+**function get_WCS_values, data** - create WCS array [1,cv,cd] from dispersion *data*, calculated from first/last values and number of elements.
 
 ### lib_general
 **<u>*General functions*</u>**
@@ -191,15 +211,15 @@ Runs all the following libraries; this just consists of script lines to execute 
 ### lib_image
 **<u>*Image functions*</u>**
 
-**function image_erodenan, image** - erode *image*, pixels set to Nan if any neighbour is Nan
+**function image_erodenan, image** - erode *image*, pixels set to Nan if any neighbour is Nan.
 
-**function image_smooth, image, smooth** - smooth *image* with NaN values - *smooth* integer=boxcar, non-integer=gaussian
+**function image_smooth, image, smooth** - smooth *image* with NaN values - *smooth* integer=boxcar, non-integer=gaussian.
 
-**function image_interp_x, image, x1, x2, y1, y2** - as for **cube_interp_xy**, but for single *image* 
+**function image_interp_x, image, x1, x2, y1, y2** - as for **cube_interp_xy**, but for single *image* .
 
-**function image_interp_y, image, x1, x2, y1, y2** - as for **cube_interp_x**, but for single *image* 
+**function image_interp_y, image, x1, x2, y1, y2** - as for **cube_interp_x**, but for single *image* .
 
-**function image_interp_xy, image, x1, x2, y1, y2** - as for **cube_interp_y**, but for single *image* 
+**function image_interp_xy, image, x1, x2, y1, y2** - as for **cube_interp_y**, but for single *image* .
 
 **function image_from_profile, profile, xp, yp, xc, yc** - create 2D image from 1D *profile*, size of output image is *xp* x *yp* , [*xc, yc*] - center of rebuilt profile
 
@@ -207,9 +227,9 @@ Runs all the following libraries; this just consists of script lines to execute 
 
 **function image_enclosed_flux, inbuff, xc, yc, r, smth** - Get enclosed flux within radius *r* from [*xc, yc*] (pixels). If *smth*>0, Gaussian smooth the output 
 
-**function image_avg, image, x, y, s** - average value of image in square aperture [*x,y*] +-*s* pixels
+**function image_avg, image, x, y, s** - average value of image in square aperture [*x,y*] +-*s* pixels.
 
-**function image_structure, image, psf_image** - Structure map = *image*/(*image* ⊗ *psf*) x *psf*^T, "⊗”=convolution, "^T" = transpose
+**function image_structure, image, psf** - Returns structure map from *image* and *psf* by formula *image*/(*image* ⊗ *psf*) x *psf*^T, "⊗”=convolution, "^T" = transpose.
 
 **function image_interp_flags, image, flags, xi1, xi2, yi1, yi2, dmax** - Interpolate *image* over flagged spaxels, *flags* - 2D data with same x/y axes size as image, with value=1 to be interpolated, value=0 - good pixels, [*xi1:xi2, yi1:yi2*] - co-ordinate range to interpolate over. If not input, then do all spaxels. *dmax* - maximum pixel distance for interpolation (=0 don't test)
 
@@ -230,17 +250,19 @@ Runs all the following libraries; this just consists of script lines to execute 
 
 **function spectrum_deslope, spectrum, mask, wlflag** - deslope spectrum, using **spectrum_cont_slope** and *mask/wlflag* parameters
 
-**function spectrum_polyfit, spectrum, order, mask, wlflag** - fit polynomial of *order* to  *spectrum* with *mask*, *wlflag*. Returns n x 3 array, 1st row=original data masked, 2nd row=polynomial fit, 3rd row = residual
+**function spectrum_polyfit, spectrum, order, mask, wlflag** - fit polynomial of *order* to  masked *spectrum* with *mask*, *wlflag*. Returns n x 3 array, 1st row=original data masked, 2nd row=polynomial fit, 3rd row = residual
 
 **function spectrum_symm_flip, spectrum, lambda, part** - split *spectrum* at wavelength *lambda*, flip and add, taking left (*part*=0) or right (*part*=1) sections
 
+**function spectrum_wave_to_lambda, spectrum, l1, l2, nl ** - converts a wavenumber *spectrum* to a wavelength spectrum. *l1*..*l2* are a wavelength range to interpolate over with *nl* points. By default, the wavelength range and number of points of the original spectrum are used. WCS values are set.
+
 **function spectrum_wave_to_lambda, wndata** - convert wavenumber spectrum *wndata* to wavelength (nm) with same axis length
 
-**function spectrum_make_gauss, spectrum, bi, bs, h, l, w** - make spectrum with gaussian from *spectrum* WCS. *bi, bs* - base intercept and slope, *h* -  height, *lc* - center wavelength, *w* - FWHM (creates artificial gaussian emission line)
+**function spectrum_make_gauss, spectrum, bi, bs, h, l, w** - make spectrum with gaussian from *spectrum* WCS. *bi, bs* - base intercept and slope, *h* -  height, *lc* - center wavelength, *w* - FWHM (creates artificial gaussian emission line).
 
-**function spectrum_make_lorentz, spectrum, bi, bs, h, lc, w** - as for **spectrum_make_gauss** but makes a Lorentzian emission line
+**function spectrum_make_lorentz, spectrum, bi, bs, h, lc, w** - as for **spectrum_make_gauss** but makes a Lorentzian emission line.
 
-**function spectrum_redisp_lin, spectrum, data, daxis, xmin,delt, npix, zero, norms,  prnt, fluxcons** - re-disperse a *spectrum*. Pramaters are:
+**function spectrum_redisp_lin, spectrum, data, daxis, xmin,delt, npix, zero, norms,  prnt, fluxcons** - re-disperse a *spectrum*. Paramaters are:
 
 - *data* - data with dispersal solution (if =0 then use parameters for dispersion)
 - *daxis* - spectral axis of data (default is last axis of *data*)
@@ -252,9 +274,13 @@ Runs all the following libraries; this just consists of script lines to execute 
 
 **function spectrum_from_xy, spectrum** - re-disperse *spectrum* from 2D x and y bintable to wavelength range and same number of points.
 
-**function spectrum_from_data, xdata, ydata, w1, w2, delt** - re-disperse spectrum from 2D x and y data to wavelength range [*w1, w2*] with step *delt*
+**function spectrum_from_tablexy, data, l1, l2, npix, xscl, yscl** - re-disperse *spectrum* from 2D x and y bintable to wavelength range *l1..l2* and number of points *npix*. x and y values are scaled by *xscl* and *yscl* respectively.
 
-**function spectrum_interp, spectrum, x1, x2** - Smooth over bad pixels [*x1:x2*]
+**function spectrum_redisp, spectrum, l1, l2, npix, xscl, yscl** - as for **spectrum_from_tablexy** but from standard *spectrum*.
+
+**function spectrum_from_dataxy, xdata, ydata, l1, l2, npix, xscl, yscl** - re-disperse spectrum from 2D x and y data to wavelength range [*w1, w2*] with step *delt*.
+
+**function spectrum_interp, spectrum, x1, x2** - Smooth over bad pixels [*x1:x2*].
 
 **function spectrum_sn, spectrum, window** - Estimate spectrum S/N from itself - not 100% accurate but good for comparisons, *window* is smoothing and noise estimation window. Returns vector of same length as *spectrum* with S/N estimate, blank where *spectrum* is 0.
 
