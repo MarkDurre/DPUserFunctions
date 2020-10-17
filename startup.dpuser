@@ -1,7 +1,9 @@
-//These lines must be modified for individual users
-setenv "DPUSER_DIR", "/users/mdurre/onedrive/dpuser"
-setenv "DPUSER_PYTHONLIB","/Users/mdurre/opt/anaconda3/pkgs/python-3.8.3-h26836e1_2/lib/libpython3.8.dylib"
+//Example startup.dpuser
+//This line must be modified (change *my_dpuser_location*) for individual users
+setenv "DPUSER_DIR", "*my_dpuser_location*/dpuser"
+//dopuserdir is used by libraries to call other libraries if required
 dpuserdir=getenv("DPUSER_DIR")
 print "Running General Functions : DPUser Directory - "+dpuserdir
 run dpuserdir+"/functions/lib_all.dpuser"
 print "Finished General Functions - "+dpuserdir
+//You can put your own startup dpuser code here
