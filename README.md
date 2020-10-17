@@ -258,6 +258,8 @@ Runs all the following libraries; this just consists of script lines to execute 
 
 **function spectrum_sn, spectrum, window** - Estimate spectrum S/N from itself - not 100% accurate but good for comparisons, *window* is smoothing and noise estimation window. Returns vector of same length as *spectrum* with S/N estimate, blank where *spectrum* is 0.
 
+**function spectrum_clean, inbuff, thresh** - clean *spectrum* using **dpixcreate**/**dpixapply**. If *thresh* is not sepecifed the threshold for **dpixcreate** is set to median(*spectrum*)/2.
+
 ### lib_io
 **<u>*Input/output to and from text and fits files*</u>**
 
@@ -452,24 +454,28 @@ All the "lib\_astro\_*.dpuser" functions are executed from the "lib\_astro.dpuse
 **function extinction_correct_lambda, data, av, lambda** - correct value/image for extinction *av* at wavelength *lambda*: can be used on value or image
 
 ### lib_astro_mapping
-**<u>*Astronomy functions (mapping)*</u>**
+**<u>*Astronomy functions (mapping and excitation diagrams)*</u>**
 
 **function map_compare_diagram, image1, image2, min1, max1, min2, max2, nbin, lgaxesflag** - Map diagram density plot. *image1*, *image2* - value maps, x and y axes. *min1/2*, *max1/2* - min and maximum values for axes 1/2. *nbin* - no of bins on each axis. *lgaxesflag* - 1=plot in log space (min,max must be in log values). Generates e.g. BPT diagrams
 
-**function map_compare_pos,image1, image2,image3,image4, x, y, boxsize** - get 2 sets of map ratios (*image1*/*image2*, *image3*/*image4*)at position [*x,y*], averaged over *boxsize* x *boxsize* pixels (e.g. excitation ratios at feature position)
+**function map_compare_pos, image1, image2, image3, image4, x, y, boxsize** - get 2 sets of map ratios (*image1*/*image2*, *image3*/*image4*)at position [*x,y*], averaged over *boxsize* x *boxsize* pixels (e.g. excitation ratios at feature position)
 
-**function map_basis_distance, basex0, basey0, basex100, basey100, x1, x2, y1, y2, size** - creates an image (dimensions *size*, limits (*x1, y1*), (*x2, y2*)) of distance from basis points [*basex0, basey0*] to [*basex100, basey100*] - for use in AGN mixing ratios for contour values.
+**function map_basis_distance, basex0, basey0, basex100, basey100, x1, x2, y1, y2, size** - creates an image (dimensions *size*, limits (*x1, y1*), (*x2, y2*)) of distance from basis points 0 to 100% [*basex0, basey0*] to [*basex100, basey100*] - for use in AGN mixing ratios for contour values.
 
-**function map_compare_basis,image1, image2, basex0, basey0, basex100,basey100,lgaxesflag** - plots basis distance (AGN mixing ratio) from basis points [*basex0, basey0*] to [*basex100, basey100*] . *lgaxesflag* - 1=take log of *image1*, *image2* before calculation
+**function map_compare_basis, image1, image2, basex0, basey0, basex100, basey100, lgaxesflag** - plots basis distance (AGN mixing ratio) from basis points [*basex0, basey0*] to [*basex100, basey100*] . *lgaxesflag* - 1=take log of *image1*, *image2* before calculation
 
-**function map_regime_ir, image1, image2, a1, a2, a3, b1, b2** - create position excitation map. If a1=0, use the standard infrared Riffel 2013 excitation regimes. inbuff1 is H_2/Br_gamma, inbuff2 is [Fe II]/Pa_beta. Both in log values. Output values are SF=1, AGN=2, LINER=3, TO1=4, TO2=5
+**function map_regime_ir, image1, image2, a1, a2, a3, b1, b2** - create position excitation map. If a1=0, use the standard infrared Riffel 2013 excitation regimes. *image1* is H_2/Br_gamma, *image2* is [Fe II]/Pa_beta. Both in log values. Output values at each spaxel are SF=1, AGN=2, LINER=3, TO1=4, TO2=5
 
 **function map_regime_optical, image1, image2, typeflag**- create position excitation map for optical line ratios (*image1* and *image2*) from Kewley et al. 2006 regimes. *typeflag* = 1 ([N II]/H_alpha diagram), =2 ([S II]/H_alpha diagram), =3 ([O I]/H_alpha diagram). Returns 1=SF, 2=Seyfert, 3=LINER, 4=Composite
 
 ### lib_astro_spectrum
 **<u>*Astronomy functions (spectrum)*</u>**
 
-**spec_fluxdens, spectrum, l1, l2, prflag** - flux density (counts/nm) for *spectrum* between *l1* and *l2* <u>wavelength</u>; returns a single value. If *prflag*<>0, print results as well.
+**function spec_fluxdens, spectrum, l1, l2, prflag** - flux density (counts/nm) for *spectrum* between *l1* and *l2* <u>wavelength</u>; returns a single value. If *prflag*<>0, print results as well.
+
+**function spec_sn, spectrum, l1, l2** - Compute S/N for *spectrum* over wavelength region *l1*-*l2*, using median rather than average, as more robust.
+
+**function spec_wave_to_vel, spectrum, lambda -** Convert *spectrum* wavelength axis to velocity, with zero velocity wavelength *lambda* .
 
 ### lib_astro_image
 **<u>*Astronomy functions (image)*</u>** 
@@ -495,16 +501,14 @@ The function returns a cube with 3 layers, (1) filter result 1 e.g. *V* (2) filt
 ### lib_astro_cube
 **<u>*Astronomy functions (cube)*</u>** 
 
-**function cube_apphot, cube, xcen, ycen, r1, r2, mx, my, mr** - aperture photometry, centered on xcen,yceb; aperture r1, background annulus r2, mask out circle mx/my/mr (mx>0) - result is spectrum
-
 **function cube_apspec, cube, ox, oy, or, bx, by, br, br2, mask** - Get star spectrum from *cube* withusing circular aperture and background, plus a mask circle. 
 
 - *ox, oy, or* - center and radius of aperture
 - *bx, by, br* - center and radius of mask, if not required then bx = 0
-- *br2* - inner radius of mask annulus 
-- *mask* - any other mask required (2D fits)
+- *br2* - inner radius of mask annulus (default 0). This annulus allows the background to be centered the same as the aperture (in which case *br2* > *or*)
+- *mask* - any other mask required (2D fits) (default none)
 
-Output is spectrum of aperture less average of background (with mask) - values <0 set to Nan.
+Output is spectrum of aperture less average of background (with mask) - values < 0 are set to Nan.
 
 **function cube_fluxdens, cube, l1, l2, prflag/function spec_fluxdens, spectrum, l1, l2, prflag** - flux density (counts/nm) between *l1* and *l2* wavelength; returns image (cube\_) or single (spec\_) value. If *prflag*<>0, print results as well
 
