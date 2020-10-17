@@ -1,6 +1,6 @@
 //Example startup.dpuser
-//This line must be modified (change *my_dpuser_location*) for individual users
-setenv "DPUSER_DIR", "*my_dpuser_location*/dpuser"
+//This line must be modified (change *my_code_location*) for individual users
+setenv "DPUSER_DIR", "*my_code_location*/dpuser"
 //dopuserdir is used by libraries to call other libraries if required
 dpuserdir=getenv("DPUSER_DIR")
 print "Running General Functions : DPUser Directory - "+dpuserdir
