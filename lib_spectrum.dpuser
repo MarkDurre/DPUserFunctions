@@ -294,17 +294,18 @@ function spectrum_from_xy, inbuff {
   spectrum_from_xy=ynew
 }
 
-function spectrum_from_data, xdata, ydata, w1, w2, delt {
+function spectrum_from_dataxy, xdata, ydata, l1, l2, npix, xscl, yscl {
 //re-disperse spectrum from 2D x and y bintable to wavelength range and same number of points
 //Get wavelength and flux vectors
-  w=xdata
-  f=ydata
-  nw=(w2-w1)/(delt)+1
-  wnew=spectrum_make_disp_n(w1, w2, nw)
+  if (nparams()<7) yscl=1
+  if (nparams()<6) xscl=1
+  w=xdata*xscl
+  f=ydata*yscl
+  wnew=spectrum_make_disp_n(l1, l2, npix)
   ynew=interpol(f,w,wnew)
   wcsnew=get_WCS_data(wnew, 1)
   set_WCS_data ynew, wcsnew, 1
-  spectrum_from_data=ynew
+  spectrum_from_dataxy=ynew
 }
 /*
 data = import("/Users/mdurre/Programs/STARLIGHT/BasesDir/bc2003_hr_m22_chab_ssp_020.spec", 0, " ", "", 6, /number)
@@ -329,7 +330,7 @@ function spectrum_interp, inbuff, x1, x2 {
    spectrum_interp=outbuff
 }
 
-function spectrum_redisp_xy, inbuff, l1, l2, npix, xscl, yscl {
+function spectrum_from_tablexy, inbuff, l1, l2, npix, xscl, yscl {
 //Rediserse input spectrum, assuming wavelength is in first column
 //l1, l2, npix is new wavelength range and number of pixels
     if (nparams()<6) yscl=1
@@ -341,7 +342,7 @@ function spectrum_redisp_xy, inbuff, l1, l2, npix, xscl, yscl {
     resize outbuff, npix, nx-1
     for (i=2;i<=nx;i++) {
       yold=cblank(clip(inbuff[*,i],0,-1))*yscl //rescale data
-      ynew=interpol(yold,xold,xnew) //Interpolate flux and error spectra
+      ynew=interpol(yold,xold,xnew) //Interpolate flux
       ynew=cblank(clip(ynew,0,-1))
       outbuff[*,i-1]=ynew
     }
@@ -354,18 +355,18 @@ function spectrum_redisp_xy, inbuff, l1, l2, npix, xscl, yscl {
     setfitskey outbuff,"CD1_1",cdelt
     setfitskey outbuff,"MINWAVE",min(xold),"Minimum wavelength observed (nm)"
     setfitskey outbuff,"MAXWAVE",max(xold),"Maximum wavelength observed (nm)"
-    spectrum_redisperse=outbuff
+    spectrum_from_tablexy=outbuff
 }
 
 function spectrum_redisp, inbuff, l1, l2, npix, xscl, yscl {
-//Rediserse input spectrum, assuming wavelength is in first column
+//Rediserse input spectrum
 //l1, l2, npix is new wavelength range and number of pixels
     if (nparams()<6) yscl=1
     if (nparams()<5) xscl=1
     xold=spectrum_make_disp_data(inbuff,1)
     xnew=spectrum_make_disp_n (l1, l2, npix)
     yold=cblank(clip(inbuff,0,-1))*yscl //rescale data
-    ynew=interpol(yold,xold,xnew) //Interpolate flux and error spectra
+    ynew=interpol(yold,xold,xnew) //Interpolate flux
     outbuff=cblank(clip(ynew,0,-1))
     cdelt=(l2-l1)/(npix-1)
     copyheader outbuff,inbuff
