@@ -1,68 +1,43 @@
 dpuserdir=getenv("DPUSER_DIR")
 run dpuserdir+"/functions/lib_wcs.dpuser"
+run dpuserdir+"/functions/lib_cube.dpuser"
 
 //Astronomical functions on cubes
-function cube_apphot, cube, xcen, ycen, r1, r2, mx, my, mr {
-//Get star spectrum from aperture using circular aperture and background, plus a mask circle
-//Inputs - cube is 3D cube of star, used for both telluric and flux calibration
-//xc, yc, r1 - center and radius of aperture, r2 - radius of annulus (r1->r2) of background
-//mx, my, mr - center and radius of mask, if not required then mx=0
-//mask - any other mask required (2D fits)
-//Output is spectrum of aperture less average of background (with mask) - values <0 set to Nan
-  if (nparams()==0) {
-    print "CUBE_APPHOT: cube, xcen, ycen, r1, r2, maskx, masky, maskr"
-    cube_apphot=0
-  } else {
-  if (nparams()<6) mx=0
-  if (nparams()<5) r2=r1
-  inbuff=cube
-  nx=naxis1(cube)
-  ny=naxis2(cube)
-  nz=naxis3(cube)
-  if (mx>0) {
-    mask=circle(mx, my, mr, naxis1=nx, naxis2=ny) //Subtract background
-    inbuff=cube*mask
-  }
-  flux=3dspec(inbuff,xcen,ycen,r1,r2,/sum)
-  flux[where(flux<=0)]=0/0
-  cube_apphot=flux
-  }
-}
-
 function cube_apspec, cube, ox, oy, or, bx, by, br, br2, mask {
 //Get star spectrum from aperture using circular aperture and background, plus a mask circle
 //Inputs - cube is 3D cube of star, used for both telluric and flux calibration
 //ox, oy, or - center and radius of aperture
 //bx, by, br - center and radius of mask, if not required then bx = 0
-//br2 - inner radius of mask annulus 
+//br2 - inner radius of mask annulus.This allows the background to be centered on the 
+//same location as the aperture 
 //mask - any other mask required (2D fits)
 //Output is spectrum of aperture less average of background (with mask) - values <0 set to Nan
   if (nparams()==0) {
     print "CUBE_APSPEC: cube, xcen, ycen, r1, maskx, masky, maska1, maska2, image_mask"
     cube_appspec=0
   } else {
-  if (nparams()<9) mask=0
-  if (nparams()<8) br2=0
-  if (nparams()<5) bx=0
-  inbuff=cube
-  nx=naxis1(cube)
-  ny=naxis2(cube)
-  nz=naxis3(cube)
-  masko=circle(float(ox), float(oy), float(or), naxis1=nx, naxis2=ny) //Signal mask
-  ospec=total(cube*masko, /xy)
-  bspec=0
-  maskb=0
-  if (bx>0) {
-    maskb=circle(float(bx), float(by), float(br), naxis1=nx, naxis2=ny) //background mask
-    if (br2>0) maskb=maskb-circle(float(bx), float(by), float(br2), naxis1=nx, naxis2=ny)//Annulus mask
-    if (nelements(mask)>1) maskb*=mask
-    bspec=total(cube*maskb, /xy)
-//Rescale background
-    bspec=total(masko)/total(maskb)*bspec
-  }
-  print "CUBE_APSPEC: Object pixels "+total(masko)
-  print "CUBE_APSPEC: Background pixels "+total(maskb)
-  cube_apspec=ospec-bspec
+    if (nparams()<9) mask=0
+    if (nparams()<8) br2=0
+    if (nparams()<5) bx=0
+    inbuff=cube
+    nx=naxis1(cube)
+    ny=naxis2(cube)
+    nz=naxis3(cube)
+    masko=circle(float(ox), float(oy), float(or), naxis1=nx, naxis2=ny) //Signal mask
+    ospec=total(cube*masko, /xy)
+    bspec=0
+    maskb=0
+    if (bx>0) {
+      maskb=circle(float(bx), float(by), float(br), naxis1=nx, naxis2=ny) //background mask
+      if (br2>0) maskb=maskb-circle(float(bx), float(by), float(br2), naxis1=nx, naxis2=ny)//Annulus mask
+      if (nelements(mask)>1) maskb*=mask
+      bspec=total(cube*maskb, /xy)
+  //Rescale background
+      bspec=total(masko)/total(maskb)*bspec
+    }
+    print "CUBE_APSPEC: Object pixels "+total(masko)
+    print "CUBE_APSPEC: Background pixels "+total(maskb)
+    cube_apspec=ospec-bspec
   }
 }
 
@@ -73,80 +48,65 @@ function cube_fluxdens, inbuff, l1, l2, prflag {
     print "CUBE_FLUXDENS: cube, wl1, wl2, prflag"
     cube_fluxdens=0
   } else {
-  if nparams()<4 prflag=0
-  p1=cvt_WCS_pixel_data(inbuff, l1, 3)
-  p2=cvt_WCS_pixel_data(inbuff, l2, 3)
-  cnt=total(inbuff[*,*,p1:p2],0,/z) 
-  ll1=cvt_pixel_WCS_data(inbuff, p1, 3)
-  ll2=cvt_pixel_WCS_data(inbuff, p2, 3)
-  fluxavg=cnt/(p2-p1)
-  fd=cnt/(ll2-ll1)
-  if (prflag!=0) {
-    print "CUBE_FLUXDENS: Pixel range : "+p1+"-"+p2+" ("+(p2-p1)+")"
-    print "CUBE_FLUXDENS: Wavelength range : "+ll1+"-"+ll2+" ("+(ll2-ll1)+")"
-  }
-  cube_fluxdens=fluxavg
+    if nparams()<4 prflag=0
+    p1=cvt_WCS_pixel_data(inbuff, l1, 3)
+    p2=cvt_WCS_pixel_data(inbuff, l2, 3)
+    cnt=total(inbuff[*,*,p1:p2],0,/z) 
+    ll1=cvt_pixel_WCS_data(inbuff, p1, 3)
+    ll2=cvt_pixel_WCS_data(inbuff, p2, 3)
+    fluxavg=cnt/(p2-p1)
+    fd=cnt/(ll2-ll1)
+    if (prflag!=0) {
+      print "CUBE_FLUXDENS: Pixel range : "+p1+"-"+p2+" ("+(p2-p1)+")"
+      print "CUBE_FLUXDENS: Wavelength range : "+ll1+"-"+ll2+" ("+(ll2-ll1)+")"
+    }
+    cube_fluxdens=fluxavg
   }
 }
 
 function cube_sky_rem, cube_in, bckgnd_lvl {
 //Remove residual sky at background level
 //This should be done after all other trimming and clipping
-  cube_out = cube_in
+//Manually inspect the cube median image to set background level
   n1=naxis1(cube_in)
   n2=naxis2(cube_in)
   n3=naxis3(cube_in)
+//Get median value at each spaxel
   cubemed=norm(median(cube_in, 0, /z))*100
   mask1=cubemed*0
   mask2=cubemed*0
   mask1[where(cubemed>0)]=1
   mask2[where(cubemed<bckgnd_lvl)]=1
   mask=mask1*mask2
+//Mask out values <0 and > background level
   totpix=total(mask)
   cube_work=cube_in * mask
+//Get average spectrum over masked spaxels
   bckgnd_spec=total(cube_work, /xy)/totpix //Background spectrum
-  for (i=1;i<=n1;i++) {
-    for (j=1;j<=n2; j++) {
-      cube_out[i,j,*] = cube_out[i,j,*]-bckgnd_spec
-    }
-  }
-  cube_sky_rem = cube_out
+  cube_sky_rem = cube_spectrum_subtract(cube_in, bckgnd_spec)
 }
 
 function cube_sl_clean, inbuff, skyline_list, width {
-//Interpolate over the skyline_list pixels (+-width) in spectral axis
+//Interpolate over the skyline_list wavelengths (+-width) in spectral axis
   n=nelements(skyline_list)
   nx=naxis1(inbuff)
   ny=naxis2(inbuff)
+  nz=naxis3(inbuff)
   outbuff=inbuff
   print "CUBE_SL_CLEAN: Cleaning "+n+" skylines - pixel values : "
   for (i=1;i<=n;i++) {
-    p1=skyline_list[i]-width
-    p2=skyline_list[i]+width
-    print skyline_list[i]
-    outbuff=cube_interp_z(outbuff,1,nx,1,ny,p1,p2)
+    p1=cvt_WCS_pixel_data(inbuff,(skyline_list[i]-width),3)
+    p2=cvt_WCS_pixel_data(inbuff,(skyline_list[i]+width),3)
+    if (p1>=1)&&(p2<=nz) {
+      print "CUBE_SL_CLEAN: Interpolating - "+(skyline_list[i]-width)+"-"+(skyline_list[i]+width)+" ["+p1+":"+p2+"]"
+      outbuff=cube_interp_z(outbuff,1,nx,1,ny,p1,p2)
+    } else {
+      print "CUBE_SL_CLEAN: Out of Range - "+skyline_list[i]
+    }
   }
   cube_sl_clean=outbuff
 }
     
-function cube_ap_cog, cube, xcen, ycen, r1, r2, l1, l2 {
-//Curve of growth aperture data
-  star=0
-  back=0
-  sn=0
-  s=cube_apphot(cube,xcen,ycen,r1-1, star, back, sn)
-  fold=fluxdens(s,l1,l2)
-  print "R  Flux    % Diff     Bckgnd S/N"
-  for (i=r1;i<=r2;i++) {
-    s=cube_apphot(cube,xcen,ycen,i)
-    f=spec_fluxdens(s,l1, l2)
-    pcdiff=((f/fold-1)*100)
-    print i+" "+f+" "+pc+" "+sn
-    fold=f
-  }
-  cube_ap_cog=0
-}
-
 //Fix a data cube bad pixels using dpixcreate/apply
 //Input is data cube, threshold, output is bad pixel map, fixed data cube
 function cube_clean_bp, cube, threshold {
