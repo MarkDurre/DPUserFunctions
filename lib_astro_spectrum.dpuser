@@ -22,29 +22,18 @@ function spec_fluxdens, inbuff, l1, l2, prflag {
   spec_fluxdens=[fd,p1,p2,ll1,ll2,cnt,fluxavg]
 }
 
-function spectrum_sn, inbuff, l1, l2 {
+function spec_sn, inbuff, l1, l2 {
 //Compute "S/N" over wavelength region l1-l2
-  p1=cvt_WCS_pixel_data(inbuff, l1, 1)
-  p2=cvt_WCS_pixel_data(inbuff, l2, 1)
+  p1=int(cvt_WCS_pixel_data(inbuff, l1, 1))
+  if (p1<1) p1=1
+  p2=int(cvt_WCS_pixel_data(inbuff, l2, 1))
+  if (p2>naxis1(inbuff)) p2=naxis1(inbuff)
   sig=median(inbuff[p1:p2])
   ns=meddev(inbuff[p1:p2])
-  spectrum_sn=sig/ns
+  spec_sn=sig/ns
 }
 
-function spectrum_moments, inbuff, centre, width {
-  p1=cvt_WCS_pixel_data(inbuff, centre-width, 1)
-  p2=cvt_WCS_pixel_data(inbuff, centre+width, 1)
-  y=inbuff[p1:p2]
-  x=spectrum_make_disp_data(y,1)
-  sumY=total(y)
-  m1=total(x*y)/sumY
-  xc=(x-m1)
-  m2=total(y*xc^2)/sumY
-  m3=total(y*xc^3)/sumY
-  spectrum_moments=[m1,m2,m3]
-}
-
-function spectrum_wave_to_vel, inbuff, centre {
+function spec_wave_to_vel, inbuff, centre {
   waxis=naxis(inbuff) //Get the wavelength axis
   outbuff=inbuff
   wcs=get_WCS_data(inbuff,waxis)
@@ -53,5 +42,5 @@ function spectrum_wave_to_vel, inbuff, centre {
   crpix=wcs[1]+(centre-wcs[2])/wcs[3]
   cdelt=wcs[3]/vc
   set_WCS_data outbuff, [crpix, crval, cdelt],waxis
-  spectrum_wave_to_vel=outbuff
+  spec_wave_to_vel=outbuff
 }
