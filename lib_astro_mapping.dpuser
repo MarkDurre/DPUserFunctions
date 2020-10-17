@@ -120,7 +120,7 @@ function map_compare_basis, inbuff1, inbuff2, basex0, basey0, basex100,basey100,
   }
 }
 
-function map_compare_pos, inbuff1, inbuff2, inbuff3, inbuff4, x, y{
+function map_compare_pos, inbuff1, inbuff2, inbuff3, inbuff4, x, y {
 //Get values of comparison data at x, y with box average
   e1=avg(inbuff1[x-1:x+1,y-1:y+1])/avg(inbuff2[x-1:x+1,y-1:y+1])
   e2=avg(inbuff3[x-1:x+1,y-1:y+1])/avg(inbuff4[x-1:x+1,y-1:y+1])
