@@ -1,5 +1,7 @@
 dpuserdir=getenv("DPUSER_DIR")
 run dpuserdir+"/functions/lib_wcs.dpuser"
+run dpuserdir+"/functions/lib_general.dpuser"
+run dpuserdir+"/functions/lib_masking.dpuser"
 
 function cube_test_dim, inbuff, x1, x2, y1, y2, z1, z2 {
 //Test for cube dimensions
@@ -127,7 +129,7 @@ function cube_clip, cube_in, lvl, thresh, mask {
     framesmth=frame-boxcar(frame,1,/median)
     bpix2=dpixcreate(framesmth, thresh, 3, 1)
     bpix=clip(bpix1+bpix2,0,1)
-    frame=dpixapply2(frame,bpix,5)
+    frame=dpixapply(frame,bpix,5)
     fixed_tot += total(bpix)
     cube_out[*,*,i]=frame
     fc=i-int(i/10)*i
