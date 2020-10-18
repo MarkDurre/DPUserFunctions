@@ -152,3 +152,11 @@ function butterworth_filter, order, cutoff, size{
   butterworth_filter=f
 }
 
+function interp, data, x, x1, x2 {
+//linearly interpret over data at position x over x1-x2
+//Used to image_interp_flags and cube_interp_flags
+   v=(x-x1)/(x2-x1)*(data[x2]-data[x1])+data[x1]
+   interp=v
+} 
+
+
