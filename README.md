@@ -125,7 +125,10 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 
 **function profile_export, data, scale1, scale2, scale3, offset** - Export 1D profiles from *data* with up to 3 separate scales, e.g. arcsec, pc, Re plus the pixel scale, _offset_=1 offsets by 1/2 a pixel (e.g. for log scale plot) (default 0). Scales default to 1 if not given.
 
-**function butterworth_filter, order, cutoff, size** - Create a Butterworth filter for order _order_ for a square of sides _size_, with _cutoff_ Nyquist frequency
+**function butterworth_filter, order, cutoff, size** - Create a Butterworth filter for order _order_ for a square of sides _size_, with _cutoff_ Nyquist frequency.
+
+**function interp, data, x, x1, x2**  - linearly interpret over *data* at position *x* over *x1*-*x2*.
+Used to image_interp_flags and cube_interp_flags
 
 ### lib_cube
 **<u>*Data cube functions*</u>**
