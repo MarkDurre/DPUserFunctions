@@ -2,6 +2,7 @@ dpuserdir=getenv("DPUSER_DIR")
 run dpuserdir+"/functions/lib_wcs.dpuser"
 run dpuserdir+"/functions/lib_general.dpuser"
 run dpuserdir+"/functions/lib_masking.dpuser"
+run dpuserdir+"/functions/lib_image.dpuser"
 
 function cube_test_dim, inbuff, x1, x2, y1, y2, z1, z2 {
 //Test for cube dimensions
@@ -352,6 +353,7 @@ function cube_shift_xy, inbuff, xshift, yshift {
 
 function cube_redisp, cube, val_new, delt_new, n_new, prnt {
 //Redisperse a data cube
+  if nparams()<5 prnt=0
   xold=spectrum_make_disp_data(cube, 3)
   xnew=spectrum_make_disp(val_new,  delt_new, 1, n_new)
   n1=naxis1(cube)
@@ -420,7 +422,7 @@ function cube_symm_flip, cube, lambda, width, part {
   cube_symm_flip=work
 }
 
-function cube_rotate, inbuff, xcen, ycen, platescale, rot_angle   {
+function cube_rotate, inbuff, xcen, ycen, rot_angle, pixscale   {
 //Rotate 3D cube to standard orientation, i.e. X is E -ve, Y is N +ve
 //xcen, ycen = central pixel
 //platescale = plate scale in seconds (hard to work out from original)
@@ -565,9 +567,19 @@ function cube_cont_slope, inbuff, mask, flag {
    cube_cont_slope=outbuff
 }
 
-function cube_spectrum_subtract, inbuff, spectrum, x1, x2, y1, y2 {
+function cube_spectrum_add, cube, spectrum, x1, x2, y1, y2 {
 //Subtract spectrum for each spaxel of cube, ignoring those that total 0
    if nparams()<3 x1=x2=y1=y2=0
+   cube_spectrum_add=cube_spectrum_arith(cube, spectrum, 0, x1, x2, y1, y2)
+}
+
+function cube_spectrum_multiply, cube, spectrum, x1, x2, y1, y2 {
+  if nparams()<3 x1=x2=y1=y2=0
+  cube_spectrum_multiply=cube_spectrum_arith(cube, spectrum, 1, x1, x2, y1, y2)
+}
+
+function cube_spectrum_arith,  inbuff, spectrum, modeflag, x1, x2, y1, y2 {
+   if nparams()<4 x1=x2=y1=y2=0
    n1=naxis1(inbuff)
    n2=naxis2(inbuff)
    n3=naxis3(inbuff)
@@ -585,51 +597,19 @@ function cube_spectrum_subtract, inbuff, spectrum, x1, x2, y1, y2 {
      for (i=i1;i<=i2;i++) {
        for (j=j1;j<=j2;j++) {
          spaxel=outbuff[i,j,*]
-         if (total(spaxel)!=0) spaxel=spaxel-spectrum
+         if (modeflag==0) {
+           if (total(spaxel)!=0) spaxel=spaxel+spectrum
+         } else {
+           if (total(spaxel)!=0) spaxel=spaxel*spectrum
+         }
          outbuff[i,j,*]=spaxel
        }
      }
    } else {
-     print "CUBE_SPECTRUM_SUBTRACT: Error: axis lengths not equal!"
+     print "CUBE_SPECTRUM_ARITH: Error: axis lengths not equal!"
      outbuff=0
    }
-   cube_spectrum_subtract=outbuff
-}
-
-function cube_spectrum_divide, cube, spec {
-  dataout=cube*0
-  n1=naxis1(cube)
-  n2=naxis2(cube)
-  n3=naxis3(cube)
-  print "CUBE_SPECTRUM_DIVIDE: Cube divide by spectrum, dimensions : "+n1+" "+n2+" "+n3+" ("+naxis1(spec)+")"
-  if (naxis1(spec)!=n3) {
-    print "CUBE_SPECTRUM_DIVIDE: error - spectral axis not equal!!"
-  } else {
-    for (i=1;i<n1;i++) {
-      for (j=1;j<=n2;j++) {
-        dataout[i,j,*]=cube[i,j,*]/spec
-      }
-    }
-  }
-  cube_spectrum_divide=dataout
-}
-
-function cube_spectrum_multiply, cube, spec {
-  dataout=cube*0
-  n1=naxis1(cube)
-  n2=naxis2(cube)
-  n3=naxis3(cube)
-  print "CUBE_SPECTRUM_MULTIPLY: Cube multiplied by spectrum, dimensions : "+n1+" "+n2+" "+n3+" ("+naxis1(spec)+")"
-  if (naxis1(spec)!=n3) {
-    print "CUBE_SPECTRUM_MULTIPLY: error - spectral axis not equal!!"
-  } else {
-    for (i=1;i<n1;i++) {
-      for (j=1;j<=n2;j++) {
-        dataout[i,j,*]=cube[i,j,*]*spec
-      }
-    }
-  }
-  cube_spectrum_multiply=dataout
+   cube_spectrum_arith=outbuff
 }
 
 function cube_set_pixlayers, inbuff, pixl, pix1, pix2 {
@@ -884,34 +864,53 @@ function cube_from_image_spectrum, image, spectrum {
   cube_from_image_spectrum=cube
 }
 
-function cube_average_cubes, inbuff, omit {
-//Average multiple cubes (up to 10) at each spectral element
+function cube_combine, inbuff, mode, omit {
+//Average/median multiple cubes (up to 10) at each spectral element
 //inbuff is multi-extension fits list
 //Created by list(buffer1, buffer2,...)
-  if (nparams()<2) omit=0/0
+  if (nparams()<3) omit=0/0
   navg=nelements(inbuff)
   outbuff=inbuff[0]*0
   n1=naxis1(outbuff)
   n2=naxis2(outbuff)
   n3=naxis3(outbuff)
-  print "CUBE_AVERAGE_CUBES: Axis sizes - "+n1+"x"+n2+"x"+n3
-  print "CUBE_AVERAGE_CUBES: # of cubes to average - "+navg
+  print "CUBE_COMBINE: Axis sizes - "+n1+"x"+n2+"x"+n3
+  print "CUBE_COMBINE: # of cubes - "+navg
+  print "CUBE_COMBINE: Mode - "+(mode==0 ? "Average":"Median")
   selement=fits(n1,n2,navg)
-  ic=int(n3/20)
+  ic=20
   for (k=1;k<=n3;k++) { //Go through each spectral element
     for (i=1;i<=navg;i++) { //Go though cubes
       b=inbuff[i-1]
       selement[*,*,i]=b[*,*,k]
     }
-    if isnan(omit)==1 {
-      outbuff[*,*,k]=cubeavg(selement)
-    } else {
-      outbuff[*,*,k]=cubeavg(selement,omit)
+    if (mode==0) { //Average
+      if isnan(omit)==1 {
+        outbuff[*,*,k]=cubeavg(selement)
+      } else {
+        outbuff[*,*,k]=cubeavg(selement,omit)
+      }
+    } else { //Median
+      if isnan(omit)==1 {
+        outbuff[*,*,k]=cubemedian(selement)
+      } else {
+        outbuff[*,*,k]=cubemedian(selement,omit)
+      }
     }
-    if ((k%ic)==0) print "CUBE_AVERAGE_CUBES: Layer - "+k+"/"+n3
+    if ((k%ic)==0) print "CUBE_COMBINE: Layer - "+k+"/"+n3
   }
-  print "CUBE_AVERAGE_CUBES: Finished"
-  cube_average_cubes=outbuff
+  print "CUBE_COMBINE: Finished"
+  cube_combine=outbuff
+}
+
+function cube_combine_avg, inbuff, omit {
+  if (nparams()<2) omit=0/0
+  cube_combine_avg=cube_combine(inbuff,0,omit)
+}
+
+function cube_combine_median, inbuff, omit {
+  if (nparams()<2) omit=0/0
+  cube_combine_median=cube_combine(inbuff,1,omit)
 }
 
 function cube_rebinfrac, inbuff, xscale, yscale {
