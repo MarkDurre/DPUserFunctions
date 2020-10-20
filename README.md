@@ -59,7 +59,7 @@ The file is installed in BBEdit's language module directory - by default "/Users
 Note that after editing code in an external text editor, the script must be executed again with QFitsView.
 
 ##  Parameter data types
-* FITS or buffer input - *cube* is 3D, *image* is 2D, *spectrum* is 1D, *data* is 1, 2 or 3D
+* FITS or buffer input - *cube* is 3D, *image* is 2D, *spectrum* is 1D, *data* is 1, 2 or 3D, *mef* is multi-extension FITS data (created using the **list** function for up to 10 data buffers).
 	* Pixel co-ordinates
 	* p, p1, p2,… (general pixels co-ordinates)
 	* x, x1, x2,…, y, y1, y2,…, z, z1, z2,… (for x, y or z axes)
@@ -110,26 +110,6 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 
 **function get_WCS_values, data** - create WCS array [1,cv,cd] from dispersion *data*, calculated from first/last values and number of elements.
 
-### lib_general
-**<u>*General functions*</u>**
-
-**function indexreform, index, xsize, ysize, zsize** - returns 3D co-ords from 1D *index*, given dimensions *xsize, ysize, zsize*. Values returned as array.
-
-**function lognan, data** - set log of *data*, setting zero and Nan values to Nan
-
-**function clipnan, data, low, high** - set values outside range [*low..high*] to Nan
-
-**function axiscentroids, image, axis** - returns centroids of each image row/column, row-*axis*=1, column-*axis*=2; used e.g. for finding centroids of pv diagram
-
-**function myhist, data, low, high, bin, normflag** - create a histogram from inbuff data (any dimensions), from _low_ to _high_ values in *bin* bins. Histogram is normalised if *normflag* =1. Output x-axis values are set to range.
-
-**function profile_export, data, scale1, scale2, scale3, offset** - Export 1D profiles from *data* with up to 3 separate scales, e.g. arcsec, pc, Re plus the pixel scale, _offset_=1 offsets by 1/2 a pixel (e.g. for log scale plot) (default 0). Scales default to 1 if not given.
-
-**function butterworth_filter, order, cutoff, size** - Create a Butterworth filter for order _order_ for a square of sides _size_, with _cutoff_ Nyquist frequency.
-
-**function interp, data, x, x1, x2**  - linearly interpret over *data* at position *x* over *x1*-*x2*.
-Used to image_interp_flags and cube_interp_flags
-
 ### lib_cube
 **<u>*Data cube functions*</u>**
 
@@ -143,23 +123,23 @@ Used to image_interp_flags and cube_interp_flags
 
 **function cube_clip_y, cube, lvl, thresh** - as above, but in the x-z plane    
 
-**function cube_interp_z, cube, x1, x2, y1, y2, z1, z2** - interpolate in image plane over rectangle [*x1:x2,y1:y2*] in each of wavelength plane [*z1:z2*]
+**function cube_interp_z, cube, x1, x2, y1, y2, z1, z2** - interpolate *cube* in image plane over rectangle [*x1:x2,y1:y2*] in each of wavelength plane [*z1:z2*]
 
-**functioncube_interp_x, cube, x1, x2, y1, y2, z1,z2** - interpolate in image plane over rectangle [*y1:y2,z1:z2*] in each of spatial range [*x1:x2*]
+**functioncube_interp_x, cube, x1, x2, y1, y2, z1,z2** - interpolate *cube* in image plane over rectangle [*y1:y2,z1:z2*] in each of spatial range [*x1:x2*]
 
-**function cube_interp_y, cube, x1, x2, y1, y2, z1,z2** - interpolate in image plane over rectangle [*x1:x2,z1:z2*] in each of spatial range [*y1:y2*]
+**function cube_interp_y, cube, x1, x2, y1, y2, z1,z2** - interpolate *cube* in image plane over rectangle [*x1:x2,z1:z2*] in each of spatial range [*y1:y2*]
 
 **function cube_interp_xy, cube, x1, x2, y1, y2, z1,z2** - as above, but interpolate over wavelength [*z1:z2*] in the xy plane
 
 **function cube_set_value, cube, x1, x2, y1, y2, z, xv, yv** - set rectangle [*x1:x2,y1:y2*] at image plane *z* to value at [*xv, yv*]
 
-**function cube_pixfix_xy, cube, pixfixdata, n** - fix cube using cube_interp_.. functions, n sets, pizfixdata are [x1,x2,y1,y2,z1,z2,method] where method=“x”/“y”/“xy”
+**function cube_pixfix_xy, cube, pixfixdata, n** - fix cube using **cube_interp_xy** function, n sets, *pixfixdata* is  *n* x 6 array [x1,x2,y1,y2,z1,z2].
 
-**function cube_single_pixel_fix, cube, x, y** - cube_interp_xy for all z axis for single spaxel
+**function cube_single_pixel_fix, cube, x, y** - do **cube_interp_xy** for all z axis for single spaxel
 
-**procedure cube_bit_nan, cube,x,y**  - set spaxel [x,y] to 0/0 along whole cube
+**procedure cube_bit_nan, cube,x,y**  - set spaxel [*x*,*y*] to 0/0 along whole *cube* z axis
 
-**function cube_clean_dpix, cube, divisor** - Clean cube inbuff by dpixcreate/apply, divisor =  scale set from maximum of median image
+**function cube_clean_dpix, cube, scale** - Clean *cube*  by dpixcreate/apply, the threshold for dpixcreate is set from maximum of median image divided by *scale*.
 
 **function cube_resize_center, cube, xcen, ycen, xsize, ysize** - resize *cube*  to size *xsize*,*ysize* and center on pixel [*xcen,ycen*]
 
@@ -169,23 +149,21 @@ Used to image_interp_flags and cube_interp_flags
 
 **function cube_symm_flip, cube, lambda, width, part** - symmetrically flip *cube* about wavelength *lambda*, *part* =0 (left) or 1 (right), trims cube to *lambda*+-*width*
 
-**function cube_rotate, cube, xcen, ycen, platescale, rot_angle** - rotate cube on center [xcen,ycen] by rot_angle, setting platescale in arcsec/pixel.
+**function cube_rotate, cube, xcen, ycen, rot_angle, pixscale** - rotate *cube* on center [*xcen*,*ycen*] by *rot_angle*, setting *pixscale* in arcsec/pixel. This is used because the **rotate** function does not work on cubes.
 
 **function cube_centroids, cube** - get centroids at each wavelength layer (z axis). Returns a FITS array of dimensions naxis3(*cube*) x 2, with x and y centroids at each pixel layer. The wavelength WCS is set.
 
-**function cube_centroids_gauss, inbuff, xe, ye, we, mask** - get centroid at each pixel layer, with estimated center at [*xe,ye*] over fitting window *we*. The spectrum is masked by *mask* (if not zero or not entered).
+**function cube_centroids_gauss, cube, xe, ye, we, mask** - get centroid at each pixel layer, with estimated center at [*xe,ye*] over fitting window *we*. The spectrum is masked by *mask* (if not zero or not entered).
 
-**function cube_centroid_gauss_align, inbuff, xc, yc, xe, ye, we, mask** - align cube centroids at each pixel layer, using [*xe, ye, we, mask*] are the estimate parameters of the peak (as for **cube_centroids_gauss**), with the centroids aligned to [*xc, yc*].
+**function cube_centroid_gauss_align, cube, xc, yc, xe, ye, we, mask** - align *cube* centroids at each pixel layer, using [*xe, ye, we, mask*] are the estimate parameters of the peak (as for **cube_centroids_gauss**), with the centroids aligned to [*xc, yc*].
 
 **function cube_cont_slope, cube, mask** - returns image with continuum slope at each spaxel of *cube*, masked by wavelength pairs *mask*
 
-**function cube_spectrum_subtract, cube, spectrum** - subtract *spectrum* from *cube* for each spaxel
+**function cube_spectrum_add, cube, spectrum, x1, x2, y1, y2** - adds *spectrum* to *cube* for each spaxel. If any of *x1, x2, y1, y2* are set to zero, then perform the action over the pixel range. By default (not given), these are set to zero. To subtract *spectrum*, add by negative.
 
-**function cube_spectrum_divide, cube, spectrum** - divide *cube* by *spectrum* (e.g. telluric correction)
+**function cube_spectrum_multiply, cube, spectrum, x1, x2, y1, y2** - multiply *cube* by *spectrum* as for **cube_spectrum_add**. To divide by *spectrum*, multiply by inverse.
 
-**function cube_spectrum_multiply, cube, spectrum** - multiply *cube* by *spectrum*
-
-**function cube_set_pixlayers, cube, pixl, p1, p2** - set *cube* layers [*p1, p2*] to the values for layer *pixl*
+**function cube_set_pixlayers, cube, pixl, p1, p2** - set *cube* layers [*p1, p2*] to the values for layer *pixl*.
 
 **function cube_wavelength_correct, cube, correction** - corrects the wavelength solution at each spaxel.  *correction* is an image of the diimension as the *cube* x and y axes.
 
@@ -201,8 +179,6 @@ Used to image_interp_flags and cube_interp_flags
 
 **function cube_radial_spectrum, cube, xc, yc, rstep, nstep, ann** - Radial spectra of *cube*, centered [*xc,yc*] radial steps *rstep*, number of steps *nstep*. If *ann=1*, output annular spectra
 
-**function cube_rebin, cube, psize** - Rebin *cube* to pixel size *psize* (arcsec). Uses “interpolate” function. Useful for e.g. KCWI data which has rectangular spaxels on the sky.
-
 **function cube_from_image_spectrum, image, spectrum** - Creates a cube from an image and spectrum. Wavelength axis of cube is spectrum scaled by image value.
 
 **function cube_rebinxy, cube, xscale, yscale, kernel** - Rebin *cube* or image pixel scaling in x and y directions by *xscale*, *yscale*. Uses the **interpolate** dpuser function with kernel *kernel*. Note this function DOES NOT handle the WCS co-ordinates scaling; use **get_WCS_cube** and **set_WCS_cube_scale** functions.
@@ -210,6 +186,11 @@ Used to image_interp_flags and cube_interp_flags
 **function cube_rebinfrac, inbuff, xscale, yscale** - Rebins *cube* (image) to *xscale*, *yscale* using fractional binning. Note comments about WCS values as above.
 
 **function cube_rebinx, cube, xscale**  - Rebin *cube* (image) pixel scaling in x direction ONLY. Uses the **interpol** dpuser function (quicker than**interpolate**). Note comments about WCS values as above.
+
+**function cube_combine_avg, mef, omit** - combine cubes by averaging. *mef* is a multi-extension fits list, *omit* is a value to reject in the averaging. If not provided or set to 0/0, then no rejection is done. *mef* is created from mutiple cubes (up to 10) by e.g. 
+`mef = list(buffer1, buffer2, buffer3, ....)`
+
+f**unction cube_combine_median, mef, omit** - median combine cubes as for **cube_combine_avg**.
 
 ### lib_image
 **<u>*Image functions*</u>**
@@ -395,9 +376,9 @@ Returns a cube of channel maps, with axis 3 in velocity difference (km/s) from m
 
 **function chmap_rebin, cube, lnew, velwidth, sm, minval**- rebin channel maps in *cube* into *lnew* bins between velocities *v1* and *v2* (usually symmetric about 0, but not necessarily), with *sm* smoothing value, integer=boxcar, non-integer=gauss, 0=no smoothing, set output to NaN where < *minval*
 
-**procedure chmap_comps, cube, dirout, fnameout** - splits channel map into components and writes images to dirout, named fnameout plus velocity (e.g. if *fnameout* ="pa_beta-450”, then output file name will be e.g.  "pa_beta-100.fits" etc.
+**procedure chmap_comps, cube, dirout, fnameout** - splits channel map *cube* into components and writes images to folder *dirout*, named *fnameout* plus velocity (e.g. if *fnameout* ="pa_beta-450”, then output file name will be e.g.  "pa_beta-100.fits" etc.
 
-**function chmap_from_velmap, velmapstd, cube_template, width, res** - create a channel map from a standard velmap *velmapstd*. The velmap is evaluated using *cube_template*, then the channel map generated using the median velocity from the velmap with width multiplier (how far to extend the channels over the median FWHM) *width* (default 2.5). The FWHM is corrected by spectral resolution *res* (default 0).
+**function chmap_from_velmap, velmapstd, cube_template, width, res** - create a channel map from a standard velmap *velmapstd*. The velmap is evaluated using *cube_template*, then the channel map is generated using the median velocity from the velmap with width multiplier (how far to extend the channels over the median FWHM) *width* (default 2.5). The FWHM is corrected by spectral resolution *res* (default 0).
 
 ### lib_pv
 **<u>*Position Velocity Diagram functions*</u>**
@@ -443,6 +424,27 @@ Returns a cube of channel maps, with axis 3 in velocity difference (km/s) from m
 **function wvt_cube_to_specarray, cube, wvtmap, normflag, prntflag** - convert *cube* inbuff to spectrum array, using *wvtmap* regions. If *normflag* = 1, divide each spectrum in array by the first one. If *prntflag* = 1, print running diagnostics
 
 **function wvt_specarray_to_cube, image, wvtmap** - reverse of **wvt_cube_to_specarray**
+
+### lib_general
+
+***<u>Miscellaneous functions</u>***
+
+**function indexreform, index, xsize, ysize, zsize** - returns 3D co-ords from 1D *index*, given dimensions *xsize, ysize, zsize*. Values returned as array.
+
+**function lognan, data** - set log of *data*, setting zero and Nan values to Nan
+
+**function clipnan, data, low, high** - set values outside range [*low..high*] to Nan
+
+**function axiscentroids, image, axis** - returns centroids of each image row/column, row-*axis*=1, column-*axis*=2; used e.g. for finding centroids of pv diagram
+
+**function myhist, data, low, high, bin, normflag** - create a histogram from inbuff data (any dimensions), from _low_ to _high_ values in *bin* bins. Histogram is normalised if *normflag* =1. Output x-axis values are set to range.
+
+**function profile_export, data, scale1, scale2, scale3, offset** - Export 1D profiles from *data* with up to 3 separate scales, e.g. arcsec, pc, Re plus the pixel scale, _offset_=1 offsets by 1/2 a pixel (e.g. for log scale plot) (default 0). Scales default to 1 if not given.
+
+**function butterworth_filter, order, cutoff, size** - Create a Butterworth filter for order _order_ for a square of sides _size_, with _cutoff_ Nyquist frequency.
+
+**function interp, data, x, x1, x2**  - linearly interpret over *data* at position *x* over *x1*-*x2*.
+Used to image_interp_flags and cube_interp_flags
 
 ### lib_astronomy
 
