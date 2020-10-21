@@ -1,7 +1,6 @@
 //General astronomy functions
 dpuserdir=getenv("DPUSER_DIR")
 run dpuserdir+"/functions/lib_wcs.dpuser"
-run dpuserdir+"/functions/lib_clean.dpuser"
 run dpuserdir+"/functions/lib_astro_cube.dpuser"
 run dpuserdir+"/functions/lib_astro_image.dpuser"
 run dpuserdir+"/functions/lib_astro_spectrum.dpuser"

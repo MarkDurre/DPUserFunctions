@@ -596,4 +596,3 @@ Output is spectrum of aperture less average of background (with mask) - values <
 - Create basic channel map using **chmap_create** (usually do not smooth)
 - Rebin to required # of channels (e.g. 9 or 16) using **chmap_rebin** (smoothing if required)
 - Output individual channel maps using **chmap_comps**
-
