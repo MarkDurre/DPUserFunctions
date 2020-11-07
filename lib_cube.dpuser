@@ -636,6 +636,26 @@ function cube_wavelength_correct, cube, correction {
   cube_wavelength_correct=outbuff
 }
 
+function cube_velocity_correct, cube, velmodel {
+//Correct velocity at each spaxel by velocity model
+//Velocity +ve -> redshift (assume in km/s)
+  outbuff=cube*0
+  n1=naxis1(cube)
+  n2=naxis2(cube)
+  xnew=spectrum_make_disp_data(cube,3)
+  cc=299792 //Speed of light in km/s
+  for (i=1;i<=n1;i++) {
+    for (j=1;j<=n2;j++) {
+      lshift=velmodel[i,j]/cc
+      xold=xnew*(1+lshift)
+      yold=cube[i,j,*]
+      //Interpolate from shifted dispersion back to cube dispersion 
+      outbuff[i,j,*]=interpol(cblank(yold),xold,xnew) 
+    }
+  }
+  cube_velocity_correct=outbuff
+}
+
 function cube_to_2d, inbuff {
 //Convert data cube to 2d apertures for iraf
 //Similar results to "reform" function, but flipped by 90 degrees so
@@ -1121,4 +1141,58 @@ function cube_rebinx, cube, xscale {
   cube_rebinx=outbuff/xscale
 }
 
+function cube_apply_snr, signalcube, snr, snrscale {
+//Create a cube from signal cube and signal-to-noise ratio (SNR)
+//SNR can be either a single value, an image (i.e. a single value at each spaxel),
+//a spectrum (SNR varies with wavelength but is the same at each spaxel) or
+//a cube (SNR is set for each pixel)
+  n1=naxis1(signalcube)
+  n2=naxis2(signalcube)
+  n3=naxis3(signalcube)
+  if (nparams()<3) snrscale=1
+  ns1=naxis1(snr)
+  ns2=naxis2(snr)
+  ns3=naxis3(snr)
+  outbuff=signalcube*0
+  snrstate=""
+//Treat different cases of snr, can be C/S/I/V (cube, spectrum, image, value)
+  if (naxis(snr)==1) {
+    snrstate=(nelements(snr)==1 ? "V" : "S") //Either a value or spectrum
+  }
+  if (naxis(snr)==2) snrstate="I" //image
+  if (naxis(snr)==3) snrstate="C" //cube 
+//Check dimensions
+  if (snrstate=="S")&&(n3!=ns1) {
+    print "CUBE_APPLY_SNR : Axis mismatch!"
+    cube_apply_snr=0
+    break
+  }
+  if (snrstate=="I")&&((n1!=ns1)||(n2!=ns2)) {
+    print "CUBE_APPLY_SNR : Axis mismatch!"
+    cube_apply_snr=0
+    break
+  }
+  if (snrstate=="C")&&((n1!=ns1)||(n2!=ns2)||(n3!=ns3)) {
+    print "CUBE_APPLY_SNR : Axis mismatch!"
+    cube_apply_snr=0
+    break
+  }
+  if (snrstate=="I") print "CUBE_APPLY_SNR: Image SNR"
+  if (snrstate=="V") print "CUBE_APPLY_SNR: Value SNR"
+  if (snrstate=="S") print "CUBE_APPLY_SNR: Spectrum SNR"
+  if (snrstate=="C") print "CUBE_APPLY_SNR: Cube SNR"
   
+  for (i=1;i<=n1;i++) {
+    print "Column - "+i
+    for (j=1;j<=n2;j++) {
+      sig=signalcube[i,j,*]
+      if (snrstate=="I") ssnr=snr[i,j]*snrscale
+      if (snrstate=="V") ssnr=snr*snrscale
+      if (snrstate=="S") ssnr=snr*snrscale
+      if (snrstate=="C") ssnr=snr[i,j,*]*snrscale
+      outbuff[i,j,*]=spectrum_apply_snr(sig, ssnr)
+    }
+  }
+  print "CUBE_APPLY_SNR: Finished!"
+  cube_apply_snr=outbuff
+}
