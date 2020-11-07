@@ -411,4 +411,18 @@ function spectrum_sn, inbuff, window {
   no2[where(inbuff==0)]=0/0
   spectrum_sn=signal/no2
 }
-  
+
+function spectrum_apply_snr, spectrum, snr {
+//Add noise to a spectrum using a Gaussian realisation of the SNR
+  n=naxis1(spectrum)
+  outbuff=spectrum
+  for (i=1;i<=n;i++) {
+    if (nelements(snr)==1) {
+      outbuff[i]+=randomg(spectrum[i]/snr)
+    } else {
+      outbuff[i]+=randomg(spectrum[i]/snr[i])
+    }
+  }
+  spectrum_apply_snr=outbuff
+}
+
