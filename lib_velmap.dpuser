@@ -517,6 +517,7 @@ function velmap_derotate, cube, velmodel, lambdac {
   n2=naxis2(cube)
   if (n1!=naxis1(velmodel))||(n2!=naxis2(velmodel)) {
     print "VELMAP_DEROTATE: Axes not equal - exiting!"
+    velmap_derotate=0
     break
   }
   outbuff=cube*0
