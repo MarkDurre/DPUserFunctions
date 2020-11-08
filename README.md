@@ -18,7 +18,7 @@
 
     
 
-3. Create a directory under root “/dpuserlib” (for macOS 10.15+ use the `synthetic.conf` symbolic links - reference [here](https://stackoverflow.com/questions/58396821/what-is-the-proper-way-to-create-a-root-sym-link-in-catalina))
+3. Create a directory under root “/dpuserlib” (for macOS 10.15+ use the `synthetic.conf` symbolic links - reference [here](#https://stackoverflow.com/questions/58396821/what-is-the-proper-way-to-create-a-root-sym-link-in-catalina))
 
 4. Make a file in that directory “startup.dpuser” - this will be automatically run when you start QFitsView. The file consists of a single line:
 
@@ -47,7 +47,7 @@ tmpmem     =     20971520<br>
 
 ## Editing DPUser Code
 
-The main documentation for DPUser is through [this link](https://www.mpe.mpg.de/~ott/dpuser/). DPUser code can be edited with QFitsView *DPUSER > Script Editor*. It can also be edited by various external text editors; e.g. **BBEdit**. To facilitate this, a language module has been implemented - "DPUser.plist", with the following highlighting features: 
+The main documentation for DPUser is through [this link](#https://www.mpe.mpg.de/~ott/dpuser/). DPUser code can be edited with QFitsView *DPUSER > Script Editor*. It can also be edited by various external text editors; e.g. **BBEdit**. To facilitate this, a language module has been implemented - "DPUser.plist", with the following highlighting features: 
 
 - Syntax - both structural commands - e.g. "if", "else" etc. and internal DPUser functions/procedures. As new functions/procdures are implemented in QFitsView, the "BBLMPredefinedNameList" array must be updated.
 - Comments (both for "/\*..\*/" and "//").
@@ -102,7 +102,7 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 
 **function set_WCS_default, data** - checks *data* has minimal WCS keys set (to 1 by default)
 
-<a name="get_WCS_image"></a>"**function get_WCS_image, image** - Get axis 1 and 2 WCS data for *image* (can be cube) and calculates CDELT and rotation angle from CD keys; result is array of key values [CRPIX1, CRVAL1, CD1_1, CD1_2, CRPIX2, CRVAL2, CD2_1, CD2_2, CDELT1, CDELT2, CROTA2]
+<a name="get_WCS_image"></a>**function get_WCS_image, image** - Get axis 1 and 2 WCS data for *image* (can be cube) and calculates CDELT and rotation angle from CD keys; result is array of key values [CRPIX1, CRVAL1, CD1_1, CD1_2, CRPIX2, CRVAL2, CD2_1, CD2_2, CDELT1, CDELT2, CROTA2]
 
 **function set_WCS_image_scale, image, wcs2d, xscale, yscale** - Rescales (e.g. for non-integer re-binning) using *xscale* and *yscale* and sets WCS data for *image* (or cube), including CD keys - removes CDELT and CROTA2 keywords. Input *wcs2d* is format as for **[get_WCS_image](#get_WCS_image)**.
 
@@ -155,7 +155,7 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 
 <a name="cube_centroids_gauss"></a>**function cube_centroids_gauss, cube, xe, ye, we, mask** - get centroid at each pixel layer, with estimated center at [*xe,ye*] over fitting window *we*. The spectrum is masked by *mask* (if not zero or not entered).
 
-**function cube_centroid_gauss_align, cube, xc, yc, xe, ye, we, mask** - align *cube* centroids at each pixel layer, using [*xe, ye, we, mask*] are the estimate parameters of the peak (as for **[cube_centroids_gauss](cube_centroids_gauss)**), with the centroids aligned to [*xc, yc*].
+**function cube_centroid_gauss_align, cube, xc, yc, xe, ye, we, mask** - align *cube* centroids at each pixel layer, using [*xe, ye, we, mask*] are the estimate parameters of the peak (as for **[cube_centroids_gauss](#cube_centroids_gauss)**), with the centroids aligned to [*xc, yc*].
 
 **function cube_cont_slope, cube, mask** - returns image with continuum slope at each spaxel of *cube*, masked by wavelength pairs *mask*
 
@@ -203,11 +203,11 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 
 **function image_smooth, image, smooth** - smooth *image* with NaN values - *smooth* integer=boxcar, non-integer=gaussian.
 
-**function image_interp_x, image, x1, x2, y1, y2** - as for **[cube_interp_xy](cube_interp_xy)**, but for single *image* .
+**function image_interp_x, image, x1, x2, y1, y2** - as for **[cube_interp_xy](#cube_interp_xy)**, but for single *image* .
 
-**function image_interp_y, image, x1, x2, y1, y2** - as for **[cube_interp_x](cube_interp_x)**, but for single *image* .
+**function image_interp_y, image, x1, x2, y1, y2** - as for **[cube_interp_x](#cube_interp_x)**, but for single *image* .
 
-**function image_interp_xy, image, x1, x2, y1, y2** - as for **[cube_interp_y](cube_interp_y)**, but for single *image* .
+**function image_interp_xy, image, x1, x2, y1, y2** - as for **[cube_interp_y](#cube_interp_y)**, but for single *image* .
 
 **function image_from_profile, profile, xp, yp, xc, yc** - create 2D image from 1D *profile*, size of output image is *xp* x *yp* , [*xc, yc*] - center of rebuilt profile
 
@@ -289,7 +289,7 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 
 **function io_FITS_text_2D, image, prefix** - converts *image* to text, CSV format, line 1 = “*prefix*\_Wavelength, *prefix*\_Flux_1, *prefix*_Flux_2 …. "
 
-**procedure io_FITS2TXT_1D, fname, cutoff** - converts 1D FITS to text file *fname* assuming file is in  working directory - output is same as input file with “.txt” type. *Cutoff* as for **[io_FITS_text_1D](io_FITS_text_1D)**.
+**procedure io_FITS2TXT_1D, fname, cutoff** - converts 1D FITS to text file *fname* assuming file is in  working directory - output is same as input file with “.txt” type. *Cutoff* as for **[io_FITS_text_1D](#io_FITS_text_1D)**.
 
 **procedure io_FITS2TXT_2D, fname** - as above but for image (2D) file
 
@@ -347,7 +347,7 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 
 **function velmap_extcorr_map, velmap, extmap, lambda** - as above, but *extmap* is a map of extinction values
 
-<a name="velmap_fix_interp"></a>**function velmap_fix_interp, velmap, npix** - interpolate velmap *velmap* missing values, indicated by Nan in continuum layer (i.e. layer 1) (usually after **[velmap_fix](velmap_fix)**). *npix* is interpolation width maximum
+<a name="velmap_fix_interp"></a>**function velmap_fix_interp, velmap, npix** - interpolate velmap *velmap* missing values, indicated by Nan in continuum layer (i.e. layer 1) (usually after **[velmap_fix](#velmap_fix)**). *npix* is interpolation width maximum
 
 **function velmap_clean_map_wvt, velmap, map, nregion** - Clean up velmap *velmap* based on WVT *map* region number, setting region *nregion* pixels to NaN
 
@@ -560,15 +560,15 @@ Output is spectrum of aperture less average of background (with mask) - values <
 
 **function cube_clean_bp, cube, threshold** - create bad pixel cube using *threshold* scanning over wavelength slices.
 
-**function cube_clean_bp_limits, cube, ll, ul** - create bad pixel cube from *cube* for input to **[clean_cube_bp_fix](clean_cube_bp_fix)**, flagging pixels below *ll* and above *ul* values
+**function cube_clean_bp_limits, cube, ll, ul** - create bad pixel cube from *cube* for input to **[clean_cube_bp_fix](#clean_cube_bp_fix)**, flagging pixels below *ll* and above *ul* values
 
 # Standard Procedures
 ## Velocity maps
 * Create QFitsView **velmap** with wavelength, fwhm estimate
 * Examine velmap for continuum, height, wavelength and fwhm “sensible” ranges
-* Use **[velmap_fix](velmap_fix)** to clean up velmap, entering "good" ranges for each fit component. This sets out-of-range spaxels to Nan.
-* Use **[velmap_fix_interp](velmap_fix_interp)** to interpolate over NaN values (if required)
-* Use **[velmap_std_to_ext](velmap_std_to_ext)** to create extended velmap format
+* Use **[velmap_fix](#velmap_fix)** to clean up velmap, entering "good" ranges for each fit component. This sets out-of-range spaxels to Nan.
+* Use **[velmap_fix_interp](#velmap_fix_interp)** to interpolate over NaN values (if required)
+* Use **[velmap_std_to_ext](#velmap_std_to_ext)** to create extended velmap format
 
 **<u>*Standard VELMAP Format*</u>**
 
@@ -593,7 +593,7 @@ Output is spectrum of aperture less average of background (with mask) - values <
 7. e_Wavelength
 8. e_FWHM
 9. Chi-squared
-10. Velocity (zero-point calculated/set by *method* parameter in the **[velmap_std_to_ext](velmap_std_to_ext)** function)
+10. Velocity (zero-point calculated/set by *method* parameter in the **[velmap_std_to_ext](#velmap_std_to_ext)** function)
 11. Dispersion (sigma) velocity, corrected for spectral resolution
 12. Flux (Peak\*FWHM*1.0699)
 13. Equivalent width (flux/continuum)
@@ -602,6 +602,6 @@ Output is spectrum of aperture less average of background (with mask) - values <
 
 ## Channel maps
 
-- Create basic channel map using **[chmap_create](chmap_create)** (usually do not smooth)
-- Rebin to required # of channels (e.g. 9 or 16) using **[chmap_rebin](chmap_rebin)** (smoothing if required)
-- Output individual channel maps using **[chmap_comps](chmap_comps)**
+- Create basic channel map using **[chmap_create](#chmap_create)** (usually do not smooth)
+- Rebin to required # of channels (e.g. 9 or 16) using **[chmap_rebin](#chmap_rebin)** (smoothing if required)
+- Output individual channel maps using **[chmap_comps](#chmap_comps)**
