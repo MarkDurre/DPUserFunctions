@@ -2,7 +2,7 @@
 ## Setting Up DPUSER Functions Library
 1. Place all libraries (files with “lib\_\*.dpuser” name) in a convenient location  e.g. “*my\_code\_location*/DPUser/Functions" (subsituting for *my_code_location* e.g. "/Users/mdurre/OneDrive")
 
-2. Place “startup.dpuser” in e.g. “*my\_code\_location*/DPUser". This assumes that all the library functions are located in the "Function" sub-folder and runs the "lib\_all.dpuser" script. This file must be modified for your own requirements; it also sets the *DPUSER_DIR* environment variable that can be accessed by other scriupts, using the **getenv** function in QFitsView.
+2. Place “startup.dpuser” in e.g. “*my\_code\_location*/DPUser". This assumes that all the library functions are located in the "Function" sub-folder and runs the "lib\_all.dpuser" script. This file must be modified for your own requirements; it also sets the *DPUSER_DIR* environment variable that can be accessed by other scripts, using the **getenv** function in QFitsView.
 
     ```
     //Example startup.dpuser
@@ -102,9 +102,9 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 
 **function set_WCS_default, data** - checks *data* has minimal WCS keys set (to 1 by default)
 
-**function get_WCS_image, image** - Get axis 1 and 2 WCS data for *image* (can be cube) and calculates CDELT and rotation angle from CD keys; result is array of key values [CRPIX1, CRVAL1, CD1_1, CD1_2, CRPIX2, CRVAL2, CD2_1, CD2_2, CDELT1, CDELT2, CROTA2]
+<a name="get_WCS_image"></a>"**function get_WCS_image, image** - Get axis 1 and 2 WCS data for *image* (can be cube) and calculates CDELT and rotation angle from CD keys; result is array of key values [CRPIX1, CRVAL1, CD1_1, CD1_2, CRPIX2, CRVAL2, CD2_1, CD2_2, CDELT1, CDELT2, CROTA2]
 
-**function set_WCS_image_scale, image, wcs2d, xscale, yscale** - Rescales (e.g. for non-integer re-binning) using *xscale* and *yscale* and sets WCS data for *image* (or cube), including CD keys - removes CDELT and CROTA2 keywords. Input *wcs2d* is format as for **get_WCS_image**.
+**function set_WCS_image_scale, image, wcs2d, xscale, yscale** - Rescales (e.g. for non-integer re-binning) using *xscale* and *yscale* and sets WCS data for *image* (or cube), including CD keys - removes CDELT and CROTA2 keywords. Input *wcs2d* is format as for **[get_WCS_image](#get_WCS_image)**.
 
 **function get_fits_key, data, key** - substitute for **getfitskey** with check that *key* exists; returns blank if not found.
 
@@ -125,11 +125,11 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 
 **function cube_interp_z, cube, x1, x2, y1, y2, z1, z2** - interpolate *cube* in image plane over rectangle [*x1:x2,y1:y2*] in each of wavelength plane [*z1:z2*]
 
-**functioncube_interp_x, cube, x1, x2, y1, y2, z1,z2** - interpolate *cube* in image plane over rectangle [*y1:y2,z1:z2*] in each of spatial range [*x1:x2*]
+<a name="cube_interp_x"></a>**function cube_interp_x, cube, x1, x2, y1, y2, z1,z2** - interpolate *cube* in image plane over rectangle [*y1:y2,z1:z2*] in each of spatial range [*x1:x2*]
 
-**function cube_interp_y, cube, x1, x2, y1, y2, z1,z2** - interpolate *cube* in image plane over rectangle [*x1:x2,z1:z2*] in each of spatial range [*y1:y2*]
+<a name="cube_interp_y"></a>**function cube_interp_y, cube, x1, x2, y1, y2, z1,z2** - interpolate *cube* in image plane over rectangle [*x1:x2,z1:z2*] in each of spatial range [*y1:y2*]
 
-**function cube_interp_xy, cube, x1, x2, y1, y2, z1,z2** - as above, but interpolate over wavelength [*z1:z2*] in the xy plane
+<a name="cube_interp_xy"></a>**function cube_interp_xy, cube, x1, x2, y1, y2, z1,z2** - as above, but interpolate over wavelength [*z1:z2*] in the xy plane
 
 **function cube_set_value, cube, x1, x2, y1, y2, z, xv, yv** - set rectangle [*x1:x2,y1:y2*] at image plane *z* to value at [*xv, yv*]
 
@@ -153,9 +153,9 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 
 **function cube_centroids, cube** - get centroids at each wavelength layer (z axis). Returns a FITS array of dimensions naxis3(*cube*) x 2, with x and y centroids at each pixel layer. The wavelength WCS is set.
 
-**function cube_centroids_gauss, cube, xe, ye, we, mask** - get centroid at each pixel layer, with estimated center at [*xe,ye*] over fitting window *we*. The spectrum is masked by *mask* (if not zero or not entered).
+<a name="cube_centroids_gauss"></a>**function cube_centroids_gauss, cube, xe, ye, we, mask** - get centroid at each pixel layer, with estimated center at [*xe,ye*] over fitting window *we*. The spectrum is masked by *mask* (if not zero or not entered).
 
-**function cube_centroid_gauss_align, cube, xc, yc, xe, ye, we, mask** - align *cube* centroids at each pixel layer, using [*xe, ye, we, mask*] are the estimate parameters of the peak (as for **cube_centroids_gauss**), with the centroids aligned to [*xc, yc*].
+**function cube_centroid_gauss_align, cube, xc, yc, xe, ye, we, mask** - align *cube* centroids at each pixel layer, using [*xe, ye, we, mask*] are the estimate parameters of the peak (as for **[cube_centroids_gauss](cube_centroids_gauss)**), with the centroids aligned to [*xc, yc*].
 
 **function cube_cont_slope, cube, mask** - returns image with continuum slope at each spaxel of *cube*, masked by wavelength pairs *mask*
 
@@ -187,7 +187,7 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 
 **function cube_rebinfrac, inbuff, xscale, yscale** - Rebins *cube* (image) to *xscale*, *yscale* using fractional binning. Note comments about WCS values as above.
 
-**function cube_rebinx, cube, xscale**  - Rebin *cube* (image) pixel scaling in x direction ONLY. Uses the **interpol** dpuser function (quicker than**interpolate**). Note comments about WCS values as above.
+**function cube_rebinx, cube, xscale**  - Rebin *cube* (image) pixel scaling in x direction ONLY. Uses the **interpol** dpuser function (quicker than **interpolate**). Note comments about WCS values as above.
 
 **function cube_combine_avg, mef, omit** - combine cubes by averaging. *mef* is a multi-extension fits list, *omit* is a value to reject in the averaging. If not provided or set to 0/0, then no rejection is done. *mef* is created from mutiple cubes (up to 10) by e.g. 
 `mef = list(buffer1, buffer2, buffer3, ....)`
@@ -203,11 +203,11 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 
 **function image_smooth, image, smooth** - smooth *image* with NaN values - *smooth* integer=boxcar, non-integer=gaussian.
 
-**function image_interp_x, image, x1, x2, y1, y2** - as for **cube_interp_xy**, but for single *image* .
+**function image_interp_x, image, x1, x2, y1, y2** - as for **[cube_interp_xy](cube_interp_xy)**, but for single *image* .
 
-**function image_interp_y, image, x1, x2, y1, y2** - as for **cube_interp_x**, but for single *image* .
+**function image_interp_y, image, x1, x2, y1, y2** - as for **[cube_interp_x](cube_interp_x)**, but for single *image* .
 
-**function image_interp_xy, image, x1, x2, y1, y2** - as for **cube_interp_y**, but for single *image* .
+**function image_interp_xy, image, x1, x2, y1, y2** - as for **[cube_interp_y](cube_interp_y)**, but for single *image* .
 
 **function image_from_profile, profile, xp, yp, xc, yc** - create 2D image from 1D *profile*, size of output image is *xp* x *yp* , [*xc, yc*] - center of rebuilt profile
 
@@ -250,7 +250,7 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 
 **function spectrum_make_lorentz, spectrum, bi, bs, h, lc, w** - as for **spectrum_make_gauss** but makes a Lorentzian emission line.
 
-**function spectrum_redisp_lin, spectrum, data, daxis, xmin,delt, npix, zero, norms,  prnt, fluxcons** - re-disperse a *spectrum*. Paramaters are:
+**function spectrum_redisp_lin, spectrum, data, daxis, xmin,delt, npix, zero, norms,  prnt, fluxcons** - re-disperse a *spectrum*. Parameters are:
 
 - *data* - data with dispersal solution (if =0 then use parameters for dispersion)
 - *daxis* - spectral axis of data (default is last axis of *data*)
@@ -285,11 +285,11 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 
 **function io_text_FITS_interp, fname, xstart, xdelta, xnum, xscale, yscale, ignore** - converts text from file *fname*, with format of "wavelength, data" to spectrum fits data, setting WCS values. The values are interpolated to the range defined by *xstart*, *xdelta* and *xnum*. Wavelength and data value are scaled by *xscale*, *yscale* (default 1). *Ignore* lines at the start are skipped (e.g. column headers).
 
-**function io_FITS_text_1D, spectrum, prefix, cutoff** - converts *spectrum* to text, CSV format, line 1 = “*prefix*\__Wavelength, *prefix*\_Counts”. Values below *cutoff* (non-zero) are set to “NaN” (Be aware of QFitsView Edit > Copy functionality)
+<a name="io_FITS_text_1D"></a>**function io_FITS_text_1D, spectrum, prefix, cutoff** - converts *spectrum* to text, CSV format, line 1 = “*prefix*\__Wavelength, *prefix*\_Counts”. Values below *cutoff* (non-zero) are set to “NaN” (Be aware of QFitsView Edit > Copy functionality)
 
 **function io_FITS_text_2D, image, prefix** - converts *image* to text, CSV format, line 1 = “*prefix*\_Wavelength, *prefix*\_Flux_1, *prefix*_Flux_2 …. "
 
-**procedure io_FITS2TXT_1D, fname, cutoff** - converts 1D FITS to text file *fname* assuming file is in  working directory - output is same as input file with “.txt” type. *Cutoff* as for **io_FITS_text_1D**.
+**procedure io_FITS2TXT_1D, fname, cutoff** - converts 1D FITS to text file *fname* assuming file is in  working directory - output is same as input file with “.txt” type. *Cutoff* as for **[io_FITS_text_1D](io_FITS_text_1D)**.
 
 **procedure io_FITS2TXT_2D, fname** - as above but for image (2D) file
 
@@ -312,14 +312,14 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 
 **function mask_set_nan_min, data, minvalue** - set *data* values to *minvalue* if value = Nan. If minvalue is zero, use the current minimum value. Equivalent to **cblank** function is *minvalue*=0
 
-**function mask_cone, data, xc1, yc1, xc2, yc2, pa, beta, maskflag** - mask cone area over *data* (either image or cube), with equator [*xc1, yc1*], [*xc2, yc2*] (can be same coordinates for ), centerline angle *pa* (from positive x-axis), internal full-angle *beta*. If *maskflag*=0, return the mask, if *maskflag*=1, return the masked input data.
+**function mask_cone, data, xc1, yc1, xc2, yc2, pa, beta, maskflag** - mask cone area over *data* (either image or cube), with equator [*xc1, yc1*], [*xc2, yc2*] (can be same coordinates for a point apex), centerline angle *pa* (from positive x-axis), internal full-angle *beta*. If *maskflag*=0, return the mask, if *maskflag*=1, return the masked input data.
 
 **function mask_line, data, x1, y1, x2, y2, side** - creates a mask of *data* dimensions on one side of a line [*x1, y1*], [*x2, y2*]. *side* =0 for left, =1 for right side of line
 
 ### lib_velmap
 **<u>*Velocity map (velmap) extension functions*</u>**
 
-**function velmap_std_to_ext, velmapstd, r, cmin, vmethod, vzero, vx, vy** - convert standard QFitsView velmap *velmapstd* to extended form, *r*=instrumental resolution, *cmin*= minimum continuum value. Output is in extended velmap format - see below. Velocity zero is set by *vmethod* =
+<a name="velmap_std_to_ext"></a>**function velmap_std_to_ext, velmapstd, r, cmin, vmethod, vzero, vx, vy** - convert standard QFitsView velmap *velmapstd* to extended form, *r*=instrumental resolution, *cmin*= minimum continuum value. Output is in extended velmap format - see below. Velocity zero is set by *vmethod* =
 
 - 0 - median   
 - 1 - average
@@ -335,7 +335,7 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 
 **function velmap_rescale, velmapext, scale** - rescales extended *velmap* flux data (e.g. flux calib change)
 
-**function velmap_fix, velmap, contlo, conthi, flo, fhi, vlo, vhi, wlo, whi, setvalue** - clean up *velmap* (either standard or extended form), setting values out of range to *setvalue*. Value ranges 
+<a name="velmap_fix"></a>**function velmap_fix, velmap, contlo, conthi, flo, fhi, vlo, vhi, wlo, whi, setvalue** - clean up *velmap* (either standard or extended form), setting values out of range to *setvalue*. Value ranges 
 
 - *contlo, conthi* - continuum
 - *flo, fhi* - flux
@@ -347,7 +347,7 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 
 **function velmap_extcorr_map, velmap, extmap, lambda** - as above, but *extmap* is a map of extinction values
 
-**function velmap_fix_interp, velmap, npix** - interpolate velmap *velmap* missing values, indicated by Nan in continuum layer (i.e. layer 1) (usually after **velmap_fix**). *npix* is interpolation width maximum
+<a name="velmap_fix_interp"></a>**function velmap_fix_interp, velmap, npix** - interpolate velmap *velmap* missing values, indicated by Nan in continuum layer (i.e. layer 1) (usually after **[velmap_fix](velmap_fix)**). *npix* is interpolation width maximum
 
 **function velmap_clean_map_wvt, velmap, map, nregion** - Clean up velmap *velmap* based on WVT *map* region number, setting region *nregion* pixels to NaN
 
@@ -371,7 +371,8 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 ### lib_chmap 
 **<u>*Channel map functions*</u>**
 
-**function chmap_create, cube, lambda_cent, lambda_width, cutoff, width_factor, smooth** - make a channel map from the cube
+<a name="chmap_create"></a>**function chmap_create, cube, lambda_cent, lambda_width, cutoff, width_factor, smooth** - make a channel map from the cube
+
 - *lambda_cent* - estimate of central wavelength
 - *lambda_width* - estimate of FWHM
 - *threshold* - % of maximum for cutoff - default 0
@@ -380,9 +381,9 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 
 Returns a cube of channel maps, with axis 3 in velocity difference (km/s) from median. Spaxel values are FLUX (not flux density) in that channel
 
-**function chmap_rebin, cube, lnew, velwidth, sm, minval**- rebin channel maps in *cube* into *lnew* bins between velocities *v1* and *v2* (usually symmetric about 0, but not necessarily), with *sm* smoothing value, integer=boxcar, non-integer=gauss, 0=no smoothing, set output to NaN where < *minval*
+<a name="chmap_rebin"></a>**function chmap_rebin, cube, lnew, velwidth, sm, minval**- rebin channel maps in *cube* into *lnew* bins between velocities *v1* and *v2* (usually symmetric about 0, but not necessarily), with *sm* smoothing value, integer=boxcar, non-integer=gauss, 0=no smoothing, set output to NaN where < *minval*
 
-**procedure chmap_comps, cube, dirout, fnameout** - splits channel map *cube* into components and writes images to folder *dirout*, named *fnameout* plus velocity (e.g. if *fnameout* ="pa_beta-450”, then output file name will be e.g.  "pa_beta-100.fits" etc.
+<a name="chmap_comps"></a>**procedure chmap_comps, cube, dirout, fnameout** - splits channel map *cube* into components and writes images to folder *dirout*, named *fnameout* plus velocity (e.g. if *fnameout* ="pa_beta-450”, then output file name will be e.g.  "pa_beta-100.fits" etc.
 
 **function chmap_from_velmap, velmapstd, cube_template, width, res** - create a channel map from a standard velmap *velmapstd*. The velmap is evaluated using *cube_template*, then the channel map is generated using the median velocity from the velmap with width multiplier (how far to extend the channels over the median FWHM) *width* (default 2.5). The FWHM is corrected by spectral resolution *res* (default 0).
 
@@ -400,16 +401,16 @@ Returns a cube of channel maps, with axis 3 in velocity difference (km/s) from m
 ### lib_wvt
 **<u>*Weighted Voronoi Tesselation functions*</u>**
 
-**function wvt_cube, cube, sn_target** - make wvt *cube* using noise in each spaxel, to *sn_target*. Bad pixels where S/N is > 10x brightest pixel S/N
+**function wvt_cube, cube, sn_target** - make WVT *cube* using noise in each spaxel, to *sn_target*. Bad pixels where S/N is > 10x brightest pixel S/N
 
-**function wvt_cube_mask, cube, l1, l2, mask, cutoff, sn1, sn2** -  make WVT cube using 2 S/N ratios, inside and outside *mask*. Returns WVT applied to *cube*.
+<a name="wvt_cube_mask"></a>**function wvt_cube_mask, cube, l1, l2, mask, cutoff, sn1, sn2** -  make WVT cube using 2 S/N ratios, inside and outside *mask*. Returns WVT applied to *cube*.
 
 - *l1, l2* - wavelength range to use for signal and noise determination (“quiet” part of spectrum with no emission lines)
 - *mask* - if 2D mask, use this. If *mask*=0, use *cutoff* to determine mask
 - *cutoff* - percentage of peak maximum for mask level
 - *sn1*, *sn2* - S/N ratios for inside/outside mask. If *sn2*=0, just use *sn1* over whole cube
 
-**function wvt_sn_mask, cube, l1, l2, mask, cutoff, sn1, sn2** - as for **wvt_cube_mask**, except returns WVT image data - layers:
+**function wvt_sn_mask, cube, l1, l2, mask, cutoff, sn1, sn2** - as for **[wvt_cube_mask](#wvt_cube_mask)**, except returns WVT image data - layers:
 
 1. Signal
 2. Noise
@@ -467,6 +468,8 @@ Used to image_interp_flags and cube_interp_flags
 **function planck, wave, temp** - Calculates the Planck function in units of ergs/cm2/s/Å. *wave* in Å, *temp* in degrees K.
 
 **function coordstring, ra, dec, rad** - create a nice string of celestial coordinates. *ra* and *dec* should be given in radians; if *rad*>0, convert to degrees. Example:
+`print coordstring(9.1234,5.678,1)`
+`RA = 0h 36m 29.62s, DEC = + 5d 40' 40.8"`
 
 ### lib_astro_general
 
@@ -553,19 +556,19 @@ Output is spectrum of aperture less average of background (with mask) - values <
 
 **function cube_sl_clean, cube, skyline_list, width** - removes skylines from *cube* using skyline_linelist (array of wavelengths) - interpolated over wavelength ± *width*
 
-**function cube_clean_bp_fix, cube, bp_cube** - cleans *cube* based on bad pixel cube *bp_cube* using **dpixapply** over x image slices
+<a name="cube_clean_bp_fix"></a>**function cube_clean_bp_fix, cube, bp_cube** - cleans *cube* based on bad pixel cube *bp_cube* using **dpixapply** over x image slices
 
 **function cube_clean_bp, cube, threshold** - create bad pixel cube using *threshold* scanning over wavelength slices.
 
-**function clean_cube_bp_limits, cube, ll, ul** - create bad pixel cube from *cube* for input to **clean_cube_bp_fix**, flagging pixels below *ll* and above *ul* values
+**function cube_clean_bp_limits, cube, ll, ul** - create bad pixel cube from *cube* for input to **[clean_cube_bp_fix](clean_cube_bp_fix)**, flagging pixels below *ll* and above *ul* values
 
 # Standard Procedures
 ## Velocity maps
 * Create QFitsView **velmap** with wavelength, fwhm estimate
 * Examine velmap for continuum, height, wavelength and fwhm “sensible” ranges
-* Use **velmap_fix** to clean up velmap, entering "good" ranges for each fit component. This sets out-of-range spaxels to Nan.
-* Use **velmap_fix_interp** to interpolate over NaN values (if required)
-* Use **velmap_std_to_ext** to create extended velmap format
+* Use **[velmap_fix](velmap_fix)** to clean up velmap, entering "good" ranges for each fit component. This sets out-of-range spaxels to Nan.
+* Use **[velmap_fix_interp](velmap_fix_interp)** to interpolate over NaN values (if required)
+* Use **[velmap_std_to_ext](velmap_std_to_ext)** to create extended velmap format
 
 **<u>*Standard VELMAP Format*</u>**
 
@@ -590,7 +593,7 @@ Output is spectrum of aperture less average of background (with mask) - values <
 7. e_Wavelength
 8. e_FWHM
 9. Chi-squared
-10. Velocity (zero-point calculated/set by *method* parameter in the **velmap_std_to_ext** function)
+10. Velocity (zero-point calculated/set by *method* parameter in the **[velmap_std_to_ext](velmap_std_to_ext)** function)
 11. Dispersion (sigma) velocity, corrected for spectral resolution
 12. Flux (Peak\*FWHM*1.0699)
 13. Equivalent width (flux/continuum)
@@ -599,6 +602,6 @@ Output is spectrum of aperture less average of background (with mask) - values <
 
 ## Channel maps
 
-- Create basic channel map using **chmap_create** (usually do not smooth)
-- Rebin to required # of channels (e.g. 9 or 16) using **chmap_rebin** (smoothing if required)
-- Output individual channel maps using **chmap_comps**
+- Create basic channel map using **[chmap_create](chmap_create)** (usually do not smooth)
+- Rebin to required # of channels (e.g. 9 or 16) using **[chmap_rebin](chmap_rebin)** (smoothing if required)
+- Output individual channel maps using **[chmap_comps](chmap_comps)**
