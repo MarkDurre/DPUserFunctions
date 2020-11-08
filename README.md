@@ -165,7 +165,9 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 
 **function cube_set_pixlayers, cube, pixl, p1, p2** - set *cube* layers [*p1, p2*] to the values for layer *pixl*.
 
-**function cube_wavelength_correct, cube, correction** - corrects the wavelength solution at each spaxel.  *correction* is an image of the diimension as the *cube* x and y axes.
+**function cube_wavelength_correct, cube, correction** - corrects the wavelength solution at each spaxel by shifting the spectrum.  *correction* is an image of the same dimensions as the *cube* x and y axes and is in same units as the spectral axis of *cube*. 
+
+**function cube_velocity_correct, cube, velmodel** - applies a velocity field model *velmodel* (in km/s) to each spaxel of *cube*. Each spaxel is re-dispersed by intepolation.
 
 **function cube_to_2d, cube** - Convert data *cube* to 2d apertures for IRAF. Returns a 2D array with spectrum on the x-axis and all spaxels on the y axis.
 
@@ -190,7 +192,9 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 **function cube_combine_avg, mef, omit** - combine cubes by averaging. *mef* is a multi-extension fits list, *omit* is a value to reject in the averaging. If not provided or set to 0/0, then no rejection is done. *mef* is created from mutiple cubes (up to 10) by e.g. 
 `mef = list(buffer1, buffer2, buffer3, ....)`
 
-f**unction cube_combine_median, mef, omit** - median combine cubes as for **cube_combine_avg**.
+**function cube_combine_median, mef, omit** - median combine cubes as for **cube_combine_avg**.
+
+<a name="cube_apply_snr"></a>**function cube_apply_snr, signal, snr, snrscale** - adds noise to a *signal* cube using signal-to-noise ratio *snr*, multiplied by factor *snrscale* (default 1). *snr* can be a single value, a spectrum which is applied at each spaxel, an image where a single value is applied at each spaxel or a cube with different values at each pixel. The noise is a random gaussian value with standard deviation of the applicable SNR.
 
 ### lib_image
 **<u>*Image functions*</u>**
@@ -269,6 +273,8 @@ f**unction cube_combine_median, mef, omit** - median combine cubes as for **cube
 **function spectrum_sn, spectrum, window** - Estimate spectrum S/N from itself - not 100% accurate but good for comparisons, *window* is smoothing and noise estimation window. Returns vector of same length as *spectrum* with S/N estimate, blank where *spectrum* is 0.
 
 **function spectrum_clean, inbuff, thresh** - clean *spectrum* using **dpixcreate**/**dpixapply**. If *thresh* is not sepecifed the threshold for **dpixcreate** is set to median(*spectrum*)/2.
+
+**function spectrum_apply_snr, signal, snr** - as for **[cube_apply_snr](#cube_apply_snr)**. *snr* can be a single value or spectrum.
 
 ### lib_io
 **<u>*Input/output to and from text and fits files*</u>**
