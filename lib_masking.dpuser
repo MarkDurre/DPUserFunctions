@@ -1,5 +1,7 @@
 //Masking functions
 function mask_from_image, inbuff, level, low {
+//Create a mask from image, set to 1 for values >= level, set to low (default 0) otherwise
+  if nparams()<3 low=0
   outbuff=inbuff
   outbuff[where(inbuff>=level)]=1
   outbuff[where(inbuff<level)]=low
@@ -10,8 +12,8 @@ function mask_circle, inbuff, x, y, r, v, rev {
 //Mask a cube/image by a circle centered x,y radius r (pixels) 
 //and set value v for outside e.g. 0/0
 //If rev is non-zero, reverse mask - useful for excluding stars
-  if nparams()<5 rev=1
-  if nparams()<4 v=0
+  if nparams()<6 rev=0
+  if nparams()<5 v=0
   n1=naxis1(inbuff)
   n2=naxis2(inbuff)
   circ=circle(x, y, r, naxis1=n1, naxis2=n2)
@@ -21,10 +23,12 @@ function mask_circle, inbuff, x, y, r, v, rev {
 }
 
 function mask_data, inbuff, level, low {
+  if nparams()<3 low=0
   mask_data=mask_from_image(inbuff,level,low)*inbuff
 }
 
 function mask_data_median, inbuff, level, low {
+  if nparams()<3 low=0
   img=median(inbuff,/z)
   mask_data_median=inbuff*mask_from_image(img,level,low)
 }
