@@ -145,7 +145,7 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 
 **function cube_shift_xy, cube, xshift, yshift** - sub-pixel shifts *cube* by [*xshift, yshift*]
 
-**function cube_redisp, cube, val, delt, n** - change the wavelength dispersion of *cube* (axis 3) to new range defined by *val*, *delt* and *n* by interpolation.
+**function cube_redisp, cube, disp_old, disp_new, prnt** - redisperses *cube* (axis 3) to new from *disp_old* to *disp_new* dispersion spectra by interpolation. If *prnt* <> 0, print diagnostics.
 
 **function cube_symm_flip, cube, lambda, width, part** - symmetrically flip *cube* about wavelength *lambda*, *part* =0 (left) or 1 (right), trims cube to *lambda*+-*width*
 
