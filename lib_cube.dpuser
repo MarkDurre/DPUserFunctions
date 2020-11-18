@@ -351,11 +351,14 @@ function cube_shift_xy, inbuff, xshift, yshift {
   cube_shift_xy=outbuff
 }
 
-function cube_redisp, cube, val_new, delt_new, n_new, prnt {
+function cube_redisp, cube, disp_old, disp_new, prnt {
 //Redisperse a data cube
   if nparams()<5 prnt=0
-  xold=spectrum_make_disp_data(cube, 3)
-  xnew=spectrum_make_disp(val_new,  delt_new, 1, n_new)
+  xold=disp_old
+  xnew=disp_new
+  val_new=xnew[1]
+  n_new=nelements(disp_new)
+  delt_new=(max(disp_new)-min(disp_new))/(n_new-1)
   n1=naxis1(cube)
   n2=naxis2(cube)
   outbuff=resize(cube,n1,n2,n_new)*0
