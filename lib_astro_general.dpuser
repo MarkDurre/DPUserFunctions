@@ -56,7 +56,13 @@ function redshift_data, inbuff, z, rdflag, nanflag, smth, fcons {
     set_WCS_data outbuff, wcsold, saxis
   }
   if (nanflag==1) outbuff[where(newnans>0.05)]=0/0
-  if (fcons==1) outbuff=outbuff*(1+z)
+  if (fcons==1) {
+    if (z>0) {
+      outbuff=outbuff*(1+abs(z))
+    } else {
+      outbuff=outbuff/(1+abs(z))
+    }
+  }
   redshift_data=outbuff
 }
 
