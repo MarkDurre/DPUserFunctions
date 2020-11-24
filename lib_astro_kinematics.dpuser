@@ -1,0 +1,156 @@
+function velmodel_geom, x0, y0, psi0, inc, xsize, ysize {
+//Compute geometry components for velocity profile model
+//These do not depend on the actual profile form, just on the inclination and line of nodes
+  geom=rad=fits(xsize, ysize) //Set up radial distances, cos and sin psi
+  vm=fits(xsize,ysize,2)
+  si=sin(inc,/deg)
+  ci2=cos(inc,/deg)^2
+  for (i=1;i<=int(xsize);i++) {
+    for (j=1;j<=int(ysize);j++) {
+      rad[i,j]=sqrt((float(i-x0)^2+float(j-y0)^2))
+      ang=atan((j-y0),(i-x0),/deg)
+      sinpsi=sin(ang-psi0,/deg)
+      cospsi=cos(ang-psi0,/deg)
+      geom[i,j]=si*cospsi/(cospsi^2+(sinpsi^2/ci2))^0.75
+    }
+  }
+  vm[*,*,1]=geom
+  vm[*,*,2]=rad
+  velmodel_geom=vm
+}
+
+function velmodel_plummer, x0, y0, M0, Re, psi0, inc, xsize, ysize, pixscale, angscale {
+//Plummer rotational kinematic model
+//x0, y0 - centre pixel position
+//M0 - enclosed mass (Msun)
+//Re - length scale (pc)
+//psi0 - line of nodes
+//i - inclination of disk (0-90, 0 = face-on)
+//xsize, ysize - image size (by default, twice x0, y0)
+//pixscale - pixel scale in arcsec
+//angscale - angular scale in pc/arcsec
+  
+  if nparams()<4 {
+    print "VELMODEL_PLUMMER : Parameters"
+    print "x0, y0       - centre of rotation (pixels)"
+    print "M0           - enclosed mass (units of Msun)"
+    print "Re           - scale length (pc)"
+    print "psi0         - line of nodes"
+    print "inc          - inclination (0 = face-on, 90 = edge-on)"
+    print "xsize, ysize - image dimensions (default 2x x0)"
+    print "pixscale     - pixel scale (arcsec/pixel)"
+    print "angscale     - angular scale (pc/arcsec)"
+    velmodel_plummer = 0
+    break
+  }
+  if nparams()<10 angscale=1
+  if nparams()<9 pixscale=1
+  if nparams()<8 xsize=ysize=int(x0*2)
+  if nparams()<7 xsize=int(x0*2)
+  if nparams()<6 inc=45 //Average inclination
+  if nparams()<5 psi0=0 //Line of nodes along X-axis
+/*  M0=1e11
+  x0=y0=30
+  xsize=ysize=60
+  Re=500
+  psi0=0
+  inc=45
+  pixsize=0.1
+  angscale=7500*/
+  pctom=3.0856e16 //pc to m
+  msuntokg=1.99e30 //msun to kg
+  gg=6.674e-11 //G in mks
+  Repix=Re/pixscale/angscale
+  Reang=Re/angscale
+  Re*=pctom
+  M0*=msuntokg
+  vel=fits(xsize, ysize) //Set up radial distances, cos and sin psi
+  geom=velmodel_geom(x0, y0, psi0, inc, xsize, ysize)
+  rad=geom[*,*,2]
+  rad*=pixscale*angscale*pctom //Convert to m
+  for (i=1;i<=int(xsize);i++) {
+    for (j=1;j<=int(ysize);j++) {
+      scl=sqrt(rad[i,j]^2/(rad[i,j]^2+Re^2)^1.5)
+      vel[i,j]=scl*geom[i,j,1]
+    }
+  }
+  mscale=sqrt(M0*gg) //Converts units
+  vel*=mscale/1000 //Convert to km/s	
+  Rmax=Re*sqrt(2)
+  Vmax=mscale*sqrt(Rmax^2/(Rmax^2+Re^2)^1.5)/1000
+  Vmaxproj=Vmax*sin(inc,/deg)
+  setwcs vel, x0, y0, 0, 0, pixscale/3600, pixscale/3600
+  print "VELMODEL_PLUMMER: pc/pixel = "+pixscale*angscale
+  print "VELMODEL_PLUMMER: Re = "+Repix+" pixel "+Reang+"\""
+  print "VELMODEL_PLUMMER: Vmax x sin(i) = "+int(Vmaxproj)+" Vmax = "+int(Vmax)+" (kms) @ R = "+int(Rmax/pctom)+" pc ("+Rmax/pctom/angscale+")\""
+  velmodel_plummer=vel
+}
+
+function velmodel_hernquist, x0, y0, M0, Re, psi0, inc, xsize, ysize, pixscale, angscale {
+//HERNQUIST rotational kinematic model
+//x0, y0 - centre pixel position
+//M0 - enclosed mass (Msun)
+//Re - length scale (pc)
+//psi0 - line of nodes
+//i - inclination of disk (0-90, 0 = face-on)
+//xsize, ysize - image size (by default, twice x0, y0)
+//pixscale - pixel scale in arcsec
+//angscale - angular scale in pc/arcsec
+  
+  if nparams()<4 {
+    print "VELMODEL_HERNQUIST : Parameters"
+    print "x0, y0       - centre of rotation (pixels)"
+    print "M0           - enclosed mass (units of Msun)"
+    print "Re           - scale length (pc)"
+    print "psi0         - line of nodes"
+    print "inc          - inclination (0 = face-on, 90 = edge-on)"
+    print "xsize, ysize - image dimensions (default 2x x0)"
+    print "pixscale     - pixel scale (arcsec/pixel)"
+    print "angscale     - angular scale (pc/arcsec)"
+    velmodel_hernquist = 0
+    break
+  }
+  if nparams()<10 angscale=1
+  if nparams()<9 pixscale=1
+  if nparams()<8 xsize=ysize=int(x0*2)
+  if nparams()<7 xsize=int(x0*2)
+  if nparams()<6 inc=45 //Average inclination
+  if nparams()<5 psi0=0 //Line of nodes along X-axis
+/*  x0=31.056
+  y0=31.04
+  M0=2.03e11
+  Re=2400
+  pixscale=0.03881
+  angscale=7534
+  xsize=61
+  ysize=61
+  inc=45
+  psi0=0*/
+  pctom=3.0856e16 //pc to m
+  msuntokg=1.99e30 //msun to kg
+  gg=6.674e-11 //G in mks
+  Repix=Re/pixscale/angscale
+  Reang=Re/angscale
+  Re*=pctom
+  M0*=msuntokg
+  vel=fits(xsize, ysize) //Set up radial distances, cos and sin psi
+  geom=velmodel_geom(x0, y0, psi0, inc, xsize, ysize)
+  rad=geom[*,*,2]
+  rad*=pixscale*angscale*pctom //Convert to m
+  for (i=1;i<=int(xsize);i++) {
+    for (j=1;j<=int(ysize);j++) {
+      scl=sqrt(rad[i,j]/(rad[i,j]+Re)^2)
+      vel[i,j]=scl*geom[i,j,1]
+    }
+  }
+  mscale=sqrt(M0*gg) //Converts units
+  vel*=mscale/1000 //Convert to km/s	
+  Rmax=Re
+  Vmax=mscale*sqrt(Rmax/(Rmax+Re)^2)/1000
+  Vmaxproj=Vmax*sin(inc,/deg)
+  setwcs vel, x0, y0, 0, 0, pixscale/3600, pixscale/3600
+  print "VELMODEL_HERNQUIST: pc/pixel = "+pixscale*angscale
+  print "VELMODEL_HERNQUIST: Re = "+Repix+" pixel "+Reang+"\""
+  print "VELMODEL_HERNQUIST: Vmax x sin(i) = "+int(Vmaxproj)+" Vmax = "+int(Vmax)+" (kms) @ R = "+int(Rmax/pctom)+" pc ("+Rmax/pctom/angscale+")\""
+  velmodel_hernquist=vel
+}
