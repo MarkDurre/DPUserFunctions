@@ -167,7 +167,7 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 
 **function cube_wavelength_correct, cube, correction** - corrects the wavelength solution at each spaxel by shifting the spectrum.  *correction* is an image of the same dimensions as the *cube* x and y axes and is in same units as the spectral axis of *cube*. 
 
-**function cube_velocity_correct, cube, velmodel** - applies a velocity field model *velmodel* (in km/s) to each spaxel of *cube*. Each spaxel is re-dispersed by intepolation.
+<a name="cube_velocity_correct"></a>**function cube_velocity_correct, cube, velmodel** - applies a velocity field model *velmodel* (in km/s) to each spaxel of *cube*. Each spaxel is re-dispersed by intepolation.
 
 **function cube_to_2d, cube** - Convert data *cube* to 2d apertures for IRAF. Returns a 2D array with spectrum on the x-axis and all spaxels on the y axis.
 
@@ -562,7 +562,24 @@ Output is spectrum of aperture less average of background (with mask) - values <
 
 **function cube_clean_bp_limits, cube, ll, ul** - create bad pixel cube from *cube* for input to **[clean_cube_bp_fix](#clean_cube_bp_fix)**, flagging pixels below *ll* and above *ul* values
 
+### lib_astro_kinematics
+
+**function velmodel_plummer, x0, y0, M0, Re, psi0, inc, xsize, ysize, pixscale, angscale** - create a Plummer kinematic rotation model velocity field in km/s. This can be applied to a cube by e.g. **[cube_velocity_correct](#cube_velocity_correct)**.
+*x0, y0* - centre pixel position
+*M0* - enclosed mass (units of Msun)
+*Re* - length scale (pc)
+*psi0* - line of nodes (default 0 - counterclockwise from +ve X axis)
+*i* - inclination of disk (0-90, 0 = face-on - default)
+*xsize, ysize* - image size (by default, twice x0, y0)
+*pixscale* - pixel scale in arcsec (default 1)
+*angscale* - angular scale in pc/arcsec (default 1)
+
+**function velmodel_hernquist, x0, y0, M0, Re, psi0, inc, xsize, ysize, pixscale, angscale** - as for **velmodel_plummer** for Hernquist kinematic rotation model.
+
+**function velmodel_geom, x0, y0, psi0, inc, xsize, ysize** - computes the geometric components of rotational models, with parameters as above. Returns data [*xsize, ysize*, 2] - first layer is rotational component, second layer is radial component. These are independant of the particular model form.
+
 # Standard Procedures
+
 ## Velocity maps
 * Create QFitsView **velmap** with wavelength, fwhm estimate
 * Examine velmap for continuum, height, wavelength and fwhm “sensible” ranges
