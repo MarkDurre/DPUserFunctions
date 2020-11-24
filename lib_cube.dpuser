@@ -875,15 +875,24 @@ function cube_radial_spectrum, cube, xc, yc, rstep, nstep, ann {
   cube_radial_spectrum=spectra
 }
 
-function cube_from_image_spectrum, image, spectrum {
+function cube_from_image_spectrum, image, spectrum, clipf {
 //Creates a cube from an image and spectrum
-  cube=image
+  if nparams()<3 clipf=0
+  img=image
+  if clipf>0 {
+    img=clip(image,0,-1)
+    print "CUBE_FROM_IMAGE_SPECTRUM : Clipping image"
+  }
+  cube=img
   resize cube, naxis1(image),naxis2(image),naxis1(spectrum)
   for (i=1;i<=naxis1(cube);i++) {
     for (j=1;j<=naxis2(cube);j++) {
-      cube[i,j,*]=image[i,j]*spectrum
+      cube[i,j,*]=img[i,j]*spectrum
     }
   }
+  swcs=get_WCS_data(spectrum,1)
+  set_WCS_data cube, swcs, 3
+  print "CUBE_FROM_IMAGE_SPECTRUM : Cube dimensions : "+naxis1(cube)+"x"+naxis2(cube)+"x"+naxis3(cube)
   cube_from_image_spectrum=cube
 }
 
