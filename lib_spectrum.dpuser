@@ -335,22 +335,22 @@ function spectrum_from_tablexy, inbuff, l1, l2, npix, xscl, yscl {
 //l1, l2, npix is new wavelength range and number of pixels
     if (nparams()<6) yscl=1
     if (nparams()<5) xscl=1
-    xold=inbuff[*,1]*xscl //rescale to match new dispersion (e.g. from micron to nm, xscl=1000)
+    if (nparams()<4) npix=naxis2(inbuff)
+    if (nparams()<3) l2=max(inbuff[1,*])
+    if (nparams()<2) l1=min(inbuff[1,*])
+    xold=inbuff[1,*]*xscl //rescale to match new dispersion (e.g. from micron to nm, xscl=1000)
     xnew=spectrum_make_disp_n (l1, l2, npix)
     nx=naxis2(inbuff)
-    outbuff=inbuff
-    resize outbuff, npix, nx-1
-    for (i=2;i<=nx;i++) {
-      yold=cblank(clip(inbuff[*,i],0,-1))*yscl //rescale data
-      ynew=interpol(yold,xold,xnew) //Interpolate flux
-      ynew=cblank(clip(ynew,0,-1))
-      outbuff[*,i-1]=ynew
-    }
+    outbuff=inbuff[2,*]
+    resize outbuff, npix, 1
+    yold=cblank(clip(inbuff[2,*],0,-1))*yscl //rescale data
+    ynew=interpol(yold,xold,xnew) //Interpolate flux
+    ynew=cblank(clip(ynew,0,-1))
+    outbuff[*]=ynew
     cdelt=(l2-l1)/(npix-1)
     setfitskey outbuff, "CRPIX1", 1
     setfitskey outbuff, "CRVAL1",l1
     setfitskey outbuff, "CDELT1", cdelt
-    setfitskey outbuff,"CUNIT1", "nm"
     setfitskey outbuff,"CTYPE1","WAVE"
     setfitskey outbuff,"CD1_1",cdelt
     setfitskey outbuff,"MINWAVE",min(xold),"Minimum wavelength observed (nm)"
@@ -373,9 +373,10 @@ function spectrum_redisp, inbuff, l1, l2, npix, xscl, yscl {
     setfitskey outbuff, "CRPIX1", 1
     setfitskey outbuff, "CRVAL1",l1
     setfitskey outbuff, "CDELT1", cdelt
-    setfitskey outbuff,"CUNIT1", "nm"
     setfitskey outbuff,"CTYPE1","WAVE"
     setfitskey outbuff,"CD1_1",cdelt
+    setfitskey outbuff,"MINWAVE",min(xold),"Minimum wavelength observed (nm)"
+    setfitskey outbuff,"MAXWAVE",max(xold),"Maximum wavelength observed (nm)"
     spectrum_redisp=outbuff
 }
 
