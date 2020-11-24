@@ -240,3 +240,13 @@ function set_WCS_image_scale, cube, wcs, xscale, yscale{
   set_WCS_image_scale=outbuff
 }
 
+function WCS_scale, inbuff, scl, axis {
+//Rescale WCS DELT and VAL
+//scl is rescale value, e.g. A->um = 1e-4, A->nm = 0.1
+  outbuff=inbuff
+  swcs=get_WCS_data(inbuff, axis)
+  swcs[2]*=scl
+  swcs[3]*=scl
+  set_WCS_data outbuff, swcs, axis
+  WCS_scale=outbuff
+}
