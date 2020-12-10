@@ -159,4 +159,29 @@ function interp, data, x, x1, x2 {
    interp=v
 } 
 
+function histogram_bin, inbuff, low, high, bin, normflag {
+//Create histogram for any sort of data (cube, image, spectrum)
+//low, high - range of values (default min/max of data range)
+//bin - binsize (default set so there are 100 bins)
+  histogram_bin=0
+  if nparams()<5 normflag=0
+  if nparams()<3 high=max(inbuff)
+  if nparams()<2 low=min(inbuff)
+  if nparams()<4 bin=(high-low)/100
+  if (bin>(high-low)) {
+    print "HISTOGRAM_BIN: Error - Bin size is greater than data range!"
+    break
+  }
+  hsize=round((high-low)/bin)
+  outbuff=fits(hsize)
+  for (i=1; i<=nelements(inbuff); i++) {
+    hi=int((inbuff[i]-low)/bin)+1
+    if ((hi>=1)&&(hi<=hsize)&&(inbuff[i]>low)) outbuff[hi]=outbuff[hi]+1
+  }
+  setwcs outbuff,1,1,low,1,bin,1
+  if (normflag==1) outbuff=norm(outbuff,/total)
+  histogram_bin=outbuff
+}
+
+
 
