@@ -191,6 +191,25 @@ function WCS_cd_cdelt, inbuff, prnt {
   WCS_cd_cdelt=[cd1,cd2,r1]
 }
 
+function WCS_cdelt_cd, cdelt1, cdelt, rotang {
+//Convert CDELT/Rotangle values to CD..
+  cd11=cdelt1*cos(rotang,/degrees)
+  cd12=abs(cdelt2)*sign(cdelt1)*sin(rotang,/degrees)
+  cd21=-abs(cdelt1)*sign(cdelt2)*sin(rotang,/degrees)
+  cd22=cdelt2*cos(rotang,/degrees)
+  WCS_cdelt_cd=[cd11,cd12,cd21,cd22]
+}
+
+procedure set_cd_keys, data, cdkeys {
+//Set CD keys and delete CDELT ones
+  setfitskey data,"CD11",cdkeys[1]
+  setfitskey data,"CD12",cdkeys[2]
+  setfitskey data,"CD21",cdkeys[3]
+  setfitskey data,"CD22",cdkeys[4]
+  deletefitskey data,"CDELT1"
+  deletefitskey data,"CDELT2"
+}
+
 function get_WCS_image, cube {
 //Get all WCS data for cube (image) and calculate CDELT and rotation angle from CD keys
   crpix1=getfitskey(cube,"CRPIX1")
