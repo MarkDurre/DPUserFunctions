@@ -191,7 +191,7 @@ function WCS_cd_cdelt, inbuff, prnt {
   WCS_cd_cdelt=[cd1,cd2,r1]
 }
 
-function WCS_cdelt_cd, cdelt1, cdelt, rotang {
+function WCS_cdelt_cd, cdelt1, cdelt2, rotang {
 //Convert CDELT/Rotangle values to CD..
   cd11=cdelt1*cos(rotang,/degrees)
   cd12=abs(cdelt2)*sign(cdelt1)*sin(rotang,/degrees)
