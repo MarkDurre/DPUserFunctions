@@ -18,18 +18,11 @@
 
     
 
-3. Create a directory under root “/dpuserlib” (for macOS 10.15+ use the `synthetic.conf` symbolic links - reference [here](#https://stackoverflow.com/questions/58396821/what-is-the-proper-way-to-create-a-root-sym-link-in-catalina))
+3. Create a symbolic link in the root directory to this folder (for macOS 10.15+ use the `synthetic.conf` symbolic links - reference [here](#https://stackoverflow.com/questions/58396821/what-is-the-proper-way-to-create-a-root-sym-link-in-catalina)). This link must be called "dpuserlib".
 
-4. Make a file in that directory “startup.dpuser” - this will be automatically run when you start QFitsView. The file consists of a single line:
-
-   ```
-   @*my_code_location*/DPUser/startup.dpuser
-   ```
-
-   i.e. it runs the script set up above. This runs all libraries to make the functions available to QFitsView - you will see a whole bunch of “Stored function…” and “Stored procedure…” plus “Finished General Functions”.
+4. When QFitsView starts, it automatically looks for and executes the script file "/dpuserlib/startup.dpuser" i.e. it runs the script set up above. This runs all libraries to make the functions available to QFitsView - you will see a whole bunch of “Stored function…” and “Stored procedure…” plus “Finished General Functions” text lines on the DPUSER area in QFitsView.
 
 5. If the above folder conventions are not used, the following files must be modified:
-    -  /dpuserlib/startup.dpuser
     - *my_program_location*/DPUser/startup.dpuser
     - *my_program_location*/DPUser/Functions/lib\_all.dpuser
 
@@ -109,6 +102,10 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 **function get_fits_key, data, key** - substitute for **getfitskey** with check that *key* exists; returns blank if not found.
 
 **function get_WCS_values, data** - create WCS array [1,cv,cd] from dispersion *data*, calculated from first/last values and number of elements.
+
+**function WCS_cdelt_cd, cdelt1, cdelt2, rotang** - converts WCS x,y pixel sizes (*cdelt1, cdelt2*) and rotation angle (*rotang*) to CD matrix values. Returns vector [CD11, CD12, CD21, CD22].
+
+**procedure set_cd_keys, data, cdkeys** - sets CD keys in FITS header of *data* from vector *cdkeys* (in same format as **WCS_cdelt_cd** function) and deletes the CDELT1/2 keys.
 
 ### lib_cube
 **<u>*Data cube functions*</u>**
@@ -444,7 +441,7 @@ Returns a cube of channel maps, with axis 3 in velocity difference (km/s) from m
 
 **function axiscentroids, image, axis** - returns centroids of each image row/column, row-*axis*=1, column-*axis*=2; used e.g. for finding centroids of pv diagram
 
-**function myhist, data, low, high, bin, normflag** - create a histogram from inbuff data (any dimensions), from _low_ to _high_ values in *bin* bins. Histogram is normalised if *normflag* =1. Output x-axis values are set to range.
+**function histogram_bin, data, low, high, bin, normflag** - create a histogram from inbuff data (any dimensions), from _low_ to _high_ values in *bin* bins. Histogram is normalised if *normflag* =1. Output x-axis values are set to range.
 
 **function profile_export, data, scale1, scale2, scale3, offset** - Export 1D profiles from *data* with up to 3 separate scales, e.g. arcsec, pc, Re plus the pixel scale, _offset_=1 offsets by 1/2 a pixel (e.g. for log scale plot) (default 0). Scales default to 1 if not given.
 
