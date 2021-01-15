@@ -8,8 +8,11 @@ function redshift_data, inbuff, z, rdflag, nanflag, smth, fcons {
 //Redshift data, always assume that last axis in spectral one
 //rdflag=1, redisperse final spectrum to original wavelength range
 //z -ve to shift data to higher redshifts, z +ve to shift to rest-frame
+//nanflag=1, preserve nans at original data
+//smth>0, smooth by no. pixels
+//fcons=1, conserve flux,i.e. total values conserved
   if (nparams()==0) {
-    print "REDSHIFT_DATA : Paramaters data, z, rdflag, nanflag, smooth"
+    print "REDSHIFT_DATA : Paramaters data, z, rdflag, nanflag, smooth, fcons"
     redshift_data=0
     break
   }
@@ -22,8 +25,8 @@ function redshift_data, inbuff, z, rdflag, nanflag, smth, fcons {
   if (z<0) zshift=1/(abs(z)+1)
   wcsold=get_WCS_data(inbuff,saxis)
   wcsnew=wcsold
-  wcsnew[2]=wcsold[2]/zshift
-  wcsnew[3]=wcsold[3]/zshift
+  wcsnew[2]=wcsold[2]*zshift
+  wcsnew[3]=wcsold[3]*zshift
   outbuff=cblank(inbuff)
   nans=outbuff*0
   nans[where(outbuff==0)]=1
