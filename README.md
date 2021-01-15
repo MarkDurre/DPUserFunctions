@@ -474,7 +474,7 @@ Used to image_interp_flags and cube_interp_flags
 
 All the "lib\_astro\_*.dpuser" functions are executed from the "lib\_astro.dpuser" script.
 
-**function redshift_data, data, z, rdflag** - redshift data by *z*, assuming last axis is wavelength. WCS values set. If *rdflag* = 1, redisperse shifted data to same wavelength range as input
+**function redshift_data, data, z, rdflag, nanflag, smth, fcons** - redshift data by *z*, assuming last axis is wavelength. WCS values set. If *rdflag* = 1, redisperse shifted data to same wavelength range as input. If *nanflag*=1, set nans in output at same pixels as in input. If *smth*>0, smooth by no. of pixels. If *fcons*=1, conserve total values.
 
 **function bb_make,t, l1, l2, npix, wlflag** - make black-body function at temparture *t*, wavelength range *l1* to *l2*, number of pixels *n*, *wlflag*=0, wavelength in A, =1=> nm, =2 => um
 
