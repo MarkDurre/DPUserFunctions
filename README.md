@@ -7,8 +7,8 @@
     ```
     //Example startup.dpuser
     //This line must be modified (change *my_code_location*) for individual users
-    setenv "DPUSER_DIR", "*my_code_location*/dpuser"
-    //dopuserdir is used by libraries to call other libraries if required
+    setenv "DPUSER_DIR", "*my_code_location*/dpuserlib"
+    //dpuserdir is used by libraries to call other libraries if required
     dpuserdir=getenv("DPUSER_DIR")
     print "Running General Functions : DPUser Directory - "+dpuserdir
     run dpuserdir+"/functions/lib_all.dpuser"
@@ -16,17 +16,15 @@
     //You can put your own startup dpuser code here
     ```
 
-    
-
-3. Create a symbolic link in the root directory to this folder (for macOS 10.15+ use the `synthetic.conf` symbolic links - reference [here](#https://stackoverflow.com/questions/58396821/what-is-the-proper-way-to-create-a-root-sym-link-in-catalina)). This link must be called "dpuserlib".
+3. Create a symbolic link in the root directory to this folder (for macOS 10.15+ use the `/etc/synthetic.conf` symbolic links method - reference [here](#https://stackoverflow.com/questions/58396821/what-is-the-proper-way-to-create-a-root-sym-link-in-catalina)). This link must be called "dpuserlib".
 
 4. When QFitsView starts, it automatically looks for and executes the script file "/dpuserlib/startup.dpuser" i.e. it runs the script set up above. This runs all libraries to make the functions available to QFitsView - you will see a whole bunch of “Stored function…” and “Stored procedure…” plus “Finished General Functions” text lines on the DPUSER area in QFitsView.
 
 5. If the above folder conventions are not used, the following files must be modified:
-    - *my_program_location*/DPUser/startup.dpuser
-    - *my_program_location*/DPUser/Functions/lib\_all.dpuser
+    - *my_program_location*/DPUserlib/startup.dpuser
+    - *my_program_location*/DPUserlib/Functions/lib\_all.dpuser
 
-##  Global Variables
+##  Application Global Variables
 These are defined internally; they can be overwritten in a QFitsView session.
 
 c          =     299792458.0<br>
@@ -34,7 +32,7 @@ pi         =     3.14159<br>
 e          =     2.71828<br>
 naxis1     =     256<br>
 naxis2     =     256<br>
-plotdevice =     /XSERVE<br>
+plotdevice =     /QT<br>
 method     =     0<br>
 tmpmem     =     20971520<br>
 
@@ -81,9 +79,9 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 
 **procedure set_WCS_data, data, wcs, axis** - sets WCS values for *data* for *axis* (1,2 or 3)
 
-**function cvt_pixel_WCS, pix, crpix, crval, cdelt** - convert pixel number *pix* to WCS coordinates using *crpix, crval, cdelt*. Assumes linear conversion (cartesian). Future versions will use **worldpos** and **pixpos** functions (to be implemented as QFitsView internal functions in a future version).
+**function cvt_pixel_WCS, pix, crpix, crval, cdelt** - convert pixel number *pix* to WCS coordinates using *crpix, crval, cdelt*, asssuming linear projection (cartesian). The DPUser **worldpos** function does this including the correct projections.
 
-**function cvt_WCS_pixel, value, crpix, crval, cdelt** - convert WCS coordinate *value* to pixel using *crpix, crval, cdelt*. 
+**function cvt_WCS_pixel, value, crpix, crval, cdelt** - convert WCS coordinate *value* to pixel using *crpix, crval, cdelt*, asssuming linear projection (cartesian).  The DPUser **pixpos** function does this including the correct projections.
 
 **function cvt_WCS_pixel_data, data, value, axis** - converts pixel *value* to WCS for *data* for *axis*
 
@@ -93,7 +91,7 @@ If full path to script is not given, it is assumed to be relative to the DPUser 
 
 **function pixel_range, data, w1, w2, axis, prntflag**  - returns pixel values as range [*p1,p2*] from WCS co-ordinates [*w1,w2*] for axis on *data*, if *prntflag*=1, then print range
 
-**function set_WCS_default, data** - checks *data* has minimal WCS keys set (to 1 by default)
+**function set_WCS_default, data** - checks *data* has minimal WCS keys set (to 1 by default).
 
 <a name="get_WCS_image"></a>**function get_WCS_image, image** - Get axis 1 and 2 WCS data for *image* (can be cube) and calculates CDELT and rotation angle from CD keys; result is array of key values [CRPIX1, CRVAL1, CD1_1, CD1_2, CRPIX2, CRVAL2, CD2_1, CD2_2, CDELT1, CDELT2, CROTA2]
 
