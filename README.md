@@ -1,8 +1,8 @@
 # QFitsView DPUser
 ## Setting Up DPUSER Functions Library
-1. Place all libraries (files with “lib\_\*.dpuser” name) in a convenient location  e.g. “*my\_code\_location*/DPUser/Functions" (subsituting for *my_code_location* e.g. "/Users/mdurre/OneDrive")
+1. Place all libraries (files with “lib\_\*.dpuser” name) in a convenient location  e.g. “*my\_code\_location*/DPUserlib/Functions" (subsituting for *my_code_location* e.g. "/Users/*user*/Programs").
 
-2. Place “startup.dpuser” in e.g. “*my\_code\_location*/DPUser". This assumes that all the library functions are located in the "Function" sub-folder and runs the "lib\_all.dpuser" script. This file must be modified for your own requirements; it also sets the *DPUSER_DIR* environment variable that can be accessed by other scripts, using the **getenv** function in QFitsView.
+2. Place “startup.dpuser” in e.g. “*my\_code\_location*/DPUserlib". This assumes that all the library functions are located in the "Function" sub-folder and runs the "lib\_all.dpuser" script. This file must be modified for your own requirements; it also sets the *DPUSER_DIR* environment variable that can be accessed by other scripts, using the **getenv** function in QFitsView.
 
     ```
     //Example startup.dpuser
