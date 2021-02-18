@@ -1,6 +1,6 @@
 # QFitsView DPUser
 ## Setting Up DPUSER Functions Library
-1. Place all libraries (files with “lib\_\*.dpuser” name) in a convenient location  e.g. “*my\_code\_location*/DPUserlib/Functions" (subsituting for *my_code_location* e.g. "/Users/*user*/Programs").
+1. Place all libraries (files with “lib\_\*.dpuser” name) in a convenient location  e.g. “*my\_code\_location*/DPUserlib/Functions" (subsituting for *my_code_location* e.g. "/Users/*username*/Programs").
 
 2. Place “startup.dpuser” in e.g. “*my\_code\_location*/DPUserlib". This assumes that all the library functions are located in the "Function" sub-folder and runs the "lib\_all.dpuser" script. This file must be modified for your own requirements; it also sets the *DPUSER_DIR* environment variable that can be accessed by other scripts, using the **getenv** function in QFitsView.
 
@@ -36,7 +36,7 @@ plotdevice =     /QT<br>
 method     =     0<br>
 tmpmem     =     20971520<br>
 
-## Editing DPUser Code
+## Editing DPUser Code with BBEdit
 
 The main documentation for DPUser is through [this link](#https://www.mpe.mpg.de/~ott/dpuser/). DPUser code can be edited with QFitsView *DPUSER > Script Editor*. It can also be edited by various external text editors; e.g. **BBEdit**. To facilitate this, a language module has been implemented - "DPUser.plist", with the following highlighting features: 
 
@@ -69,7 +69,7 @@ Runs all the following libraries; this just consists of script lines to execute 
 
 `@SomeFolder/SomeScript.dpuser`
 
-If full path to script is not given, it is assumed to be relative to the DPUser folder defined above.
+If full path to script is not given, it is assumed to be relative to the DPUserlib folder defined above.
 
 ### lib_wcs
 
