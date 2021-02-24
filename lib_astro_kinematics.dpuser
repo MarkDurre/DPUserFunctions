@@ -116,16 +116,10 @@ function velmodel_hernquist, x0, y0, M0, Re, psi0, inc, xsize, ysize, pixscale, 
   if nparams()<7 xsize=int(x0*2)
   if nparams()<6 inc=45 //Average inclination
   if nparams()<5 psi0=0 //Line of nodes along X-axis
-/*  x0=31.056
-  y0=31.04
-  M0=2.03e11
-  Re=2400
-  pixscale=0.03881
-  angscale=7534
-  xsize=61
-  ysize=61
-  inc=45
-  psi0=0*/
+/*  Test data
+  x0=31.056 ; y0=31.04 ; M0=2.03e11 ; Re=2400 ; pixscale=0.03881
+  angscale=7534 ; xsize=61 ; ysize=61 ; inc=45 ; psi0=0
+*/
   pctom=3.0856e16 //pc to m
   msuntokg=1.99e30 //msun to kg
   gg=6.674e-11 //G in mks
