@@ -187,5 +187,5 @@ function img_SFD_dust_pos, dustimgn, dustimgs, lat, long {
   
 function img_SF_dust_pos, dustimgn, dustimgs, lat, long {
 //Dust extinction from Schlafley & Finckbeiner, 2011
-  img_SF_dust_pos=SFD_dust_pos(dustimgn, dustimgs, lat, long) *0.86
+  img_SF_dust_pos=img_SFD_dust_pos(dustimgn, dustimgs, lat, long) *0.86
 }
