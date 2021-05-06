@@ -1,0 +1,38 @@
+echo 0
+print "This example shows how astronomical data can be deconvolved using"
+print "different deconvolution techniques"
+
+size = 256
+
+// Create artificial dataset
+image = floatarray(size, size)
+psf   = airy(3.5,0.02, 2.2) + gauss(129,129,20)*2
+
+// spread out random stars (500)
+for i=1, 500 {
+  image[random() * (size-1) + 1, random() * (size-1) + 1] = 1 + random() * 2000
+}
+
+// add some noise
+for x=1, size {
+  for y=1, size {
+    image[x,y] += random()*30
+  }
+}
+buffer1=image
+print "Buffer1 is a model of 500 stars with background noise"
+im = log(smooth(image,1.5))
+image = convolve(image, psf)
+im = log(image)
+buffer2=im
+print "Buffer2 is original convolved with PSF"
+
+im = image - smooth(image,3)
+buffer3=im
+print "Buffer3 is buffer2 with high-pass filter"
+im = clip(wien(image, norm(psf, /total), .01),0,-1)
+buffer4=im
+print "Buffer4 is buffer2 deconvolved using Weiner filter and PSF"
+free image
+free im
+echo 1
