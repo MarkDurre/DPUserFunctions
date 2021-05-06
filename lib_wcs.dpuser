@@ -269,3 +269,32 @@ function WCS_scale, inbuff, scl, axis {
   set_WCS_data outbuff, swcs, axis
   WCS_scale=outbuff
 }
+
+function WCS_shift_pix, inbuff, xshift, yshift, sec {
+//Shift image by altering the CRPIX1,2 values to re-align between images
+//Parameters - xshift, yshift - amount to shift in axis 1 and 2 resp.
+// - sec, (default 0), if =0, shifts in pixels, else in seconds of arc
+  outbuff=inbuff
+//Check if using CDELT or CD keys
+  if (nparams()<3) sec=0
+  if (sec==0) {//Using pixel shift
+    pix1=xshift
+    pix2=yshift
+  } else {//Using seconds of arc shift
+    if (check_header_key(outbuff,"CDELT1")==0) {//Using CD keys
+      cdelts=WCS_cd_cdelt(outbuff)//Compute CDELT keys
+      cdelt1=cdelts[1]
+      cdelt2=cdelts[2]
+    } else {//Using CDELT keys
+      cdelt1=getfitskey(outbuff,"CDELT1")
+      cdelt2=getfitskey(outbuff,"CDELT2")
+    }
+//    print "CDELT1="+cdelt1+ " CDELT2="+cdelt2
+    pix1=xshift/cdelt1/3600
+    pix2=yshift/cdelt2/3600
+  }
+//  print "PIX1="+pix1+" PIX2="+pix2
+  setfitskey outbuff, "CRPIX1", getfitskey(outbuff, "CRPIX1")-pix1
+  setfitskey outbuff, "CRPIX2", getfitskey(outbuff, "CRPIX2")-pix2
+  WCS_shift_pix=outbuff
+}
