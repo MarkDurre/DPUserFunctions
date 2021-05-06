@@ -105,6 +105,8 @@ If full path to script is not given, it is assumed to be relative to the DPUserl
 
 **procedure set_cd_keys, data, cdkeys** - sets CD keys in FITS header of *data* from vector *cdkeys* (in same format as **WCS_cdelt_cd** function) and deletes the CDELT1/2 keys.
 
+**function WCS_shift_pix, inbuff, xshift, yshift, sec** - shift image astrometry by altering the CRPIX1,2 values (useful to align images). *xshift, yshift* - amount to shift in axis 1 and 2 respectively, *sec* (default 0), if =0, shifts in pixels, else in seconds of arc. Note for seconds of arc shift, you must mutiply RA seconds of time by 15.
+
 ### lib_cube
 **<u>*Data cube functions*</u>**
 
@@ -617,3 +619,4 @@ Output is spectrum of aperture less average of background (with mask) - values <
 - Create basic channel map using **[chmap_create](#chmap_create)** (usually do not smooth)
 - Rebin to required # of channels (e.g. 9 or 16) using **[chmap_rebin](#chmap_rebin)** (smoothing if required)
 - Output individual channel maps using **[chmap_comps](#chmap_comps)**
+
