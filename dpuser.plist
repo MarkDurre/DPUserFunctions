@@ -168,6 +168,7 @@
 		<string>moffat</string>
 		<string>mosaic</string>
 		<string>mpfit</string>
+		<string>mpfitvars</string>
 		<string>multigauss2dfit</string>
 		<string>multigaussfit</string>
 		<string>naxis</string>
@@ -307,6 +308,7 @@
 		<string>pgwnad</string>
 		<string>photometry</string>
 		<string>pi</string>
+		<string>pixpos</string>
 		<string>plot</string>
 		<string>polar</string>
 		<string>poly</string>
@@ -424,6 +426,7 @@
 		<string>tanh</string>
 		<string>ten</string>
 		<string>test2dfit</string>
+		<string>test2dfit</string>
 		<string>total</string>
 		<string>transcoords</string>
 		<string>transform</string>
@@ -440,6 +443,7 @@
 		<string>voronoi</string>
 		<string>watchdir</string>
 		<string>wien</string>
+		<string>worldpos</string>
 		<string>writebmp</string>
 		<string>writefits</string>
 		<string>wsa</string>
