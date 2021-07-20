@@ -111,7 +111,7 @@ function cube_sl_clean, inbuff, skyline_list, width {
 //Input is data cube, threshold, output is bad pixel map, fixed data cube
 function cube_clean_bp, cube, threshold {
   dim=naxis(cube)
-  if (dim!=3) {
+  if (dim != 3 ) {
     print "CUBE_CLEAN_BP: Incorrect axis number!"
     break
   }
