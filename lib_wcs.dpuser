@@ -33,6 +33,38 @@ function get_fits_key, inbuff, key {
   get_fits_key = k
 }
 
+function get_all_fits_keys, inbuff, prefix {
+//Get all keys in header that match a prefix
+  hh=get_header(inbuff)
+  nlines=nelements(hh)
+  outbuff=stringarray(nlines)
+  cnt=0
+  l=strlen(prefix)
+  for (i=1;i<=nlines;i++) {
+    if (hh[i][1:l]==prefix) {
+      p=strpos(hh[i],"=")
+      cnt++
+      outbuff[cnt]=strtrim(hh[i][1:p-1])
+    }
+  }
+  get_all_fits_keys=outbuff[1:cnt]
+}
+
+function get_all_fits_key_values, inbuff, prefix, type {
+//Get all key values that match a prefix
+//If type=1, return number array, otherwise string
+  keys=get_all_fits_keys(inbuff, prefix)
+  nkeys=nelements(keys)
+  if (nparams()<3) type=0
+  if (type==0) {
+    outbuff=stringarray(nkeys)
+  } else {
+    outbuff=floatarray(nkeys)
+  }
+  for (i=1;i<=nkeys;i++) outbuff[i]=getfitskey(inbuff, keys[i])
+  get_all_fits_key_values=outbuff
+}
+
 function get_WCS_data, inbuff, axis {
   out=floatarray(3)
   ax=axis
@@ -202,12 +234,27 @@ function WCS_cdelt_cd, cdelt1, cdelt2, rotang {
 
 procedure set_cd_keys, data, cdkeys {
 //Set CD keys and delete CDELT ones
-  setfitskey data,"CD11",cdkeys[1]
-  setfitskey data,"CD12",cdkeys[2]
-  setfitskey data,"CD21",cdkeys[3]
-  setfitskey data,"CD22",cdkeys[4]
+  setfitskey data,"CD1_1",cdkeys[1]
+  setfitskey data,"CD1_2",cdkeys[2]
+  setfitskey data,"CD2_1",cdkeys[3]
+  setfitskey data,"CD2_2",cdkeys[4]
   deletefitskey data,"CDELT1"
   deletefitskey data,"CDELT2"
+}
+
+function WCS_clean_cd, data {
+//Clean up CD keys and remopve extraneous
+  delkeys=["CD3_1","CD3_2","CD1_3","CD2_3","CDELT1","CDELT2","PC1_1","PC2_1","PC1_2","PC2_2","PC2_3","PC3_1","PC3_2","PC3_3","CROTA2"]
+  outbuff=data
+  if check_header_key(outbuff, "CD3_3") setfitskey outbuff,"CDELT3",getfitskey(outbuff,"CD3_3")
+  if check_header_key(outbuff, "CD1_1") {
+    for (i=1;i<=nelements(delkeys);i++) {
+      if check_header_key(outbuff, delkeys[i]) {
+        deletefitskey outbuff, delkeys[i]
+      }
+    }
+  }
+  WCS_clean_cd=outbuff
 }
 
 function get_WCS_image, cube {
@@ -226,6 +273,24 @@ function get_WCS_image, cube {
   rotang=atan(sign(cdelt1*cdelt2)*cd12, cd22, /deg)
   cdelt1=dsign*cdelt1
   get_WCS_image=[crpix1,crval1,cd11,cd12,crpix2,crval2,cd21,cd22,cdelt1,cdelt2,rotang]
+}
+
+function WCS_cd_from_cdelt, data, cdelt1, cdelt2, crota2 {
+  outbuff=data
+  cr=cos(crota2,/deg)
+  sr=sin(crota2,/deg)
+  cd11=cdelt1*cr
+  cd12=abs(cdelt2)*sign(cdelt1)*sr
+  cd21=-abs(cdelt1)*sign(cdelt2)*sr
+  cd22=cdelt2*cr
+  setfitskey outbuff,"CD1_1",cd11
+  setfitskey outbuff,"CD1_2",cd12
+  setfitskey outbuff,"CD2_1",cd21
+  setfitskey outbuff,"CD2_2",cd22
+  deletefitskey outbuff,"CDELT1"
+  deletefitskey outbuff,"CDELT2"
+  deletefitskey outbuff,"CROTA2"
+  WCS_cd_from_cdelt=outbuff
 }
 
 function set_WCS_image_scale, cube, wcs, xscale, yscale{
