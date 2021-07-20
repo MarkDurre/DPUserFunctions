@@ -1,8 +1,8 @@
 dpuserdir=getenv("DPUSER_DIR")
-run dpuserdir+"/functions/lib_wcs.dpuser"
-run dpuserdir+"/functions/lib_general.dpuser"
-run dpuserdir+"/functions/lib_masking.dpuser"
-run dpuserdir+"/functions/lib_image.dpuser"
+run dpuserdir+"/Functions/lib_wcs.dpuser"
+run dpuserdir+"/Functions/lib_general.dpuser"
+run dpuserdir+"/Functions/lib_masking.dpuser"
+run dpuserdir+"/Functions/lib_image.dpuser"
 
 function cube_test_dim, inbuff, x1, x2, y1, y2, z1, z2 {
 //Test for cube dimensions
@@ -325,13 +325,26 @@ function cube_clean_dpix, inbuff, divisor {
   cube_clean_dpix=outbuff
 }
 
-function cube_resize_center, inbuff, xcen, ycen, xsize, ysize {
+function cube_resize_center, inbuff, xcent, ycent, xsize, ysize, subpix {
 //Resize and center cube
+  if (nparams()<2) {
+    print "CUBE_RESIZE_CENTER: Error - No center defined!"
+    cube_resize_center=0
+    break
+  }
+  if (nparams()<3) ycent=xcent
+  if (nparams()<4) xsize=xcent*2
+  if (nparams()<5) ysize=xsize
+  if (nparams()<6) subpix=0  
   outbuff=inbuff
   resize outbuff, xsize, ysize
   xc=int(xsize/2)
   yc=int(ysize/2)
-  shift outbuff, xc-xcen, yc-ycen
+  if (subpix==1) {
+    outbuff=cube_shift_xy(outbuff, xc-xcent, yc-ycent)
+  } else {
+    shift outbuff, xc-int(xcent), yc-int(ycent)
+  }
   cube_resize_center=outbuff
 }
 
@@ -425,7 +438,7 @@ function cube_symm_flip, cube, lambda, width, part {
   cube_symm_flip=work
 }
 
-function cube_rotate, inbuff, xcen, ycen, rot_angle, pixscale   {
+function cube_rotate, inbuff, xcen, ycen, rot_angle, platescale   {
 //Rotate 3D cube to standard orientation, i.e. X is E -ve, Y is N +ve
 //xcen, ycen = central pixel
 //platescale = plate scale in seconds (hard to work out from original)
