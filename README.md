@@ -107,6 +107,10 @@ If full path to script is not given, it is assumed to be relative to the DPUserl
 
 **function WCS_shift_pix, inbuff, xshift, yshift, sec** - shift image astrometry by altering the CRPIX1,2 values (useful to align images). *xshift, yshift* - amount to shift in axis 1 and 2 respectively, *sec* (default 0), if =0, shifts in pixels, else in seconds of arc. Note for seconds of arc shift, you must mutiply RA seconds of time by 15.
 
+**function get_all_fits_keys, inbuff, prefix** - returns a list (string array) of all FITS header keys from *inbuff* starting with *prefix*, e.g. if *prefix*="ZPT_", it will return "ZPT_001", "ZPT_002" etc.
+
+**function get_all_fits_keys_values, inbuff, prefix, type** - as a for **get_all_fits_keys** but now returns the values of thos keys. If *type*=0 (default), returns a string array, else returns to floating point array.
+
 ### lib_cube
 **<u>*Data cube functions*</u>**
 
@@ -138,7 +142,7 @@ If full path to script is not given, it is assumed to be relative to the DPUserl
 
 **function cube_clean_dpix, cube, scale** - Clean *cube*  by dpixcreate/apply, the threshold for dpixcreate is set from maximum of median image divided by *scale*.
 
-**function cube_resize_center, cube, xcen, ycen, xsize, ysize** - resize *cube*  to size *xsize*,*ysize* and center on pixel [*xcen,ycen*]
+**function cube_resize_center, cube, xcent, ycent, xsize, ysize, subpix** - resize *cube*  to size *xsize*,*ysize* and center on pixel [*xcen,ycen*]. By default, *ycent=xcent*, *xsize, ysize*= *xcent\**2. If *subpix*=1, perform sub-pixel shifting on the cube, else shift by integer pixels (default)
 
 **function cube_shift_xy, cube, xshift, yshift** - sub-pixel shifts *cube* by [*xshift, yshift*]
 
@@ -272,6 +276,8 @@ If full path to script is not given, it is assumed to be relative to the DPUserl
 **function spectrum_clean, inbuff, thresh** - clean *spectrum* using **dpixcreate**/**dpixapply**. If *thresh* is not sepecifed the threshold for **dpixcreate** is set to median(*spectrum*)/2.
 
 **function spectrum_apply_snr, signal, snr** - as for **[cube_apply_snr](#cube_apply_snr)**. *snr* can be a single value or spectrum.
+
+**function spectrum_wave_to_vel, inbuff, clambda** - returns *inbuff* with wavelength axis changed to velocity, with zero value at *clambda*.
 
 ### lib_io
 **<u>*Input/output to and from text and fits files*</u>**
@@ -449,6 +455,10 @@ Returns a cube of channel maps, with axis 3 in velocity difference (km/s) from m
 
 **function interp, data, x, x1, x2**  - linearly interpret over *data* at position *x* over *x1*-*x2*.
 Used to image_interp_flags and cube_interp_flags
+
+**function fits_round, inbuff** - returns *inbuff* with all values rounded.The ESO pipeline for the SOFI instrument required this for raw images - if these had been manually flat-fielded, the pipeline failed.
+
+**function inf_clean, inbuff** - returns *inbuff* with all values of "1/0" (i.e. Inf) set to 0/0 (i.e. Nan).
 
 ### lib_astronomy
 
