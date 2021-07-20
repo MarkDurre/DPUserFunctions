@@ -7,18 +7,18 @@
     ```
     //Example startup.dpuser
     //This line must be modified (change *my_code_location*) for individual users
-    setenv "DPUSER_DIR", "*my_code_location*/dpuserlib"
+    setenv "DPUSER_DIR", "my_code_location/dpuserlib"
     //dpuserdir is used by libraries to call other libraries if required
     dpuserdir=getenv("DPUSER_DIR")
     print "Running General Functions : DPUser Directory - "+dpuserdir
-    run dpuserdir+"/functions/lib_all.dpuser"
+    run dpuserdir+"/Functions/lib_all.dpuser"
     print "Finished General Functions - "+dpuserdir
     //You can put your own startup dpuser code here
     ```
 
-3. Create a symbolic link in the root directory to this folder (for macOS 10.15+ use the `/etc/synthetic.conf` symbolic links method - reference [here](#https://stackoverflow.com/questions/58396821/what-is-the-proper-way-to-create-a-root-sym-link-in-catalina)). This link must be called "dpuserlib".
+3. As of version 4.1 of QFitsView, the location of the "startup.dpuser" file can be specified in the QFitsView menu "QFistView > Preferences > Paths > DPUSER Path" (Mac) or "Options > Preferences > Paths > DPUSER Path" (Windows and Linux). For version previous to 4.1, create a symbolic link in the root directory to this folder. For macOS 10.15+ use the `/etc/synthetic.conf` symbolic links method - reference [here](https://stackoverflow.com/questions/58396821/what-is-the-proper-way-to-create-a-root-sym-link-in-catalina)). This link must be called "dpuserlib".
 
-4. When QFitsView starts, it automatically looks for and executes the script file "/dpuserlib/startup.dpuser" i.e. it runs the script set up above. This runs all libraries to make the functions available to QFitsView - you will see a whole bunch of “Stored function…” and “Stored procedure…” plus “Finished General Functions” text lines on the DPUSER area in QFitsView.
+4. When QFitsView starts, it automatically looks for and executes the script file "startup.dpuser" in the DPUser Path specified above (for versions before 4.1, it looks for "/dpuserlib/startup.dpuser") i.e. it runs the script set up above. This runs all libraries to make the functions available to QFitsView - you will see a whole bunch of “Stored function…” and “Stored procedure…” plus “Finished General Functions” text lines on the DPUSER area in QFitsView.
 
 5. If the above folder conventions are not used, the following files must be modified:
     - *my_program_location*/DPUserlib/startup.dpuser
@@ -38,7 +38,7 @@ tmpmem     =     20971520<br>
 
 ## Editing DPUser Code with BBEdit
 
-The main documentation for DPUser is through [this link](#https://www.mpe.mpg.de/~ott/dpuser/). DPUser code can be edited with QFitsView *DPUSER > Script Editor*. It can also be edited by various external text editors; e.g. **BBEdit**. To facilitate this, a language module has been implemented - "DPUser.plist", with the following highlighting features: 
+The main documentation for DPUser is through [this link](https://www.mpe.mpg.de/~ott/dpuser/). DPUser code can be edited with QFitsView *DPUSER > Script Editor*. It can also be edited by various external text editors; e.g. **BBEdit**. To facilitate this, a language module has been implemented - "DPUser.plist", with the following highlighting features: 
 
 - Syntax - both structural commands - e.g. "if", "else" etc. and internal DPUser functions/procedures. As new functions/procdures are implemented in QFitsView, the "BBLMPredefinedNameList" array must be updated.
 - Comments (both for "/\*..\*/" and "//").
