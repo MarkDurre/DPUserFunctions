@@ -1,5 +1,5 @@
 dpuserdir=getenv("DPUSER_DIR")
-run dpuserdir+"/functions/lib_wcs.dpuser"
+run dpuserdir+"/Functions/lib_wcs.dpuser"
 
 function chmap_create, cube, lambda_cent, lambda_width, cutoff, width_factor, smooth  {
 //Create channel maps with single wavelength element

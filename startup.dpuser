@@ -4,7 +4,7 @@ setenv "DPUSER_DIR", "*my_code_location*/dpuserlib"
 //dopuserdir is used by libraries to call other libraries if required
 dpuserdir=getenv("DPUSER_DIR")
 print "Running General Functions : DPUser Directory - "+dpuserdir
-run dpuserdir+"/functions/lib_all.dpuser"
+run dpuserdir+"/Functions/lib_all.dpuser"
 print "Finished General Functions - "+dpuserdir
 //You can put your own startup dpuser code here
 // Set working directory to HOME (or HOMEPATH for Windows)

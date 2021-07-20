@@ -1,7 +1,7 @@
 dpuserdir=getenv("DPUSER_DIR")
-run dpuserdir+"/functions/lib_wcs.dpuser"
-run dpuserdir+"/functions/lib_masking.dpuser"
-run dpuserdir+"/functions/lib_spectrum.dpuser"
+run dpuserdir+"/Functions/lib_wcs.dpuser"
+run dpuserdir+"/Functions/lib_masking.dpuser"
+run dpuserdir+"/Functions/lib_spectrum.dpuser"
 
 //Astronomical function - black-body, redshift, extinction
 function redshift_data, inbuff, z, rdflag, nanflag, smth, fcons {

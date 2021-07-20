@@ -1,7 +1,7 @@
 dpuserdir=getenv("DPUSER_DIR")
-run dpuserdir+"/functions/lib_general.dpuser"
-run dpuserdir+"/functions/lib_cube.dpuser"
-run dpuserdir+"/functions/lib_wcs.dpuser"
+run dpuserdir+"/Functions/lib_general.dpuser"
+run dpuserdir+"/Functions/lib_cube.dpuser"
+run dpuserdir+"/Functions/lib_wcs.dpuser"
 
 /*
 Functions

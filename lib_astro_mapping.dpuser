@@ -1,5 +1,5 @@
 dpuserdir=getenv("DPUSER_DIR")
-run dpuserdir+"/functions/lib_general.dpuser"
+run dpuserdir+"/Functions/lib_general.dpuser"
 
 //Mapping functions for excitation diagrams
 function map_compare_diagram, inbuff1, inbuff2, min1, max1, min2, max2, nbin, lgaxes {
