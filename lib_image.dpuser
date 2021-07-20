@@ -1,9 +1,9 @@
 //lib_image
 //General image functions
 dpuserdir=getenv("DPUSER_DIR")
-run dpuserdir+"/functions/lib_masking.dpuser"
-run dpuserdir+"/functions/lib_wcs.dpuser"
-run dpuserdir+"/functions/lib_general.dpuser"
+run dpuserdir+"/Functions/lib_masking.dpuser"
+run dpuserdir+"/Functions/lib_wcs.dpuser"
+run dpuserdir+"/Functions/lib_general.dpuser"
 
 function image_avg, image, x, y, s {
   image_avg=avg(image[x-s:x+s,y-s:y+s])
