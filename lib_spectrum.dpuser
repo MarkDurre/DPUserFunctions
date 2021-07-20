@@ -1,7 +1,24 @@
 dpuserdir=getenv("DPUSER_DIR")
-run dpuserdir+"/functions/lib_general.dpuser"
-run dpuserdir+"/functions/lib_cube.dpuser"
-run dpuserdir+"/functions/lib_wcs.dpuser"
+run dpuserdir+"/Functions/lib_general.dpuser"
+run dpuserdir+"/Functions/lib_cube.dpuser"
+run dpuserdir+"/Functions/lib_wcs.dpuser"
+
+function spectrum_wave_to_vel, inbuff, clambda {
+//Change spectrum axis from wavelength to velocity, zero velocity at clambda
+  ns=naxis(inbuff) //Last axis is wavelength
+  wcs=get_WCS_data(inbuff, ns)
+  cp=wcs[1]
+  cv=wcs[2]
+  cd=wcs[3]
+  cp+=(clambda-cv)/cd
+  cd*=299792.458/clambda
+  cv=0.0
+  wcs=[cp, cv, cd]
+  outbuff=inbuff
+  set_WCS_data outbuff, wcs, ns
+  spectrum_wave_to_vel=outbuff
+}
+  
 
 function spectrum_make_disp, val, delt, pix, n {
 //Make a dispersion value vector
