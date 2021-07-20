@@ -1,5 +1,5 @@
 dpuserdir=getenv("DPUSER_DIR")
-run dpuserdir+"/functions/lib_wcs.dpuser"
+run dpuserdir+"/Functions/lib_wcs.dpuser"
 
 function indexreform, index, xsize, ysize, zsize {
 //Return x,y,z co-ords from 1D index, given dimensions xsize, ysize, zsize
@@ -183,5 +183,17 @@ function histogram_bin, inbuff, low, high, bin, normflag {
   histogram_bin=outbuff
 }
 
+function fits_round, inbuff {
+  n=nelements(inbuff)
+  outbuff=inbuff
+  for (i=1;i<=n;i++) outbuff[i]=round(inbuff[i])
+//  setbitpix outbuff,32
+  fits_round=outbuff
+}
 
+function inf_clean, inbuff {
+  outbuff=inbuff
+  outbuff[where(inbuff==1/0)]=0/0
+  inf_clean=outbuff
+}
 
