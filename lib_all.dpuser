@@ -2,17 +2,18 @@
 dir_save_all=pwd()
 dpuserdir=getenv("DPUSER_DIR")
 cd dpuserdir
-@functions/lib_wcs.dpuser
-@functions/lib_image.dpuser
-@functions/lib_masking.dpuser
-@functions/lib_general.dpuser
-@functions/lib_astro.dpuser
-@functions/lib_astronomy.dpuser
-@functions/lib_cube.dpuser
-@functions/lib_spectrum.dpuser
-@functions/lib_io.dpuser
-@functions/lib_wvt.dpuser
-@functions/lib_velmap.dpuser
-@functions/lib_pv.dpuser
-@functions/lib_chmap.dpuser
+@Functions/lib_wcs.dpuser
+@Functions/lib_image.dpuser
+@Functions/lib_masking.dpuser
+@Functions/lib_general.dpuser
+@Functions/lib_astro.dpuser
+@Functions/lib_astronomy.dpuser
+@Functions/lib_cube.dpuser
+@Functions/lib_spectrum.dpuser
+@Functions/lib_io.dpuser
+@Functions/lib_wvt.dpuser
+@Functions/lib_velmap.dpuser
+@Functions/lib_pv.dpuser
+@Functions/lib_chmap.dpuser
+@postprocessing/lib_post_reduction.dpuser
 cd dir_save_all
