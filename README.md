@@ -71,6 +71,20 @@ Runs all the following libraries; this just consists of script lines to execute 
 
 If full path to script is not given, it is assumed to be relative to the DPUserlib folder defined above.
 
+### lib_header
+
+***<u>Enhanced functions on FITS headers</u>***
+
+**function hdr_get_lines, inbuff** - returns string array of all lines in *inbuff* header (rather than single string that function "header" does)
+
+**function hdr_check_prefix, inbuff, key** - checks *inbuff* header for presence of *key* at start of line. If found, returns the line number - this only matches the first found. If not found, this returns 0. This function can be used to check if the *key* exists before using "getfitskey" and potentially getting an error.
+
+**function hdr_get_fits_key, inbuff, key** - replaces "getfitskey" function with a check that *key* exists.
+
+**function hdr_get_all_fits_keys, inbuff, prefix** - returns a string array of all keys in *inbuff* that *match* prefix, e.g. if *prefix* = "ZPT_" then the array will contain ["ZPT_001", "ZPT_002"...].
+
+**function hdr_get_all_fits_key_values, inbuff, prefix, type** - as above, but returns the values of those keys. If *type* = 0 (default), returns a string array, if *type* = 1, returns a numerical array.
+
 ### lib_wcs
 
 **<u>*Transform to and from World Coordinate Systems and Pixels*</u>**
@@ -97,7 +111,7 @@ If full path to script is not given, it is assumed to be relative to the DPUserl
 
 **function set_WCS_image_scale, image, wcs2d, xscale, yscale** - Rescales (e.g. for non-integer re-binning) using *xscale* and *yscale* and sets WCS data for *image* (or cube), including CD keys - removes CDELT and CROTA2 keywords. Input *wcs2d* is format as for **[get_WCS_image](#get_WCS_image)**.
 
-**function get_fits_key, data, key** - substitute for **getfitskey** with check that *key* exists; returns blank if not found.
+**function hdr_get_fits_key, data, key** - substitute for **getfitskey** with check that *key* exists; returns blank if not found.
 
 **function get_WCS_values, data** - create WCS array [1,cv,cd] from dispersion *data*, calculated from first/last values and number of elements.
 
@@ -106,10 +120,6 @@ If full path to script is not given, it is assumed to be relative to the DPUserl
 **procedure set_cd_keys, data, cdkeys** - sets CD keys in FITS header of *data* from vector *cdkeys* (in same format as **WCS_cdelt_cd** function) and deletes the CDELT1/2 keys.
 
 **function WCS_shift_pix, inbuff, xshift, yshift, sec** - shift image astrometry by altering the CRPIX1,2 values (useful to align images). *xshift, yshift* - amount to shift in axis 1 and 2 respectively, *sec* (default 0), if =0, shifts in pixels, else in seconds of arc. Note for seconds of arc shift, you must mutiply RA seconds of time by 15.
-
-**function get_all_fits_keys, inbuff, prefix** - returns a list (string array) of all FITS header keys from *inbuff* starting with *prefix*, e.g. if *prefix*="ZPT_", it will return "ZPT_001", "ZPT_002" etc.
-
-**function get_all_fits_keys_values, inbuff, prefix, type** - as a for **get_all_fits_keys** but now returns the values of thos keys. If *type*=0 (default), returns a string array, else returns to floating point array.
 
 ### lib_cube
 **<u>*Data cube functions*</u>**
