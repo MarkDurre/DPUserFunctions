@@ -3,6 +3,7 @@ dir_save_all=pwd()
 dpuserdir=getenv("DPUSER_DIR")
 cd dpuserdir
 @Functions/lib_wcs.dpuser
+@Functions/lib_header.dpuser
 @Functions/lib_image.dpuser
 @Functions/lib_masking.dpuser
 @Functions/lib_general.dpuser
