@@ -1,70 +1,7 @@
+dpuserdir=getenv("DPUSER_DIR")
+run dpuserdir+"/Functions/lib_header.dpuser"
+
 //WCS functions
-function check_header_key, inbuff, key {
-  h=header(inbuff)
-  nlines=int(nelements(h)/80)
-  lkey=strlen(strtrim(key))
-  UK=upper(key)
-  chk=0
-  i=1
-  while (i<=(nlines-1))&&(chk==0) {
-    hline=h[(i-1)*80+1:i*80]
-    HKEY=upper(hline[1:lkey])
-    if (UK==HKEY) then chk=1
-/*    print i
-    print hline
-    print HKEY
-    print chk*/
-    i++
-  }
-  check_header_key=chk
-}
-
-function get_header, inbuff {
-  h=header(inbuff)
-  nlines=int(nelements(h)/80)
-  hh=stringarray(nlines)
-  for (i=1;i<=nlines;i++) hh[i]=h[(i-1)*80+1:i*80]
-  get_header=hh
-}
-
-function get_fits_key, inbuff, key {
-  k=""
-  if (check_header_key(inbuff,key)==1) k = getfitskey(inbuff,key)
-  get_fits_key = k
-}
-
-function get_all_fits_keys, inbuff, prefix {
-//Get all keys in header that match a prefix
-  hh=get_header(inbuff)
-  nlines=nelements(hh)
-  outbuff=stringarray(nlines)
-  cnt=0
-  l=strlen(prefix)
-  for (i=1;i<=nlines;i++) {
-    if (hh[i][1:l]==prefix) {
-      p=strpos(hh[i],"=")
-      cnt++
-      outbuff[cnt]=strtrim(hh[i][1:p-1])
-    }
-  }
-  get_all_fits_keys=outbuff[1:cnt]
-}
-
-function get_all_fits_key_values, inbuff, prefix, type {
-//Get all key values that match a prefix
-//If type=1, return number array, otherwise string
-  keys=get_all_fits_keys(inbuff, prefix)
-  nkeys=nelements(keys)
-  if (nparams()<3) type=0
-  if (type==0) {
-    outbuff=stringarray(nkeys)
-  } else {
-    outbuff=floatarray(nkeys)
-  }
-  for (i=1;i<=nkeys;i++) outbuff[i]=getfitskey(inbuff, keys[i])
-  get_all_fits_key_values=outbuff
-}
-
 function get_WCS_data, inbuff, axis {
   out=floatarray(3)
   ax=axis
@@ -89,7 +26,7 @@ function get_WCS_values, inbuff {
 
 procedure set_CD_key, inbuff, axis {
   cdt="CD"+axis+"_"+axis
-  chk=check_header_key(inbuff, cdt)
+  chk=hdr_check_prefix(inbuff, cdt)
   if (chk==0) {
     cd=getfitskey(inbuff,"CDELT"+axis)
     setfitskey inbuff,"CD"+axis+"_"+axis,cd
@@ -246,10 +183,10 @@ function WCS_clean_cd, data {
 //Clean up CD keys and remopve extraneous
   delkeys=["CD3_1","CD3_2","CD1_3","CD2_3","CDELT1","CDELT2","PC1_1","PC2_1","PC1_2","PC2_2","PC2_3","PC3_1","PC3_2","PC3_3","CROTA2"]
   outbuff=data
-  if check_header_key(outbuff, "CD3_3") setfitskey outbuff,"CDELT3",getfitskey(outbuff,"CD3_3")
-  if check_header_key(outbuff, "CD1_1") {
+  if (hdr_check_prefix(outbuff, "CD3_3")>=1) setfitskey outbuff,"CDELT3",getfitskey(outbuff,"CD3_3")
+  if (hdr_check_prefix(outbuff, "CD1_1")>=1) {
     for (i=1;i<=nelements(delkeys);i++) {
-      if check_header_key(outbuff, delkeys[i]) {
+      if (hdr_check_prefix(outbuff, delkeys[i])>=1) {
         deletefitskey outbuff, delkeys[i]
       }
     }
@@ -318,9 +255,9 @@ function set_WCS_image_scale, cube, wcs, xscale, yscale{
   setfitskey outbuff, "CD2_1", cd21/yscale
   setfitskey outbuff, "CD2_2", cd22/yscale
 //Delete keys
-  if check_header_key(outbuff, "CDELT1") deletefitskey outbuff, "CDELT1"
-  if check_header_key(outbuff, "CDELT2") deletefitskey outbuff, "CDELT2"
-  if check_header_key(outbuff, "CROTA2") deletefitskey outbuff, "CROTA2"
+  if (hdr_check_prefix(outbuff, "CDELT1")>=1) deletefitskey outbuff, "CDELT1"
+  if (hdr_check_prefix(outbuff, "CDELT2")>=1) deletefitskey outbuff, "CDELT2"
+  if (hdr_check_prefix(outbuff, "CROTA2")>=1) deletefitskey outbuff, "CROTA2"
   set_WCS_image_scale=outbuff
 }
 
@@ -346,7 +283,7 @@ function WCS_shift_pix, inbuff, xshift, yshift, sec {
     pix1=xshift
     pix2=yshift
   } else {//Using seconds of arc shift
-    if (check_header_key(outbuff,"CDELT1")==0) {//Using CD keys
+    if (hdr_check_prefix(outbuff,"CDELT1")==0) {//Using CD keys
       cdelts=WCS_cd_cdelt(outbuff)//Compute CDELT keys
       cdelt1=cdelts[1]
       cdelt2=cdelts[2]
