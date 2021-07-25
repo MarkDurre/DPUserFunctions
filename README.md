@@ -253,7 +253,7 @@ If full path to script is not given, it is assumed to be relative to the DPUserl
 
 **function spectrum_symm_flip, spectrum, lambda, part** - split *spectrum* at wavelength *lambda*, flip and add, taking left (*part*=0) or right (*part*=1) sections
 
-**function spectrum_wave_to_lambda, spectrum, l1, l2, nl ** - converts a wavenumber *spectrum* to a wavelength spectrum. *l1*..*l2* are a wavelength range to interpolate over with *nl* points. By default, the wavelength range and number of points of the original spectrum are used. WCS values are set.
+**function spectrum_wave_to_lambda, spectrum, l1, l2, nl** - converts a wavenumber *spectrum* to a wavelength spectrum. *l1*..*l2* are a wavelength range to interpolate over with *nl* points. By default, the wavelength range and number of points of the original spectrum are used. WCS values are set.
 
 **function spectrum_wave_to_lambda, wndata** - convert wavenumber spectrum *wndata* to wavelength (nm) with same axis length
 
