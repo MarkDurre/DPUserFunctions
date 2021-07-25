@@ -1,0 +1,68 @@
+//FITS header functions
+
+function hdr_check_prefix, inbuff, key {
+//Check inbuff for presence of prefix at the start of each line
+//Returns 0 if not found, line number if found
+  h=header(inbuff)
+  nlines=int(nelements(h)/80) //Headers are 80 chars long
+  lkey=strlen(strtrim(key))
+  UK=upper(key)
+  chk=0
+  i=1
+  while (i<=(nlines-1))&&(chk==0) {
+    hline=h[(i-1)*80+1:i*80]
+    HKEY=upper(hline[1:lkey])
+    if (UK==HKEY) then chk=i
+    i++
+  }
+  hdr_check_prefix=chk
+}
+
+function hdr_get_lines, inbuff {
+  h=header(inbuff)
+  nlines=int(nelements(h)/80)
+  hh=stringarray(nlines)
+  for (i=1;i<=nlines;i++) hh[i]=h[(i-1)*80+1:i*80]
+  hdr_get_lines=hh
+}
+
+function hdr_get_fits_key, inbuff, key {
+//Gets fits key, with check if it exists first, if not, returns blank
+//Required since QFitsView now returns an error if not found
+  k=""
+  if (hdr_check_prefix(inbuff,key)>=1) k = getfitskey(inbuff,key)
+  hdr_get_fits_key = k
+}
+
+function hdr_get_all_fits_keys, inbuff, prefix {
+//Get all keys in header that match a prefix
+  hh=hdr_get_lines(inbuff)
+  nlines=nelements(hh)
+  outbuff=stringarray(nlines)
+  cnt=0
+  l=strlen(prefix)
+  for (i=1;i<=nlines;i++) {
+    if (hh[i][1:l]==prefix) {
+      p=strpos(hh[i],"=")
+      cnt++
+      outbuff[cnt]=strtrim(hh[i][1:p-1])
+    }
+  }
+  hdr_get_all_fits_keys=outbuff[1:cnt]
+}
+
+function hdr_get_all_fits_key_values, inbuff, prefix, type {
+//Get all key values that match a prefix
+//If type=1, return number array, otherwise string
+  keys=get_all_fits_keys(inbuff, prefix)
+  nkeys=nelements(keys)
+  if (nparams()<3) type=0
+  if (type==0) {
+    outbuff=stringarray(nkeys)
+  } else {
+    outbuff=floatarray(nkeys)
+  }
+  for (i=1;i<=nkeys;i++) outbuff[i]=getfitskey(inbuff, keys[i])
+  hdr_get_all_fits_key_values=outbuff
+}
+
