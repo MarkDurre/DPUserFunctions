@@ -20,12 +20,12 @@ function img_flux_to_mag, inbuff, zpm, ssize, flag {
   } else { //Image
     size=ssize
     if (size==0) { //Find actual spaxel size
-      if (check_header_key(inbuff,"CDELT1")==1) { //We have CDELT keys
+      if (hdr_check_prefix(inbuff,"CDELT1")>=1) { //We have CDELT keys
         cd1=getfitskey(inbuff,"CDELT1")
         cd2=getfitskey(inbuff,"CDELT2")
         size=sqrt(cd1^2+cd2^2)*3600/sqrt(2)
       } else { //Using CD keys
-        if (check_header_key(inbuff,"CD1_1")==0) { //don't have CD keys therefore quit
+        if (hdr_check_prefix(inbuff,"CD1_1")==0) { //don't have CD keys therefore quit
           print "IMG_FLUX_TO_MAG: No WCS keys"
           break
         }
