@@ -47,7 +47,7 @@ function airtovac,wave {
 ;       Converted to IDL V5.0   W. Landsman   September 1997
 ;-*/
 
-  if (nparams == 0) {
+  if (nparams() == 0) {
       print "Syntax - AIRTOVAC, WAVE"
       print "WAVE (Input) is the air wavelength in Angstroms"
       print "On output WAVE contains the vacuum wavelength in Angstroms"
@@ -111,7 +111,7 @@ function planck,wave,temp {
 ;       Converted to IDL V5.0   W. Landsman   September 1997
 ;       Improve precision of constants    W. Landsman  January 2002
 ;-*/
- if (nparams != 2) {
+ if (nparams() != 2) {
   print "Syntax - bbflux = planck( wave, temp)"
   break
  }
@@ -135,19 +135,26 @@ function planck,wave,temp {
   planck = bbflux*1.E-8              // Convert to ergs/cm2/s/A
 }
 
-function coordstring, ra, dec, rad {
+function coordstring, ra, dec, rad, format {
 /*
 ; create a nice string of celestial coordinates.
 ; ra and dec should be given in radians.
 ; if rad>0, convert to degrees
+; if format=0, returns long string
+; if format=1, returns short string array [ra, dec]
+; if format=2, returns numeric array [rah, rad, ras, ded, dem, des]
 */
+  if nparams()<4 format=0
+  if nparams()<3 rad=0
   decl=dec
   ral=ra
-  if (rad > 0) {
+  if (rad == 0) {
     decl = deg2rad(dec)
     ral = deg2rad(ra)
   }
+  ral=abs(ral)
   sign = decl < 0 ? "-" : "+"
+  sgn= decl < 0 ? -1 : 1
   adec = abs(decl)
   rad = rad2deg(ral) / 15
   rah = int(rad)
@@ -161,4 +168,36 @@ function coordstring, ra, dec, rad {
   de = (de-dem) * 60
 
   coordstring = "RA = " + sprintf("%2.0fh ",rah) + sprintf("%2.0fm ", ram) + sprintf("%5.2fs", rad) + ", DEC = " + sign + sprintf("%2.0fd ", deh) + sprintf("%2.0f' ", dem) + sprintf("%4.1f\"", de)
+  if (format==1) coordstring=[sprintf("%02.0f",rah) + ":"+sprintf("%02.0f", ram) + ":"+  sprintf("%06.3f", rad),sign + sprintf("%02.0f", deh) + ":" + sprintf("%02.0f", dem) + ":" + sprintf("%05.2f", de)]
+  if (format==2) coordstring=[rah,ram,rad,sgn*deh,sgn*dem,sgn*de]
 }
+
+function sextodec, sexstr {
+//Convert sexadecimal string to decimal number
+  sexcomps=strsplit(sexstr,":")
+  h=float(sexcomps[1])
+  m=float(sexcomps[2])
+  s=float(sexcomps[3])
+  hh=abs(h)
+  ss=(hh+m/60+s/3600)*sign(h)
+  sextodec=ss
+}
+
+function dectosex, decnum {
+  dd=abs(decnum)
+  s=sign(decnum)
+  ss=""
+  if (s<0) ss="-"
+  d1=int(dd)
+  d2=int((dd-d1)*60)
+  d3=float((dd-d1-d2/60)*3600)
+  d2s=right("00"+d2,2)
+  d3s="00"+d3
+  p=strpos(d3s,".")
+  if (p<0) d3s+=".00"
+  p=strpos(d3s,".")
+  d3l=strlen(d3s)
+  d3ss=d3s[p-2:d3l]  
+  dectosex=ss+d1+":"+d2s+":"+d3ss
+}
+
