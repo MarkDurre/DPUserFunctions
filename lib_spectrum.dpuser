@@ -68,6 +68,7 @@ function spectrum_mask, inbuff, mask, value, flag {
     outbuff=inbuff
   } else {
     aspec=naxis(inbuff)
+    nx=getfitskey(inbuff,"NAXIS"+aspec)
     outbuff=inbuff
     nmask=nelements(mask)/2
     for (i=1;i<=nmask;i++) {
@@ -78,11 +79,13 @@ function spectrum_mask, inbuff, mask, value, flag {
         p2=cvt_WCS_pixel_data(inbuff,p2,aspec)
       }
     //    print p1+" "+p2
-      if (aspec==1) {
-        outbuff[p1:p2]=value
-      } else {
-        outbuff[*,*,p1:p2]=value
-      }
+      if (p1>1)&&(p2<=nx) { //Must be in range
+				if (aspec==1) {
+					outbuff[p1:p2]=value
+				} else {
+					outbuff[*,*,p1:p2]=value
+				}
+			}
     }
   }
   spectrum_mask=outbuff
@@ -406,19 +409,9 @@ function spectrum_clean, inbuff, thresh {
   spectrum_clean=clean
 }
 
-function spectrum_fitwext, inbuff, template, extinction, wlflag {
-//Fit spectrum to template with extinction
-//wlflag = 0 for nm, = 1 for Angstrom (default 0)
-//Redisperse inbuff to template
-  if nparams()<4 wlflag=0
-  rinbuff=spectrum_redisp_lin(cblank(inbuff), cblank(template), 1)
-  rext=extinction_correct(rinbuff, -1*extinction)
-  spectrum_fitwext=rext/template
-}
-
 function spectrum_sn, inbuff, window {
 //Estimate spectrum S/N from itself - not 100% accurate but good for comparisons
-//Window is smoothing and noise estimation window - default is 10% of spectrum length
+//Window is smoothing and noise estimation window in pixels - default is 10% of spectrum length
   if nparams()<2 window=int(naxis1(inbuff)*0.1)
   signal=smooth(cblank(inbuff), window) //Estimate signal
   no1=inbuff-signal
@@ -428,6 +421,25 @@ function spectrum_sn, inbuff, window {
   }
   no2[where(inbuff==0)]=0/0
   spectrum_sn=signal/no2
+}
+
+function spectrum_sn_wl, inbuff, lambda, width {
+//Estimate spectrum S/N from itself at a defined wavelength/window width
+  if nparams()<3 {
+    print "SPECTRUM_SN_WL: Must provide wavelength and width"
+    spectrum_sn_wl=0
+    break
+  } 
+  wl1=cvt_WCS_pixel_data(inbuff,lambda-width/2,1)
+  wl2=cvt_WCS_pixel_data(inbuff,lambda+width/2,1)
+  if (wl1<1)||(wl2>naxis1(inbuff)) {
+    print "SPECTRUM_SN_WL: Window out of wavelength range"
+    spectrum_sn_wl=0
+  } else {
+    signal=avg(inbuff[wl1:wl2])
+    noise=stddev(inbuff[wl1:wl2])
+    spectrum_sn_wl=[signal,noise,signal/noise]
+  }
 }
 
 function spectrum_apply_snr, spectrum, snr {
@@ -442,5 +454,57 @@ function spectrum_apply_snr, spectrum, snr {
     }
   }
   spectrum_apply_snr=outbuff
+}
+
+function spectrum_comb_sigma, inbuff, sigma, toler, omit {
+//Spectrum combine with sigma clipping algorithm
+//inbuff is a 2d image with each row a spectrum
+//sigma is standard deviations allowed (default 3 sigma)
+//toler is tolerance for convergence on clipping algorithm (default 0.1)
+//omit is value to omit on averaging (if parameter not entered, don't omit any value)
+  n1=naxis1(inbuff)
+  n3=naxis2(inbuff)
+  noomit=0
+  if nparams()<4 {
+    noomit=1
+  }
+  if nparams()<3 toler=0.1
+  if nparams()<2 sigma=3
+/*  print "Average with sigma clipping"
+  print "Image dimensions : ["+n1+","+n2+"]"
+  print "# of images : "+n3
+  print "Sigma/Tolerance : "+sigma+"/"+toler
+  print "Omit value : "+omit*/
+  outbuff=inbuff[*,1]*0
+  for (i=1;i<=n1;i++) {
+    print "SPECTRUM_COMB_SIGMA Row: "+i
+	  tol=1
+	  s=1
+	  while (tol==1)&&(s>0) {
+			m=median(inbuff[i,*],omit)
+			s=meddev(inbuff[i,*])
+			for (k=1;k<=n3;k++) {
+				if (isnan(inbuff[i,k])==0) {
+					if (abs(inbuff[i,k]-m)>(sigma*s)) {
+			/*              print "Reject : ["+i+","+j+","+k+"]"
+						print "Value : "+inbuff[i,j,k]
+						print "Median : "+m+" Std Dev : "+s*/
+						inbuff[i,k]=0/0
+					}
+				}
+			}
+			sigold=s
+			signew=meddev(inbuff[i,*])
+			t=(sigold-signew)/signew
+			if (t<toler) tol=0
+		//        print "Coords: "+i+","+j+" tol :"+tol+" m: "+m+" s: "+s+" sigold: "+sigold+" signew: "+signew+" t: "+t
+	  }
+	  if (noomit==0) {
+		outbuff=avg(inbuff,/y)
+	  } else {
+		outbuff=avg(inbuff,/y,omit)
+	  }
+  }
+  spectrum_comb_sigma=outbuff
 }
 
