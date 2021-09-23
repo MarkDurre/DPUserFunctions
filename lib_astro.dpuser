@@ -6,4 +6,6 @@ run dpuserdir+"/Functions/lib_astro_image.dpuser"
 run dpuserdir+"/Functions/lib_astro_spectrum.dpuser"
 run dpuserdir+"/Functions/lib_astro_mapping.dpuser"
 run dpuserdir+"/Functions/lib_astro_general.dpuser"
+run dpuserdir+"/Functions/lib_astro_extinction.dpuser"
+run dpuserdir+"/Functions/lib_astro_kinematics.dpuser"
 
