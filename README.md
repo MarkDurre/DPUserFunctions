@@ -2,11 +2,11 @@
 ## Setting Up DPUSER Functions Library
 1. Place all libraries (files with “lib\_\*.dpuser” name) in a convenient location  e.g. “*my\_code\_location*/DPUserlib/Functions" (subsituting for *my_code_location* e.g. "/Users/*username*/Programs").
 
-2. Place “startup.dpuser” in e.g. “*my\_code\_location*/DPUserlib". This assumes that all the library functions are located in the "Function" sub-folder and runs the "lib\_all.dpuser" script. This file must be modified for your own requirements; it also sets the *DPUSER_DIR* environment variable that can be accessed by other scripts, using the **getenv** function in QFitsView.
+2. Place “startup.dpuser” in e.g. “*my\_code\_location*/DPUserlib". This assumes that all the library functions are located in the "Functions" sub-folder and runs the "lib\_all.dpuser" script. This file must be modified for your own requirements; it also sets the *DPUSER_DIR* environment variable that can be accessed by other scripts, using the **getenv** function in QFitsView.
 
     ```
     //Example startup.dpuser
-    //This line must be modified (change *my_code_location*) for individual users
+    //This line must be modified (change my_code_location) for individual users
     setenv "DPUSER_DIR", "my_code_location/dpuserlib"
     //dpuserdir is used by libraries to call other libraries if required
     dpuserdir=getenv("DPUSER_DIR")
@@ -16,7 +16,9 @@
     //You can put your own startup dpuser code here
     ```
 
-3. As of version 4.1 of QFitsView, the location of the "startup.dpuser" file can be specified in the QFitsView menu "QFistView > Preferences > Paths > DPUSER Path" (Mac) or "Options > Preferences > Paths > DPUSER Path" (Windows and Linux). For version previous to 4.1, create a symbolic link in the root directory to this folder. For macOS 10.15+ use the `/etc/synthetic.conf` symbolic links method - reference [here](https://stackoverflow.com/questions/58396821/what-is-the-proper-way-to-create-a-root-sym-link-in-catalina)). This link must be called "dpuserlib".
+3. As of version 4.1 of QFitsView, the location of the "startup.dpuser" file can be specified in the QFitsView menu "QFitsView > Preferences > Paths > DPUSER Path" (Mac) or "Options > Preferences > Paths > DPUSER Path" (Windows and Linux). 
+
+    For version previous to 4.1, create a symbolic link in the root directory to this folder. For macOS 10.15+ use the `/etc/synthetic.conf` symbolic links method - reference [here](https://stackoverflow.com/questions/58396821/what-is-the-proper-way-to-create-a-root-sym-link-in-catalina)). This link must be called "dpuserlib".
 
 4. When QFitsView starts, it automatically looks for and executes the script file "startup.dpuser" in the DPUser Path specified above (for versions before 4.1, it looks for "/dpuserlib/startup.dpuser") i.e. it runs the script set up above. This runs all libraries to make the functions available to QFitsView - you will see a whole bunch of “Stored function…” and “Stored procedure…” plus “Finished General Functions” text lines on the DPUSER area in QFitsView.
 
@@ -38,23 +40,25 @@ tmpmem     =     20971520<br>
 
 ## Editing DPUser Code with BBEdit
 
-The main documentation for DPUser is through [this link](https://www.mpe.mpg.de/~ott/dpuser/). DPUser code can be edited with QFitsView *DPUSER > Script Editor*. It can also be edited by various external text editors; e.g. **BBEdit**. To facilitate this, a language module has been implemented - "DPUser.plist", with the following highlighting features: 
+The main documentation for DPUser is through [this link](https://www.mpe.mpg.de/~ott/dpuser/). DPUser code can be edited with QFitsView *DPUSER > Script Editor*. It can also be edited by various external text editors; e.g. for Macs, **BBEdit** (as well as using the internal script editor). To facilitate this, a language module has been implemented for BBEdit - "DPUser.plist", with the following highlighting features: 
 
-- Syntax - both structural commands - e.g. "if", "else" etc. and internal DPUser functions/procedures. As new functions/procdures are implemented in QFitsView, the "BBLMPredefinedNameList" array must be updated.
+- Syntax - both structural commands - e.g. "if", "else" etc. and internal DPUser functions/procedures. As new functions/procedures are implemented in QFitsView, the "BBLMPredefinedNameList" array must be updated.
 - Comments (both for "/\*..\*/" and "//").
 - Strings ("..")
 - Function and procedure prefixes
 
 The file is installed in BBEdit's language module directory - by default "/Users/*username*/Library/Application Support/BBEdit/Language Modules".
 
-Note that after editing code in an external text editor, the script must be executed again with QFitsView.
+Note that after editing code in an external text editor, the script must be executed again with QFitsView to make functions/procedures available.
 
 ##  Parameter data types
+In the following description of functions/procedures, 
+
 * FITS or buffer input - *cube* is 3D, *image* is 2D, *spectrum* is 1D, *data* is 1, 2 or 3D, *mef* is multi-extension FITS data (created using the **list** function for up to 10 data buffers).
-	* Pixel co-ordinates
-	* p, p1, p2,… (general pixels co-ordinates)
-	* x, x1, x2,…, y, y1, y2,…, z, z1, z2,… (for x, y or z axes)
-	* pixel/wavelength masking - an array of 2n values [x1,x2,x3,x4...] - paired pixel numbers or wavelengths (pairs x1..x2,x3..x4 etc.) for spectral masking
+* Pixel co-ordinates
+   * p, p1, p2,… (general pixels co-ordinates)
+   * x, x1, x2,…, y, y1, y2,…, z, z1, z2,… (for x, y or z axes)
+   * pixel/wavelength masking - an array of 2n values [x1,x2,x3,x4...] - paired pixel numbers or wavelengths (pairs p1..p2,p3..p4 etc.) for spectral masking
 * WCS co-ordinates
    * wcs - for axis set [CRPIXn, CRVALn, CDELTn]
   * w, w1, w2,…. (for individual coordinates)
@@ -75,15 +79,15 @@ If full path to script is not given, it is assumed to be relative to the DPUserl
 
 ***<u>Enhanced functions on FITS headers</u>***
 
-**function hdr_get_lines, inbuff** - returns string array of all lines in *inbuff* header (rather than single string that function "header" does)
+**function hdr_get_lines, data** - returns string array of all lines in *data* header (rather than single string that function "header" does)
 
-**function hdr_check_prefix, inbuff, key** - checks *inbuff* header for presence of *key* at start of line. If found, returns the line number - this only matches the first found. If not found, this returns 0. This function can be used to check if the *key* exists before using "getfitskey" and potentially getting an error.
+**function hdr_check_prefix, data, key** - checks *data* header for presence of *key* at start of line. If found, returns the line number - this only matches the first found. If not found, this returns 0. This function can be used to check if the *key* exists before using "getfitskey" and potentially getting an error.
 
-**function hdr_get_fits_key, inbuff, key** - replaces "getfitskey" function with a check that *key* exists.
+**function hdr_get_fits_key, data, key** - replaces **getfitskey** function with a check that *key* exists. If it is not found, then returns blank.
 
-**function hdr_get_all_fits_keys, inbuff, prefix** - returns a string array of all keys in *inbuff* that *match* prefix, e.g. if *prefix* = "ZPT_" then the array will contain ["ZPT_001", "ZPT_002"...].
+**function hdr_get_all_fits_keys, data, prefix** - returns a string array of all keys in *data* header that match prefix, e.g. if *prefix* = "ZPT_" then the array will contain ["ZPT_001", "ZPT_002"...].
 
-**function hdr_get_all_fits_key_values, inbuff, prefix, type** - as above, but returns the values of those keys. If *type* = 0 (default), returns a string array, if *type* = 1, returns a numerical array.
+**function hdr_get_all_fits_key_values, data, prefix, type** - as above, but returns the values of those keys. If *type* = 0 (default), returns a string array, if *type* = 1, returns a numerical array.
 
 ### lib_wcs
 
@@ -111,15 +115,13 @@ If full path to script is not given, it is assumed to be relative to the DPUserl
 
 **function set_WCS_image_scale, image, wcs2d, xscale, yscale** - Rescales (e.g. for non-integer re-binning) using *xscale* and *yscale* and sets WCS data for *image* (or cube), including CD keys - removes CDELT and CROTA2 keywords. Input *wcs2d* is format as for **[get_WCS_image](#get_WCS_image)**.
 
-**function hdr_get_fits_key, data, key** - substitute for **getfitskey** with check that *key* exists; returns blank if not found.
-
 **function get_WCS_values, data** - create WCS array [1,cv,cd] from dispersion *data*, calculated from first/last values and number of elements.
 
 **function WCS_cdelt_cd, cdelt1, cdelt2, rotang** - converts WCS x,y pixel sizes (*cdelt1, cdelt2*) and rotation angle (*rotang*) to CD matrix values. Returns vector [CD11, CD12, CD21, CD22].
 
 **procedure set_cd_keys, data, cdkeys** - sets CD keys in FITS header of *data* from vector *cdkeys* (in same format as **WCS_cdelt_cd** function) and deletes the CDELT1/2 keys.
 
-**function WCS_shift_pix, inbuff, xshift, yshift, sec** - shift image astrometry by altering the CRPIX1,2 values (useful to align images). *xshift, yshift* - amount to shift in axis 1 and 2 respectively, *sec* (default 0), if =0, shifts in pixels, else in seconds of arc. Note for seconds of arc shift, you must mutiply RA seconds of time by 15.
+**function WCS_shift_pix, data, xshift, yshift, sec** - shift image or cube astrometry by altering the CRPIX1,2 values (useful to align images). *xshift, yshift* - amount to shift in axis 1 and 2 respectively, *sec* (default 0), if =0, shifts in pixels, else in seconds of arc. Note for seconds of arc shift, you must mutiply RA seconds of time by 15.
 
 ### lib_cube
 **<u>*Data cube functions*</u>**
@@ -196,16 +198,16 @@ If full path to script is not given, it is assumed to be relative to the DPUserl
 
 **function cube_rebinxy, cube, xscale, yscale, kernel** - Rebin *cube* or image pixel scaling in x and y directions by *xscale*, *yscale*. Uses the **interpolate** dpuser function with kernel *kernel*. Note this function DOES NOT handle the WCS co-ordinates scaling; use **get_WCS_cube** and **set_WCS_cube_scale** functions.
 
-**function cube_rebinfrac, inbuff, xscale, yscale** - Rebins *cube* (image) to *xscale*, *yscale* using fractional binning. Note comments about WCS values as above.
+**function cube_rebinfrac, cube, xscale, yscale** - Rebins *cube* (image) to *xscale*, *yscale* using fractional binning. Note comments about WCS values as above.
 
 **function cube_rebinx, cube, xscale**  - Rebin *cube* (image) pixel scaling in x direction ONLY. Uses the **interpol** dpuser function (quicker than **interpolate**). Note comments about WCS values as above.
 
-**function cube_combine_avg, mef, omit** - combine cubes by averaging. *mef* is a multi-extension fits list, *omit* is a value to reject in the averaging. If not provided or set to 0/0, then no rejection is done. *mef* is created from mutiple cubes (up to 10) by e.g. 
+**function cube_combine_avg, mef, omit** - combine cubes by averaging. *mef* is a multi-extension fits list, *omit* is a value to reject in the averaging. If *omit* is not provided or set to 0/0, then no rejection is done. *mef* is created from mutiple cubes (up to 10) by e.g. 
 `mef = list(buffer1, buffer2, buffer3, ....)`
 
 **function cube_combine_median, mef, omit** - median combine cubes as for **cube_combine_avg**.
 
-<a name="cube_apply_snr"></a>**function cube_apply_snr, signal, snr, snrscale** - adds noise to a *signal* cube using signal-to-noise ratio *snr*, multiplied by factor *snrscale* (default 1). *snr* can be a single value, a spectrum which is applied at each spaxel, an image where a single value is applied at each spaxel or a cube with different values at each pixel. The noise is a random gaussian value with standard deviation of the applicable SNR.
+<a name="cube_apply_snr"></a>**function cube_apply_snr, cube, snr, snrscale** - adds noise to a signal *cube* using signal-to-noise ratio *snr*, multiplied by factor *snrscale* (default 1). *snr* can be a single value, a spectrum which is applied at each spaxel, an image where a single value is applied at each spaxel or a cube with different values at each pixel. The noise is a random gaussian value with standard deviation of the applicable SNR.
 
 ### lib_image
 **<u>*Image functions*</u>**
@@ -224,7 +226,7 @@ If full path to script is not given, it is assumed to be relative to the DPUserl
 
 **function image_bfilter, image, order, cutoff** - Butterworth filter an *image*, assume square image, filter order *=order*, *cutoff* =Nyquist cutoff (0-1)
 
-**function image_enclosed_flux, inbuff, xc, yc, r, smth** - Get enclosed flux within radius *r* from [*xc, yc*] (pixels). If *smth*>0, Gaussian smooth the output 
+**function image_enclosed_flux, image, xc, yc, r, smth** - Get enclosed flux within radius *r* from [*xc, yc*] (pixels). If *smth*>0, Gaussian smooth the output 
 
 **function image_avg, image, x, y, s** - average value of image in square aperture [*x,y*] +-*s* pixels.
 
@@ -283,11 +285,15 @@ If full path to script is not given, it is assumed to be relative to the DPUserl
 
 **function spectrum_sn, spectrum, window** - Estimate spectrum S/N from itself - not 100% accurate but good for comparisons, *window* is smoothing and noise estimation window. Returns vector of same length as *spectrum* with S/N estimate, blank where *spectrum* is 0.
 
+**function spectrum_sn_wl, spectrum, spectrum, lambda, width** - estimate spectrum S/N from itself at a defined wavelength (*lambda*) /window width (*width*), i.e. *lambda* ± *width*. Returns [*signal, noise, SN*] (average and standard deviation over the window)
+
 **function spectrum_clean, inbuff, thresh** - clean *spectrum* using **dpixcreate**/**dpixapply**. If *thresh* is not sepecifed the threshold for **dpixcreate** is set to median(*spectrum*)/2.
 
-**function spectrum_apply_snr, signal, snr** - as for **[cube_apply_snr](#cube_apply_snr)**. *snr* can be a single value or spectrum.
+**function spectrum_apply_snr, spectrum, snr** - as for **[cube_apply_snr](#cube_apply_snr)**. *snr* can be a single value or spectrum.
 
 **function spectrum_wave_to_vel, inbuff, clambda** - returns *inbuff* with wavelength axis changed to velocity, with zero value at *clambda*.
+
+**function spectrum_comb_sigma, data, sigma, toler, omit** - spectrum combine with sigma clipping algorithm. *data* is a 2d array with each row a spectrum. *sigma* is standard deviations allowed (default 3). *toler* is tolerance for convergence on clipping algorithm (default 0.1). *omit* is value to omit on averaging (if parameter not entered, don't omit any value).
 
 ### lib_io
 **<u>*Input/output to and from text and fits files*</u>**
@@ -484,9 +490,30 @@ Used to image_interp_flags and cube_interp_flags
 
 **function planck, wave, temp** - Calculates the Planck function in units of ergs/cm2/s/Å. *wave* in Å, *temp* in degrees K.
 
-**function coordstring, ra, dec, rad** - create a nice string of celestial coordinates. *ra* and *dec* should be given in radians; if *rad*>0, convert to degrees. Example:
-`print coordstring(9.1234,5.678,1)`
+**function coordstring, ra, dec, rad, format** - create a nice string of celestial coordinates. *ra* and *dec* should be given in radians; if *rad*>0, convert ra and dec to radians (default ra and dec input in degrees). *format* sets the output format, 0 = long string, 1 = short string array [ra, dec], 2 = number array [rah, ram, ras, ded, dem, des].
+
+ Example:
+
+`>>>print coordstring(9.1234,5.678)`
 `RA = 0h 36m 29.62s, DEC = + 5d 40' 40.8"`
+`>>>print coordstring(9.1234,5.678,0,1)`
+`00:36:29.616`
+`+05:40:40.80`
+`>>>print coordstring(9.1234,5.678,0,2),/values`
+`0`
+`36`
+`29.616`
+`5`
+`40`
+`40.8`
+
+**function sextodec, sexstr** - converts sexadecimal string to decimal number, e.g.
+`print sextodec("01:02:03")`
+` 1.03417`
+
+**function dectosex, decnum** - reverse of **sextodec**, e.g. 
+`print dectosex(1.2345)`
+`1:14:04.2`
 
 ### lib_astro_general
 
@@ -494,23 +521,23 @@ Used to image_interp_flags and cube_interp_flags
 
 All the "lib\_astro\_*.dpuser" functions are executed from the "lib\_astro.dpuser" script.
 
-**function redshift_data, data, z, rdflag, nanflag, smth, fcons** - redshift data by *z*, assuming last axis is wavelength. WCS values set. If *rdflag* = 1, redisperse shifted data to same wavelength range as input. If *nanflag*=1, set nans in output at same pixels as in input. If *smth*>0, smooth by no. of pixels. If *fcons*=1, conserve total values.
+**function redshift_data, data, z, rdflag, nanflag, smth, fcons** - redshift *data* by *z*, assuming last axis is wavelength (this works on spectra or cubes). WCS values are set. If *rdflag* = 1, redisperse shifted data to same wavelength range as input. If *nanflag*=1, set nans in output at same pixels as in input. If *smth*>0, gaussian kernel smooth by no. of pixels. If *fcons*=1, conserve total values.
 
-**function bb_make,t, l1, l2, npix, wlflag** - make black-body function at temparture *t*, wavelength range *l1* to *l2*, number of pixels *n*, *wlflag*=0, wavelength in A, =1=> nm, =2 => um
+**function bb, temp, wl** - black-body value for temperature *temp* and wavelength *wl* (in m)
 
-**function bb_make_log, t, l1, l2, npix, scale, cutof**f - make bb at temp *t* over log wavelength [*l1,l2*] (in log meters), creating spectrum length *npix*, multiply wavelengths by *scale* (to convert to e.g. nm), set result to Nan where below *cutoff*. 
+**function bb_make,temp, wl1, wl2, npix, wlflag** - make black-body function at temparture *temp*, wavelength range *l1* to *l2*, number of pixels *npix*, *wlflag* sets the wavelength scale of *wl1* and *wl2*.
+0 = Å
+1 = nm (default)
+2 = μm
 
-**function bb_div, spectrum, temp** - divide *spectrum* by black-body at temperature *t*
+**function bb_make_log, temp, wl1, wl2, npix, wlflag** - make bb at temp *temp* over log wavelength [*wl1,wl2*], creating spectrum length *npix*, wavelength scale flag *wlflag*
 
-**function extinction_calc, f1, f2, l1, l2, rat, galext, s, flmin1, flmin2**- create an extinction map from 2 emission line maps - *f1*, *f2*  are flux maps, *l1*, *l2*=wavelengths, *rat*=expected flux ratio, *galext*=galactic extinction, *smth*= smooth pixels, *flmin1*, *flmin2*=minimum flux value for each map - calculates the extinction constant (CCM laws for IR and optical)
+**function bb_div, spectrum, temp, wlflag** - divide *spectrum* by black-body at temperature *temp* and wavelength scale flag *wlflag*.
 
-**function extinction_correct, cube, av** - correct *cube* for extinction (*av* =single value for extinction) - wavelength from axis 3
-
-**function extinction_correct_map, cube, av** - correct *cube* for extinction (*av* =extinction map) - wavelength from axis 3.
-
-**function extinction_correct_lambda, data, av, lambda** - correct value/image for extinction *av* at wavelength *lambda*: can be used on value or image
+**function flux_ul, data, wl, width, ignore** - find upper limit for flux over spectral range wavelength ± width *[wl-width, wl+width]*, 3-sigma on noise (standard deviation of wavelength range). This function assumes spectrum is in the last axis and has the correct WCS. If *ignore* is given, then that value is not included in calculating the limit (e.g. values of zero as null).
 
 ### lib_astro_mapping
+
 **<u>*Astronomy functions (mapping and excitation diagrams)*</u>**
 
 **function map_compare_diagram, image1, image2, min1, max1, min2, max2, nbin, lgaxesflag** - Map diagram density plot. *image1*, *image2* - value maps, x and y axes. *min1/2*, *max1/2* - min and maximum values for axes 1/2. *nbin* - no of bins on each axis. *lgaxesflag* - 1=plot in log space (min,max must be in log values). Generates e.g. BPT diagrams
@@ -521,9 +548,9 @@ All the "lib\_astro\_*.dpuser" functions are executed from the "lib\_astro.dpuse
 
 **function map_compare_basis, image1, image2, basex0, basey0, basex100, basey100, lgaxesflag** - plots basis distance (AGN mixing ratio) from basis points [*basex0, basey0*] to [*basex100, basey100*] . *lgaxesflag* - 1=take log of *image1*, *image2* before calculation
 
-**function map_regime_ir, image1, image2, a1, a2, a3, b1, b2** - create position excitation map. If a1=0, use the standard infrared Riffel 2013 excitation regimes. *image1* is H_2/Br_gamma, *image2* is [Fe II]/Pa_beta. Both in log values. Output values at each spaxel are SF=1, AGN=2, LINER=3, TO1=4, TO2=5
+**function map_regime_ir, image1, image2, a1, a2, a3, b1, b2** - create position excitation map. *a1, a2, a3* are the SF, AGN, LINER, b1, b2If a1=0, use the standard infrared Riffel 2013 excitation regimes. *image1* is H~2~/Brγ, *image2* is [Fe II]/Paβ. Both images are in log values. Output values at each spaxel are SF=1, AGN=2, LINER=3, TO1=4, TO2=5
 
-**function map_regime_optical, image1, image2, typeflag**- create position excitation map for optical line ratios (*image1* and *image2*) from Kewley et al. 2006 regimes. *typeflag* = 1 ([N II]/H_alpha diagram), =2 ([S II]/H_alpha diagram), =3 ([O I]/H_alpha diagram). Returns 1=SF, 2=Seyfert, 3=LINER, 4=Composite
+**function map_regime_optical, image1, image2, typeflag**- create position excitation map for optical line ratios (*image1* and *image2*) from Kewley et al. 2006 regimes. For *image1*, *typeflag* = 1 ([N II]/Hα diagram), =2 ([S II]/Hα diagram), =3 ([O I]/Hα diagram). *image2* always has [OIII]/Hβ. Returns at each pixel 1=SF, 2=Seyfert, 3=LINER, 4=Composite.
 
 ### lib_astro_spectrum
 **<u>*Astronomy functions (spectrum)*</u>**
@@ -581,6 +608,8 @@ Output is spectrum of aperture less average of background (with mask) - values <
 
 ### lib_astro_kinematics
 
+<u>***Astronomy functions - kinematic models***</u>
+
 **function velmodel_plummer, x0, y0, M0, Re, psi0, inc, xsize, ysize, pixscale, angscale** - create a Plummer kinematic rotation model velocity field in km/s. This can be applied to a cube by e.g. **[cube_velocity_correct](#cube_velocity_correct)**.
 *x0, y0* - centre pixel position
 *M0* - enclosed mass (units of Msun)
@@ -595,10 +624,38 @@ Output is spectrum of aperture less average of background (with mask) - values <
 
 **function velmodel_geom, x0, y0, psi0, inc, xsize, ysize** - computes the geometric components of rotational models, with parameters as above. Returns data [*xsize, ysize*, 2] - first layer is rotational component, second layer is radial component. These are independant of the particular model form.
 
+### lib_astro_extinction
+
+**<u>*Astronomy functions - extinction*</u>**
+
+**function astro_extn_calc, f1, f2, l1, l2, rat, galext, s, flmin1, flmin2**- create an extinction map from 2 emission line maps - *f1*, *f2*  are flux maps, *l1*, *l2*=wavelengths, *rat*=expected flux ratio, *galext*=galactic extinction, *smth*= smooth pixels, *flmin1*, *flmin2*=minimum flux value for each map - calculates the extinction constant (CCM laws for IR and optical)
+
+**function astro_extn_correct, data, ebv, law, lscale** - correct *data* for extinction (*ebv* = single extinction value). *data* can be a spectrum or cube, with wavelength from either axis 1 or 3. *law* = 0 -> CCM, = 1 ->Calzetti+00. *lscale* (default 1) - multiplier to convert spectrum wavelength to nm e.g. A->nm = 0.1
+
+**function astro_extn_correct_cube, data, lambda, ebv, law, lscale** - correct value/image *data* for extinction *ebv* at wavelength *lambda*: can be used on single value or an image.
+
+**function astro_extn_correct_spectrum, spectrum, ebv, law, lscale** - Correct *spectrum* for extinction using single  E~B-V~  (*ebv*) value.  
+
+**function astro_extn_correct_cube, cube, ebv, law, lscale** - Correct *cube* for extinction using single  E~B-V~  (*ebv*) value.  
+
+**function astro_extn_correct_lambda, data, lambda, ebv, law** - Correct *data* for extinction at a single wavelength and E~B-V~ (*ebv*) value.
+
+**function astro_extn_al_ccm, lambda, rv** - Calculate Cardelli, Clayton, and Mathis (1989 ApJ. 345, 245) "CCM" extinction curve (A~λ~) at wavelength *lambda* (nm) with R~V~ value of *rv* (default 3.1). This includes the update for the near-UV given by O'Donnell (1994, ApJ, 422, 158) 
+
+**function astro_extn_al_cal, lambda, rv** - As for **astro_extn_al_ccm**, but for Calzetti etal. (2000, ApJ, 533, 682) "CAL" extinction curve; *rv* defaults to 4.05.
+
+**function astro_extn_ccm, lambda, ebv, rv** - Calculate actual extinction factor for CCM at wavelength *lambda* (nm), E~B-V~ *ebv* (default 1) and R~V~ *rv* (default 3.1).
+
+**function astro_extn_cal, lambda, ebv, rv** - As for **astro_extn_ccm**, for "CAL". *rv* defaults to 4.05.
+
+**function function astro_extn_const_ccm, lambda1, lambda2** - Calculate constant in extinction law between two wavelengths (*lambda1, lambda2*) (nm) for  E~B-V~ "CCM" calculation.
+
+**function astro_extn_const_cal, lambda1, lambda2** - as for function **astro_extn_const_ccm** for "CAL".
+
 # Standard Procedures
 
 ## Velocity maps
-* Create QFitsView **velmap** with wavelength, fwhm estimate
+* Create QFitsView **velmap** with wavelength, FWHM estimates
 * Examine velmap for continuum, height, wavelength and fwhm “sensible” ranges
 * Use **[velmap_fix](#velmap_fix)** to clean up velmap, entering "good" ranges for each fit component. This sets out-of-range spaxels to Nan.
 * Use **[velmap_fix_interp](#velmap_fix_interp)** to interpolate over NaN values (if required)
