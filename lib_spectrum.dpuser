@@ -45,6 +45,7 @@ function spectrum_make_disp_n, val1, val2, n {
 }
 
 function spectrum_make_disp_data, inbuff, axis {
+  if nparams()<2 axis=naxis(inbuff) //Assume spectral axis is last
   cc=get_WCS_data(inbuff, axis)
   nx=getfitskey(inbuff, "NAXIS"+axis)
   spectrum_make_disp_data=spectrum_make_disp(cc[2],cc[3],cc[1],nx)
@@ -80,15 +81,16 @@ function spectrum_mask, inbuff, mask, value, flag {
       }
     //    print p1+" "+p2
       if (p1>1)&&(p2<=nx) { //Must be in range
-				if (aspec==1) {
-					outbuff[p1:p2]=value
-				} else {
-					outbuff[*,*,p1:p2]=value
-				}
-			}
+        if (aspec==1) {
+          outbuff[p1:p2]=value
+        } else {
+          outbuff[*,*,p1:p2]=value
+        }
+      }
     }
   }
   spectrum_mask=outbuff
+  free outbuff
 }
 
 function spectrum_cont_slope, spec, mask, flag, order {
@@ -134,10 +136,12 @@ function spectrum_polyfit, inbuff, order, mask, flag {
   n1=naxis1(inbuff)
   x=[1:n1]
   polyout=poly(x,fit[*,1])
-  spec_polyfit=fits(n1,3)
-  spec_polyfit[*,1]=outbuff
-  spec_polyfit[*,2]=polyout
-  spec_polyfit[*,3]=outbuff-polyout
+  spec_polyfit=fits(n1,5)
+  spec_polyfit[*,1]=outbuff //Masked spectrum
+  spec_polyfit[*,2]=polyout //Polynomial fit
+  spec_polyfit[*,3]=outbuff-polyout //Difference
+  spec_polyfit[*,4]=inbuff-polyout //Continuum subtracted
+  spec_polyfit[*,5]=inbuff/polyout //Continuum normalised
   copyheader spec_polyfit,inbuff
   spectrum_polyfit=spec_polyfit
 }
@@ -246,7 +250,7 @@ function spectrum_redisp_lin, inbuff, data, daxis, xmin,delt, npix, zero, norms,
     print "SPECTRUM_REDISP_LIN: inbuff, data, daxis, xmin,delt, npix, zero, norms,  prnt, fluxcons"
     print "inbuff           : spectrum to be redispersed"
     print "data             : data with dispersal solution (if =0 then use parameters for dispersion)"
-    print "daxis            : spectral axis of data (=1)"
+    print "daxis            : spectral axis of data (last)"
     print "xmin, delt, npix : dispersion solution if data=0"
     print "zero             : if =1, then set redispersed spectra to zero where out of original range, rather than NaN (=0)"
     print "norms            : if =1, normalize dispersed spectra [0,1] (=0)"
@@ -273,7 +277,7 @@ function spectrum_redisp_lin, inbuff, data, daxis, xmin,delt, npix, zero, norms,
   } else {
     xnew=spectrum_make_disp_data(data, daxis)
   }
-  if (prnt>0) print "SPECTRUM_REDISP: New spectral range - "+xnew[1]+":"+xnew[naxis1(xnew)]
+  if (prnt>0) print "SPECTRUM_REDISP_LIN: New spectral range - "+xnew[1]+":"+xnew[naxis1(xnew)]
   wcsnew=get_WCS_values(xnew)
   ynew=interpol(yold, xold, xnew)
   set_WCS_data ynew, wcsnew, 1
@@ -478,32 +482,32 @@ function spectrum_comb_sigma, inbuff, sigma, toler, omit {
   outbuff=inbuff[*,1]*0
   for (i=1;i<=n1;i++) {
     print "SPECTRUM_COMB_SIGMA Row: "+i
-	  tol=1
-	  s=1
-	  while (tol==1)&&(s>0) {
-			m=median(inbuff[i,*],omit)
-			s=meddev(inbuff[i,*])
-			for (k=1;k<=n3;k++) {
-				if (isnan(inbuff[i,k])==0) {
-					if (abs(inbuff[i,k]-m)>(sigma*s)) {
-			/*              print "Reject : ["+i+","+j+","+k+"]"
-						print "Value : "+inbuff[i,j,k]
-						print "Median : "+m+" Std Dev : "+s*/
-						inbuff[i,k]=0/0
-					}
-				}
-			}
-			sigold=s
-			signew=meddev(inbuff[i,*])
-			t=(sigold-signew)/signew
-			if (t<toler) tol=0
-		//        print "Coords: "+i+","+j+" tol :"+tol+" m: "+m+" s: "+s+" sigold: "+sigold+" signew: "+signew+" t: "+t
-	  }
-	  if (noomit==0) {
-		outbuff=avg(inbuff,/y)
-	  } else {
-		outbuff=avg(inbuff,/y,omit)
-	  }
+    tol=1
+    s=1
+    while (tol==1)&&(s>0) {
+      m=median(inbuff[i,*],omit)
+      s=meddev(inbuff[i,*])
+      for (k=1;k<=n3;k++) {
+        if (isnan(inbuff[i,k])==0) {
+          if (abs(inbuff[i,k]-m)>(sigma*s)) {
+      /*              print "Reject : ["+i+","+j+","+k+"]"
+            print "Value : "+inbuff[i,j,k]
+            print "Median : "+m+" Std Dev : "+s*/
+            inbuff[i,k]=0/0
+          }
+        }
+      }
+      sigold=s
+      signew=meddev(inbuff[i,*])
+      t=(sigold-signew)/signew
+      if (t<toler) tol=0
+    //        print "Coords: "+i+","+j+" tol :"+tol+" m: "+m+" s: "+s+" sigold: "+sigold+" signew: "+signew+" t: "+t
+    }
+    if (noomit==0) {
+    outbuff=avg(inbuff,/y)
+    } else {
+    outbuff=avg(inbuff,/y,omit)
+    }
   }
   spectrum_comb_sigma=outbuff
 }
