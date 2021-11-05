@@ -165,19 +165,26 @@ function bb_div, inbuff, temp, scale {
   }
 }
 
-function flux_ul, inbuff, lambda, width, ignore {
+function flux_ul, inbuff, lambda, width, deslope, ignore {
 //Find upper limit for flux over range, 3-sigma on noise
 //Assume spectrum is in last axis and has correct WCS
-  if (nparams()<4) ignore=0/0
+//deslope is oder of polynomial fit to slope, if zero, do not deslope
+//ignore - value to ignore (e.g. 0 or Nan)
+  if (nparams()<5) ignore=0/0
+  if (nparams()<4) deslope=0
   laxis=naxis(inbuff)
   p1=cvt_WCS_pixel_data(inbuff, lambda-width/2, laxis)
   p2=cvt_WCS_pixel_data(inbuff, lambda+width/2, laxis)
+  if (laxis==1) spec=inbuff[p1:p2]
+  if (laxis==3) spec=inbuff[*,*,p1:p2]
+  if (deslope>0) {
+    s=spectrum_deslope(spec,[0],0,deslope)
+    spec=avg(spec)*s
+  }
   if (isnan(ignore)==1) {
-    if (laxis==1) sigma=stddev(inbuff[p1:p2])
-    if (laxis==3) sigma=stddev(inbuff[*,*,p1:p2])
+    sigma=stddev(spec)
   } else {
-    if (laxis==1) sigma=stddev(inbuff[p1:p2], ignore)
-    if (laxis==3) sigma=stddev(inbuff[*,*,p1:p2], ignore)
+    sigma=stddev(spec, ignore)
   }      
   flux_ul=3*sigma
 }
