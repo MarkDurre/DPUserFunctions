@@ -40,38 +40,38 @@ function cube_trim_xy, cube_in, x1, x2, y1, y2 {
 //Trim cube/image in x and y coords (values are pixels)
 //Remove all nan and inf values, set to zero
   if (cube_test_dim(cube_in, x1, x2, y1, y2, 0, 0)==0) {
-  cube_out = cblank(cube_in)
-  n1=naxis1(cube_in)
-  n2=naxis2(cube_in)
-  n3=naxis3(cube_in)
-  if (n3>1) { //For cube
-    if (x1>0) {
-      cube_out[1:x1,*,*]=0
+    cube_out = cblank(cube_in)
+    n1=naxis1(cube_in)
+    n2=naxis2(cube_in)
+    n3=naxis3(cube_in)
+    if (n3>1) { //For cube
+      if (x1>0) {
+        cube_out[1:x1,*,*]=0
+      }
+      if (x2>0) {
+        cube_out[x2:n1,*,*]=0
+      }
+      if (y1>0) {
+        cube_out[*,1:y1,*]=0
+      }
+      if (x1>0) {
+        cube_out[*,y2:n2,*]=0
+      }
+    } else { //For image
+      if (x1>0) {
+        cube_out[1:x1,*]=0
+      }
+      if (x2>0) {
+        cube_out[x2:n1,*]=0
+      }
+      if (y1>0) {
+        cube_out[*,1:y1]=0
+      }
+      if (x1>0) {
+        cube_out[*,y2:n2]=0
+      }
     }
-    if (x2>0) {
-      cube_out[x2:n1,*,*]=0
-    }
-    if (y1>0) {
-      cube_out[*,1:y1,*]=0
-    }
-    if (x1>0) {
-      cube_out[*,y2:n2,*]=0
-    }
-  } else { //For image
-    if (x1>0) {
-      cube_out[1:x1,*]=0
-    }
-    if (x2>0) {
-      cube_out[x2:n1,*]=0
-    }
-    if (y1>0) {
-      cube_out[*,1:y1]=0
-    }
-    if (x1>0) {
-      cube_out[*,y2:n2]=0
-    }
-  }
-  cube_trim_xy = cube_out
+    cube_trim_xy = cube_out
   }
 }
 
@@ -362,6 +362,16 @@ function cube_shift_xy, inbuff, xshift, yshift {
     if ((i%10)==1) print i+"/"+n3
   }
   cube_shift_xy=outbuff
+}
+
+function cube_shift_z, inbuff, zshift {
+//Shift cube along z (wavelength) axis
+  outbuff=inbuff
+  n1=naxis1(inbuff)
+  n2=naxis2(inbuff)
+  n3=naxis3(inbuff)
+  for (i=1;i<=n1;i++)  for (j=1;j<=n2;j++) outbuff[i,j,*]=shift(inbuff[i,j,*],zshift,0)
+  cube_shift_z=outbuff
 }
 
 function cube_redisp, cube, disp_old, disp_new, prnt {
@@ -706,7 +716,11 @@ function cube_to_2d, inbuff {
 
 function cube_set_flags_nan, cube, layer {
 //Create flags from cube with nan values to be interpolated over
-  f1=cube[*,*,layer]
+  if (naxis(cube)==2)||(layer==0) {
+    f1=cube[*,*]
+  } else {
+    f1=cube[*,*,layer]
+  }
   f2=mask_from_image_nan(f1,0)
   f3=cblank(f2)
   cube_set_flags_nan=1-f3
@@ -718,94 +732,106 @@ function cube_interp_flags, cube, flags, xi1, xi2, yi1, yi2, dmax {
 //flags - 2D data with same x/y axes size as cube, with value=1 to be interpolated, value=0 - good pixels
 //xi1,xi2,yi1,yi2 - co-ordinate range to interpolate over. If not input, then do all spaxels
 //dmax - maximum pixel distance for interpolation (=0 don't test)
-  if nparams()<3 xi1=xi2=yi1=y12=dmax=0
+  if nparams()<3 {
+    xi1=xi2=yi1=y12=0
+    dmax=1
+  }
   
   if (cube_test_dim(cube, xi1, xi2, yi1, yi2, 0, 0)==0) {
-  n1=naxis1(cube)
-  n2=naxis2(cube)
-  n3=naxis3(cube)
-  outbuff=cube
-  if (xi1>0) {
-    x1=xi1
-    x2=xi2
-    y1=yi1
-    y2=yi2
-  } else {
-    x1=1
-    x2=n1
-    y1=1
-    y2=n2
-  }
-  if (naxis1(flags)!=n1)||(naxis2(flags)!=n2) {
-    print "CUBE_INTERP_FLAGS: Error! : cube and flags size mismatch"
-    break
-  }
+    n1=naxis1(cube)
+    n2=naxis2(cube)
+    n3=naxis3(cube)
+    outbuff=cube
+    if (xi1>0) {
+      x1=xi1
+      x2=xi2
+      y1=yi1
+      y2=yi2
+    } else {
+      x1=1
+      x2=n1
+      y1=1
+      y2=n2
+    }
+    if (naxis1(flags)!=n1)||(naxis2(flags)!=n2) {
+      print "CUBE_INTERP_FLAGS: Error! : cube and flags size mismatch"
+      break
+    }
 
-//Get range to good pixels
-  for (i=x1;i<=x2;i++) {
-    print "CUBE_INTERP_FLAGS Col: "+i
-    cx1=max(x1,i-dmax)
-    cx2=min(x2,i+dmax)
-    for (j=y1;j<=y2;j++) {
-      if (flags[i,j]==1) {
-        cy1=max(y1,j-dmax)
-        cy2=min(y2,j+dmax)
-        checksize=(cx2-cx1+1)*(cy2-cy1+1)
-//Check if any good pixels within range
-        totflags=total(flags[cx1:cx2,cy1:cy2])
-        if (totflags<checksize) {
-        xx=flags[*,j]
-        yy=flags[i,*]
-        xlo=-1
-        for (m=i;m>1;m--) {
-          isn=xx[m-1]
-          if (isn==0)&&(xlo==-1) xlo=m-1
-        }
-        xhi=-1
-        for (m=i;m<n1;m++)  {
-          isn=xx[m+1]
-          if (isn==0)&&(xhi==-1) xhi=m+1
-        }
-        ylo=-1
-        for (m=j;m>1;m--) {
-          isn=yy[m-1]
-          if (isn==0)&&(ylo==-1) ylo=m-1
-        }
-        yhi=-1
-        for (m=j;m<n2;m++)  {
-          isn=yy[m+1]
-          if (isn==0)&&(yhi==-1) yhi=m+1
-        }
-//Check maximum distance 
-        if (dmax>0) {
-          if (abs(i-xlo)>dmax) xlo=-1
-          if (abs(i-xhi)>dmax) xhi=-1
-          if (abs(j-ylo)>dmax) ylo=-1
-          if (abs(j-yhi)>dmax) yhi=-1
-        }
-//Interpolate method, in x (=1), y (=2) or both (=3) directions
-        mm=0
-        if (xlo>0) && (xhi>0) mm=mm+1
-        if (ylo>0) && (yhi>0) mm=mm+2
-/*        print "["+i+","+j+"] "+xlo+" "+xhi+" "+ylo+" "+yhi+" "+mm
-        print checksize+" "+totflags*/
-//Interpolate
-        if (mm>0) {
-          for (k=1;k<=n3;k++) {
-            ii=[0/0,0/0]
-            xdata=cube[*,j,k]
-            ydata=cube[i,*,k]
-            if (mm==1)||(mm==3) ii[1]=interp(xdata,i,xlo,xhi)
-            if (mm==2)||(mm==3) ii[2]=interp(ydata,j,ylo,yhi)
-            outbuff[i,j,k]=avg(ii) 
-          } //for k
-        } //if method
-      } //if isnan
-      } //good pixels
-    } //for j
-  } //for i
-  print "CUBE_INTERP_FLAGS: Done!"
-  cube_interp_flags=outbuff
+  //Get range to good pixels
+    for (i=x1;i<=x2;i++) {
+      print "CUBE_INTERP_FLAGS Col: "+i
+      cx1=max(x1,i-dmax)
+      cx2=min(x2,i+dmax)
+      for (j=y1;j<=y2;j++) {
+        if (flags[i,j]==1) {
+          cy1=max(y1,j-dmax)
+          cy2=min(y2,j+dmax)
+          checksize=(cx2-cx1+1)*(cy2-cy1+1)
+  //Check if any good pixels within range
+          totflags=total(flags[cx1:cx2,cy1:cy2])
+          if (totflags<checksize) {
+          xx=flags[*,j]
+          yy=flags[i,*]
+          xlo=-1
+          for (m=i;m>1;m--) {
+            isn=xx[m-1]
+            if (isn==0)&&(xlo==-1) xlo=m-1
+          }
+          xhi=-1
+          for (m=i;m<n1;m++)  {
+            isn=xx[m+1]
+            if (isn==0)&&(xhi==-1) xhi=m+1
+          }
+          ylo=-1
+          for (m=j;m>1;m--) {
+            isn=yy[m-1]
+            if (isn==0)&&(ylo==-1) ylo=m-1
+          }
+          yhi=-1
+          for (m=j;m<n2;m++)  {
+            isn=yy[m+1]
+            if (isn==0)&&(yhi==-1) yhi=m+1
+          }
+  //Check maximum distance 
+          if (dmax>0) {
+            if (abs(i-xlo)>dmax) xlo=-1
+            if (abs(i-xhi)>dmax) xhi=-1
+            if (abs(j-ylo)>dmax) ylo=-1
+            if (abs(j-yhi)>dmax) yhi=-1
+          }
+  //Interpolate method, in x (=1), y (=2) or both (=3) directions
+          mm=0
+          if (xlo>0) && (xhi>0) mm=mm+1
+          if (ylo>0) && (yhi>0) mm=mm+2
+  /*        print "["+i+","+j+"] "+xlo+" "+xhi+" "+ylo+" "+yhi+" "+mm
+          print checksize+" "+totflags*/
+  //Interpolate
+          if (mm>0) {
+            if (n3<=1) {
+              ii=[0/0,0/0]
+              xdata=cube[*,j]
+              ydata=cube[i,*]
+              if (mm==1)||(mm==3) ii[1]=interp(xdata,i,xlo,xhi)
+              if (mm==2)||(mm==3) ii[2]=interp(ydata,j,ylo,yhi)
+              outbuff[i,j]=avg(ii)
+            } else {
+              for (k=1;k<=n3;k++) {
+                ii=[0/0,0/0]
+                xdata=cube[*,j,k]
+                ydata=cube[i,*,k]
+                if (mm==1)||(mm==3) ii[1]=interp(xdata,i,xlo,xhi)
+                if (mm==2)||(mm==3) ii[2]=interp(ydata,j,ylo,yhi)
+                outbuff[i,j,k]=avg(ii) 
+              } //for k
+            }
+          } //if method
+        } //if isnan
+        } //good pixels
+      } //for j
+    } //for i
+    print "CUBE_INTERP_FLAGS: Done!"
+    cube_interp_flags=outbuff
   }
 }
 
@@ -1220,4 +1246,24 @@ function cube_apply_snr, signalcube, snr, snrscale {
   }
   print "CUBE_APPLY_SNR: Finished!"
   cube_apply_snr=outbuff
+}
+
+function cube_redisp_simple, cube, spectrum {
+//Redisperse cube spectral axis to spectrum
+  n1=naxis1(cube)
+  n2=naxis2(cube)
+  n3=naxis3(cube)
+  nn=naxis1(spectrum)
+  newcube=resize(cube,n1,n2,nn)
+  olddisp=spectrum_make_disp_data(cube,3)
+  newdisp=spectrum_make_disp_data(spectrum,1)
+  for (i=1;i<=n1;i++) {
+//  print i
+    for (j=1;j<=n2;j++) {
+      newcube[i,j,*]=interpol(cblank(cube[i,j,*]),olddisp,newdisp)
+    }
+  }
+  wcs=get_WCS_data(newdisp,1)
+  set_WCS_data newcube, wcs, 3
+  cube_redisp_simple=newcube
 }
