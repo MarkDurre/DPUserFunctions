@@ -41,6 +41,15 @@ procedure set_WCS_data, inbuff, wcs, axis {
   setfitskey inbuff,"CD"+axis+"_"+axis, wcs[3]
 }
 
+procedure copy_WCS_data, frombuff, tobuff, fromaxis, toaxis {
+//Copy WCS values from one buffer to another
+  if nparams()<3 fromaxis=1
+  if nparams()<4 toaxis=fromaxis
+  wcs=get_WCS_data(frombuff,fromaxis)
+  set_WCS_data tobuff, wcs, toaxis
+  view tobuff
+}
+
 function cvt_WCS_pixel, value, cpix, cval, cdelt, prnt {
   if nparams()<5 prnt=0
   p = ((value-cval)/cdelt+cpix)
