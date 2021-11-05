@@ -37,6 +37,17 @@ procedure velmap_flux_loc, velmp, pos {
   export "VELMAPFLUX.txt", outstr
 }
 
+function velmap_flux_fix, velmp, scale {
+//Corrects velmap fluxes from e,g, wrong flux calib
+  outbuff=velmp
+  outbuff[*,*,1]*=scale
+  outbuff[*,*,2]*=scale
+  outbuff[*,*,5]*=scale
+  outbuff[*,*,6]*=scale
+  if (naxis3(outbuff)>9) outbuff[*,*,12]*=scale
+  velmap_flux_fix=outbuff
+}
+
 function velmap_std_to_ext, velmpstd, r, fmin, vmethod, vcenter, vx, vy {
 //Convert standard QFitsView velmap to extended version
 //Clips flux<fmin
@@ -233,10 +244,11 @@ function velmap_flux, inbuff {
   }
 }
 
-function velmap_fix, inbuff, contlo, conthi, flo, fhi, vlo, vhi, wlo, whi, setvalue {
+function velmap_fix, inbuff, contlo, conthi, flo, fhi, vlo, vhi, wlo, whi, snmin, setvalue {
 //Fix velocity map
 //  print contlo,conthi,flo,fhi,vlo,vhi,wlo,whi
-  if (nparams()<10) setvalue=0/0
+  if (nparams()<10) snmin=0
+  if (nparams()<11) setvalue=0/0
   outbuff=inbuff
   n1=naxis1(inbuff)
   n2=naxis2(inbuff)
@@ -247,6 +259,7 @@ function velmap_fix, inbuff, contlo, conthi, flo, fhi, vlo, vhi, wlo, whi, setva
   flux=inbuff[*,*,2]
   vel=inbuff[*,*,3]
   fwhm=inbuff[*,*,4]
+  sn=inbuff[*,*,2]/inbuff[*,*,6] //S/N map on height
   flag[where(cblank(cont)==0)]=0 //Check for nan values
   for (i=1;i<=n1;i++) {
     for (j=1;j<=n2;j++) {
@@ -277,6 +290,13 @@ function velmap_fix, inbuff, contlo, conthi, flo, fhi, vlo, vhi, wlo, whi, setva
           if ((fwhm[i,j]<wlo)||(fwhm[i,j]>whi)) {
             flag[i,j]=-1
             print "VELMAP_FIX: FWHM fix : ["+i+","+j+"] "+fwhm[i,j]
+          }
+        }
+//Check S/N level
+        if (snmin>0) {
+          if (sn[i,j]<snmin) {
+            flag[i,j]=-1
+            print "VELMAP_FIX: S/N fix : ["+i+","+j+"] "+fwhm[i,j]
           }
         }
       }
@@ -452,6 +472,46 @@ function velmap_fix_interp, velmp, npix,x1,x2,y1,y2 {
   nn=npix
   mask=cube_set_flags_nan(velmp,1)
   velmap_fix_interp=cube_interp_flags(map,mask,x1,x2,y1,y2,nn)
+}
+
+function velmap_clean_pixels, velmp, n {
+//Clean velmap of single pixels
+//n is the max number of non-nan neighbours - by default = 0
+  if (nparams()<2) n=0
+  n1=naxis1(velmp)
+  n2=naxis2(velmp)
+  nmax=8-n //8 nearest neighbours
+  mask=fits(n1,n2)
+  mask=mask*0+1
+  for (i=1;i<=n1;i++) {
+    imin=(i==1?1:i-1)
+    imax=(i==n1?n1:i+1)
+    print "VELMAP_CLEAN_PIXELS: Col: "+i
+    for (j=1;j<=n2;j++) {
+      np=nmax //reduce the number of nearest neighbours
+      if (i==1)||(i==n1) np-=3 
+      jmin=(j==1?1:j-1)
+      jmax=(j==n2?n2:j+1)
+      if (j==1)||(j==n2) np-=3
+      p=velmp[i,j,1]
+      count=0
+      if (isnan(p)==0) { //Ignore exists Nans
+        for (k=imin;k<=imax;k++) {
+          for (l=jmin;l<=jmax;l++) {
+            nn=velmp[k,l,1]
+            count+=isnan(nn)
+//            print "     ["+k+","+l+"] - "+nn+","+count
+          }
+        }
+        if (count>=np) mask[i,j]=0/0 //Mask out pixel
+//        print "["+i+","+j+"] = "+p+" Range :" + imin+","+imax+","+jmin+","+jmax+ " NP : "+np+" Count : "+count
+//      } else {
+//        print "["+i+","+j+"] = "+p
+      }
+    }
+  }
+  print "VELMAP_CLEAN_PIXELS: Pixels Masked = "+(n1*n2-total(mask))
+  velmap_clean_pixels=velmp*mask
 }
 
 function velmap_clean_map_wvt, velmp, map, nregion {
