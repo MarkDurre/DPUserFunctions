@@ -123,6 +123,8 @@ If full path to script is not given, it is assumed to be relative to the DPUserl
 
 **function WCS_shift_pix, data, xshift, yshift, sec** - shift image or cube astrometry by altering the CRPIX1,2 values (useful to align images). *xshift, yshift* - amount to shift in axis 1 and 2 respectively, *sec* (default 0), if =0, shifts in pixels, else in seconds of arc. Note for seconds of arc shift, you must mutiply RA seconds of time by 15.
 
+**procedure copy_WCS_data, data1, data2, axis1, axis2** - copy WCS values from *data1*/*axis1* to *data2*/*axis2*.
+
 ### lib_cube
 **<u>*Data cube functions*</u>**
 
@@ -158,7 +160,11 @@ If full path to script is not given, it is assumed to be relative to the DPUserl
 
 **function cube_shift_xy, cube, xshift, yshift** - sub-pixel shifts *cube* by [*xshift, yshift*]
 
+**function cube_shift_z, cube, zshift** - sub-pixel shifts *cube* by [*zshift*] in the z (wavelength) axis.
+
 **function cube_redisp, cube, disp_old, disp_new, prnt** - redisperses *cube* (axis 3) to new from *disp_old* to *disp_new* dispersion spectra by interpolation. If *prnt* <> 0, print diagnostics.
+
+**function cube_redisp, cube, spectrum** - Simple redispersion of *cube* spectral axis to *spectrum* dispersion.
 
 **function cube_symm_flip, cube, lambda, width, part** - symmetrically flip *cube* about wavelength *lambda*, *part* =0 (left) or 1 (right), trims cube to *lambda*+-*width*
 
@@ -186,7 +192,7 @@ If full path to script is not given, it is assumed to be relative to the DPUserl
 
 **function cube_set_flags_nan, cube, layer** - set up flags image for cube_interp_flags, from a data *cube* (e.g. a velmap) from *layer*. This retuens an image with same dimensions as x and y axes as the cube, with 1 where pixel in “NaN”, 0 else.
 
-**function cube_interp_flags, cube, flags, xi1, xi2, yi1, yi2, dmax** - interpolate over pixels in *cube* where *flags* is set to 1, 0 = good values to use for interpolation. [*xi1:xi2, yi1:yi2*] is region to interpolate (*xi1* = 0 - do whole area). *dmax* is maximum distance from “good” pixels. *flags* can be generated from **cube_set_flags_nan**.
+**function cube_interp_flags, cube, flags, xi1, xi2, yi1, yi2, dmax** - interpolate over pixels in *cube* where *flags* is set to 1, 0 = good values to use for interpolation. [*xi1:xi2, yi1:yi2*] is region to interpolate (*xi1* = 0 - do whole area). *dmax* is maximum distance from “good” pixels (by default = 1). *flags* can be generated from **cube_set_flags_nan**.
 
 **function cube_deslope, cube, mask, wlflag** - deslope *cube* for each spectrum using **spectrum_deslope**. *wlflag* = 1 if mask values in wavelength
 
@@ -234,7 +240,11 @@ If full path to script is not given, it is assumed to be relative to the DPUserl
 
 **function image_interp_flags, image, flags, xi1, xi2, yi1, yi2, dmax** - Interpolate *image* over flagged spaxels, *flags* - 2D data with same x/y axes size as image, with value=1 to be interpolated, value=0 - good pixels, [*xi1:xi2, yi1:yi2*] - co-ordinate range to interpolate over. If not input, then do all spaxels. *dmax* - maximum pixel distance for interpolation (=0 don't test)
 
-**function image_cut, image, x, y, a** - does **twodcut** at [*x,y*] angle *a* and reset WCS correctly
+**function image_cut, image, x, y, a** - does **twodcut** at [*x,y*] angle *a* and reset WCS correctly.
+
+**function image_coord_map, image** - returns WCS coordinates of corner and central pixels as a 2 x 5 array, with correct projection, using "worldpos" function.
+
+**function image_trim, image, x, y, w** - returns square image [*x-w:x+w,y-w:y+w*]. Useful for cutouts from a large image.
 
 ### lib_spectrum
 **<u>*Spectrum functions*</u>**
@@ -251,7 +261,12 @@ If full path to script is not given, it is assumed to be relative to the DPUserl
 
 **function spectrum_deslope, spectrum, mask, wlflag** - deslope spectrum, using **spectrum_cont_slope** and *mask/wlflag* parameters
 
-**function spectrum_polyfit, spectrum, order, mask, wlflag** - fit polynomial of *order* to  masked *spectrum* with *mask*, *wlflag*. Returns n x 3 array, 1st row=original data masked, 2nd row=polynomial fit, 3rd row = residual
+**function spectrum_polyfit, spectrum, order, mask, wlflag** - fit polynomial of *order* to  masked *spectrum* with *mask*, *wlflag*. Returns n x 5 array, 
+1 - original data with mask applied
+2 - polynomial fit
+3 - residual
+4 - spectrum-polynomial (continuum subtracted)
+5 - spectrum/polynomial (continuum normalised)
 
 **function spectrum_symm_flip, spectrum, lambda, part** - split *spectrum* at wavelength *lambda*, flip and add, taking left (*part*=0) or right (*part*=1) sections
 
@@ -354,13 +369,16 @@ If full path to script is not given, it is assumed to be relative to the DPUserl
 
 **function velmap_rescale, velmapext, scale** - rescales extended *velmap* flux data (e.g. flux calib change)
 
-<a name="velmap_fix"></a>**function velmap_fix, velmap, contlo, conthi, flo, fhi, vlo, vhi, wlo, whi, setvalue** - clean up *velmap* (either standard or extended form), setting values out of range to *setvalue*. Value ranges 
+<a name="velmap_fix"></a>**function velmap_fix, velmap, contlo, conthi, flo, fhi, vlo, vhi, wlo, whi, snmin, setvalue** - clean up *velmap* (either standard or extended form), setting values out of range to *setvalue*. Value ranges 
 
 - *contlo, conthi* - continuum
 - *flo, fhi* - flux
 - *vlo, vhi* - wavelength
 - *wlo, whi* - fwhm
+- *snmin* - signal/noise minumum, detemined by velmap height and height error at each pixel.
 - *setvalue* - value to set where spaxel is out of range (default 0/0)
+
+**function velmap_clean_pixels, velmap, n** - reverse of velmap_fix_interp, removes lone pixels that have Nan as neighbours. *n* is the maximum number of non-Nan neighbours, by default = 0 (i.e. pixel must be surrounded bu Nans)
 
 **function velmap_extcorr, velmap, av, lambda** - extinction correct velocity map *velmap* at wavelength *lambda* (in nm), *av*=extinction A_V
 
@@ -386,6 +404,8 @@ If full path to script is not given, it is assumed to be relative to the DPUserl
 **function velmap_from_profit, profit_data** - convert *profit_data* PROFIT cube format (see Riffel, R. A. 2010, Astrophys Space Sci, 327, 239, http://arxiv.org/abs/1002.1585) to standard velmap format.
 
 **function velmap_derotate, cube, velmodel, lambdac** - Subtract velocity model *velmodel* from a data *cube*, where the velocity is determined from central wavelength *lambdac*. This shifts each spaxel spectrum by a wavelength amount calculated by the central wavelength and velocity model. This might be used if you have, say, a stellar rotation model and you want to apply it to gas emission lines.
+
+**function velmap_flux_fix, velmap, scale** - rescale velmap fluxes (both standard and extended types) by scale. This corrects for e.g. incorrect flux calibration.
 
 ### lib_chmap 
 **<u>*Channel map functions*</u>**
@@ -534,7 +554,7 @@ All the "lib\_astro\_*.dpuser" functions are executed from the "lib\_astro.dpuse
 
 **function bb_div, spectrum, temp, wlflag** - divide *spectrum* by black-body at temperature *temp* and wavelength scale flag *wlflag*.
 
-**function flux_ul, data, wl, width, ignore** - find upper limit for flux over spectral range wavelength ± width *[wl-width, wl+width]*, 3-sigma on noise (standard deviation of wavelength range). This function assumes spectrum is in the last axis and has the correct WCS. If *ignore* is given, then that value is not included in calculating the limit (e.g. values of zero as null).
+**function flux_ul, data, wl, width, deslope, ignore** - find upper limit for flux over spectral range wavelength ± width *[wl-width, wl+width]*, 3-sigma on noise (standard deviation of wavelength range). This function assumes spectrum is in the last axis and has the correct WCS. The continuum is slope corrected by *deslope* polynomial fit (by default = 0, which means don't fit the continuum). If *ignore* is given, then that value is not included in calculating the limit (e.g. values of zero as null) (by default *ignore*=0/0).
 
 ### lib_astro_mapping
 
