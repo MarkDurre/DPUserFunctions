@@ -100,38 +100,41 @@ function astro_extn_correct_lambda, data, lambda, ebv, law {
   astro_extn_correct_lambda=data/l
 }
 
-function astro_extn_al_cal, lambda, rv {
-//Calculate Calzetti+00 http://adsabs.harvard.edu/abs/2000ApJ...533..682C
-//extinction curve for wavelngth in nm
-  if nparams()<2 rv=4.05
-  l=lambda/1000 //Convert to um
-  f=l*0
-  nl=nelements(l)
-  lmax=max(l)
-  lmin=min(l)
-  if (lmax>2.2)||(lmin<0.12) {
-    print "ASTRO_EXTN_AL_CAL: Wavelength out of range for CAL calculation"
-    astro_extn_al_cal=0
-    break
+function astro_extn_al_ccm_func, lambda, rv {
+//New coefficients from O'Donnell (1994)
+  c1 = [ 1. , 0.104,   -0.609,    0.701,  1.137, -1.718,   -0.827,    1.647, -0.505 ]
+  c2 = [ 0.,  1.952,    2.908,   -3.989, -7.985, 11.102,    5.491,  -10.805,  3.347 ]
+  c3 = [ -1.073, -0.628,  0.137, -0.070 ]
+  c4 = [ 13.670,  4.257, -0.420,  0.374 ]
+  if nparams()<2 rv=3.1
+  x=1000/lambda//Convert to inverse um
+  if ((x>=0.3)&&(x<1.1)) { //NIR 910-3333 nm
+    a = 0.574*x^1.61
+    b = -0.527*x^1.61
   }
-  if (nl>1) {
-    for (i=1;i<=naxis1(l);i++) {
-      if (l[i]<0.6300) f[i]=2.569*poly(1/l[i],[-2.156,+1.509,-0.198,+0.011])+rv
-      if (l[i]>=0.6300) f[i]=2.569*(-1.857+1.040/l[i])+rv
+  if ((x>=1.1)&&(x<3.3)) { //Optical/IR 303-910 nm
+    y=x-1.82
+    a = poly(y,c1)
+    b = poly(y,c2)
+  }
+  if ((x>=3.3)&&(x<8)) { //UV 125-303 nm
+    fa=0
+    fb=0
+    y=x
+    if (x>5.9) {
+      y1=x-5.9
+      fa = -0.04473 * y1^2 - 0.009779 * y1^3
+      fb = 0.2130 * y1^2  +  0.1207 * y1^3
     }
-  } 
-  if (nelements(l)==1) {
-    if (l<0.6300) f=2.569*poly(1/l,[-2.156,+1.509,-0.198,+0.011])+rv
-    if (l>=0.6300) f=2.569*(-1.857+1.040/l)+rv
+    a =  1.752 - 0.316*y - (0.104 / ( (y-4.67)^2 + 0.341 )) + fa
+    b = -3.090 + 1.825*y + (1.206 / ( (y-4.62)^2 + 0.263 )) + fb
   }
-  astro_extn_al_cal=f
-}
-
-function astro_extn_cal, lambda, ebv, rv {
-  if (nparams()<3) rv=4.05
-  if (nparams()<2) ebv=1
-  fact=10^(0.4*ebv*astro_extn_al_cal(lambda, rv))
-  astro_extn_cal=1/fact
+  if ((x>=8)&&(x<11)) { //Far UV 90-125 nm
+    y=x-8
+    a = poly(y, c3)
+    b = poly(y, c4)
+  }
+  astro_extn_al_ccm_func = (a + b/rv)
 }
 
 function astro_extn_al_ccm, lambda, rv {
@@ -139,94 +142,30 @@ function astro_extn_al_ccm, lambda, rv {
 //Including the update for the near-UV given by O'Donnell (1994, ApJ, 422, 158)
 //Extinction curve for wavelngth in nm
   if (nparams()<2) rv=3.1
-  x=1000/lambda //Convert to 1/um
-  f=x*0
-//New coefficients from O'Donnell (1994)
-  c1 = [ 1. , 0.104,   -0.609,    0.701,  1.137, -1.718,   -0.827,    1.647, -0.505 ]
-  c2 = [ 0.,  1.952,    2.908,   -3.989, -7.985, 11.102,    5.491,  -10.805,  3.347 ]
-  c3 = [ -1.073, -0.628,  0.137, -0.070 ]
-  c4 = [ 13.670,  4.257, -0.420,  0.374 ]
-  nl=nelements(x)
-  xmax=max(x)
-  xmin=min(x)
-  if (xmax>11)||(xmin<0.3) {
+  f=lambda*0
+  nl=nelements(lambda)
+  xmax=max(lambda)
+  xmin=min(lambda)
+  if (xmax>3333)||(xmin<90) {
     print "ASTRO_EXTN_AL_CCM : Wavelength out of range for CCM calculation"
     astro_extn_al_ccm=0
     break
   }
-  if (nl>1) {
-    for (i=1;i<=nl;i++) {
-      if ((x[i]>=0.3)&&(x[i]<1.1)) { //NIR 910-3333 nm
-        a = 0.574*x[i]^1.61
-        b = -0.527*x[i]^1.61
-      }
-      if ((x[i]>=1.1)&&(x[i]<3.3)) { //Optical/IR 303-910 nm
-        y=x[i]-1.82
-        a = poly(y,c1)
-        b = poly(y,c2)
-      }
-      if ((x[i]>=3.3)&&(x[i]<8)) { //UV 125-303 nm
-        fa=0
-        fb=0
-        y=x[i]
-        if (x[i]>5.9) {
-          y1=x[i]-5.9
-          fa = -0.04473 * y1^2 - 0.009779 * y1^3
-          fb = 0.2130 * y1^2  +  0.1207 * y1^3
-        }
-        a =  1.752 - 0.316*y - (0.104 / ( (y-4.67)^2 + 0.341 )) + fa
-        b = -3.090 + 1.825*y + (1.206 / ( (y-4.62)^2 + 0.263 )) + fb
-      }
-      if ((x[i]>=8)&&(x[i]<11)) { //Far UV 90-125 nm
-        y=x[i]-8
-        a = poly(y, c3)
-        b = poly(y, c4)
-      }
-      f[i] = (a + b/rv)
-    }
-  } 
   if (nl==1) {
-      if ((x>=0.3)&&(x<1.1)) { //NIR 910-3333 nm
-        a = 0.574*x^1.61
-        b = -0.527*x^1.61
-      }
-      if ((x>=1.1)&&(x<3.3)) { //Optical/IR 303-910 nm
-        y=x-1.82
-        a = poly(y,c1)
-        b = poly(y,c2)
-      }
-      if ((x>=3.3)&&(x<8)) { //UV 125-303 nm
-        fa=0
-        fb=0
-        y=x
-        if (x>5.9) {
-          y1=x-5.9
-          fa = -0.04473 * y1^2 - 0.009779 * y1^3
-          fb = 0.2130 * y1^2  +  0.1207 * y1^3
-        }
-        a =  1.752 - 0.316*y - (0.104 / ( (y-4.67)^2 + 0.341 )) + fa
-        b = -3.090 + 1.825*y + (1.206 / ( (y-4.62)^2 + 0.263 )) + fb
-      }
-      if ((x>=8)&&(x<11)) { //Far UV 90-125 nm
-        y=x-8
-        a = poly(y, c3)
-        b = poly(y, c4)
-      }
-      f = (a + b/rv)
+    f=astro_extn_al_ccm_func(lambda, rv)
+  } else {
+    for (i=1;i<=nl;i++) {
+      f[i]=astro_extn_al_ccm_func(lambda[i], rv)
+    }
   }
   astro_extn_al_ccm=f
 }
 
-function astro_extn_const_ccm, lambda1, lambda2 {
+function astro_extn_const_ccm, lambda1, lambda2, rv {
 //Calculate constant in extinction law between two wavelengths for E(B-V)
 //CCM calculation
-  astro_extn_const_ccm=2.5/3.1/(astro_extn_al_ccm(lambda1)-astro_extn_al_ccm(lambda2))
-}
-
-function astro_extn_const_cal, lambda1, lambda2 {
-//Calculate constant is extinction law between two wavelengths for E(B-V)
-//CCM calculation
-  astro_extn_const_cal=2.5/4.05/(astro_extn_al_cal(lambda1)-astro_extn_al_cal(lambda2))
+  if nparams()<3 rv=3.1
+  astro_extn_const_ccm=2.5/rv/(astro_extn_al_ccm(lambda1)-astro_extn_al_ccm(lambda2))
 }
 
 function astro_extn_ccm, lambda, ebv, rv {
@@ -238,38 +177,98 @@ function astro_extn_ccm, lambda, ebv, rv {
   if (nparams()<3) rv=3.1
   if (nparams()<2) ebv=1
 //  print "astro_extn_CCM - a : "+a+" b : "+b
-  fact=10^(0.4*astro_extn_al_ccm(lambda, rv)*ebv)
+  fact=10^(0.4*rv*astro_extn_al_ccm(lambda, rv)*ebv)
   astro_extn_ccm=1/fact
 }
 
-function astro_extn_cal, lambda, ebv, rv {
+function astro_extn_al_cal_func, l, rv {
+  if nparams()<2 rv=4.05
+  if (l<0.6300) f=2.569*poly(1/l,[-2.156,+1.509,-0.198,+0.011])+rv
+  if (l>=0.6300) f=2.569*(-1.857+1.040/l)+rv
+  astro_extn_al_cal_func=f
+}
+
+function astro_extn_al_cal, lambda, rv {
 //Calculate Calzetti+00 http://adsabs.harvard.edu/abs/2000ApJ...533..682C
 //extinction curve for wavelength in nm
-  if (nparams()<3) rv=4.05
-  if (nparams()<2) ebv=1
+  if (nparams()<2) rv=4.05
   l=lambda/1000 //Convert to um
   f=l*0
-  nl=nelements(l)
   lmax=max(l)
   lmin=min(l)
+  nl=nelements(l)
   if (lmax>2.2)||(lmin<0.12) {
     print "ASTRO_EXTN_CAL : Wavelength out of range for CAL calculation"
     astro_extn_cal=0
     break
   }
-  if (nl>1) {
-    for (i=1;i<=naxis1(l);i++) {
-      if (l[i]<0.6300) f[i]=2.569*poly(1/l[i],[-2.156,+1.509,-0.198,+0.011])+rv
-      if (l[i]>=0.6300) f[i]=2.569*(-1.857+1.040/l[i])+rv
+  if (nl==1) {
+    f=astro_extn_al_cal_func(l, rv)
+  } else {
+    for (i=1;i<=nl;i++) {
+      f[i]=astro_extn_al_cal_func(l[i], rv)
     }
-  } 
-  if (nelements(l)==1) {
-    if (l<0.6300) f=2.569*poly(1/l,[-2.156,+1.509,-0.198,+0.011])+rv
-    if (l>=0.6300) f=2.569*(-1.857+1.040/l)+rv
   }
-  fact=10^(0.4*ebv*f)
+  astro_extn_al_cal=f/rv
+}
+
+function astro_extn_cal, lambda, ebv, rv {
+  if (nparams()<3) rv=4.05
+  if (nparams()<2) ebv=1
+  fact=10^(0.4*ebv*rv*astro_extn_al_cal(lambda, rv))
   astro_extn_cal=1/fact
 }
+
+function astro_extn_const_cal, lambda1, lambda2, rv {
+//Calculate constant in extinction law between two wavelengths for E(B-V)
+//CAL calculation
+  if nparams()<3 rv=4.05
+  astro_extn_const_cal=2.5/rv/(astro_extn_al_cal(lambda1,rv)-astro_extn_al_cal(lambda2,rv))
+}
+
+function astro_extn_const, lambda1, lambda2, law, rv {
+//Calculate constant in extinction law between two wavelengths
+  if nparams()<3 law=0
+  if nparams()<4 {
+    if law==0 rv=3.1
+    if law==1 rv=4.05
+  }
+  astro_extn_const=2.5/rv/(astro_extn_al(lambda1,law,rv)-astro_extn_al(lambda2,law,rv))
+}
+
+function astro_extn_al, lambda, law, rv {
+//Calculate relative extinction for lambda for different laws and rv
+  if nparams()<3 law=0
+  if nparams()<4 {
+    if law==0 rv=3.1
+    if law==1 rv=4.05
+  }
+  if law==0 {
+    f=astro_extn_al_ccm(lambda, rv)
+  }
+  if law==1 {
+    f=astro_extn_al_cal(lambda, rv) 
+  }
+  astro_extn_al=f 
+}
+
+function astro_extn, lambda, ebv, law, rv {
+//Calculate relative extinction for lambda for different laws and rv
+  if nparams()<3 law=0
+  if nparams()<4 {
+    if law==0 rv=3.1
+    if law==1 rv=4.05
+  }
+  if nparams()<2 ebv=1
+  if law==0 {
+    f=astro_extn_ccm(lambda, ebv, rv)
+  }
+  if law==1 {
+    f=astro_extn_cal(lambda, ebv, rv) 
+  }
+  astro_extn=f 
+}
+
 
 function astro_extn_spectrum_fitwext, inbuff, template, extinction, wlflag {
 //Fit spectrum to template with extinction
@@ -280,8 +279,3 @@ function astro_extn_spectrum_fitwext, inbuff, template, extinction, wlflag {
   rext=astro_extinction_correct(rinbuff, -1*extinction)
   astro_extn_spectrum_fitwext=rext/template
 }
-
-
-
-  
-
