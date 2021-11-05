@@ -69,7 +69,7 @@ function io_text_FITS_3D, inbuff, nx, ny, nz, blank {
 //Input format is "i j v1 v2..."
 //This allows for blank elements
 //"blank" is the value for no input
-  nlines=nelements(inbuff)
+  nlines=naxis2(inbuff)
   outbuff=fits(nx,ny,nz) //Create fits file with given dimensions
   outbuff[*,*,*]=blank
   for (i=1;i<=nlines;i++) {
