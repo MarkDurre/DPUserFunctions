@@ -1,5 +1,5 @@
-dpuserdir=getenv("DPUSER_DIR")
-run dpuserdir+"/Functions/lib_wcs.dpuser"
+//Position/velocity diagrams
+//Requires lib_wcs
 
 function pv_array, cube, ystart, wslit, nslit, lcent, lwidth {
 //Create p-v diagram set of psudo longslits along x axis

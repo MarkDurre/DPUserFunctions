@@ -1,9 +1,6 @@
-dpuserdir=getenv("DPUSER_DIR")
-run dpuserdir+"/Functions/lib_wcs.dpuser"
-run dpuserdir+"/Functions/lib_masking.dpuser"
-run dpuserdir+"/Functions/lib_spectrum.dpuser"
-
 //Astronomical function - black-body, redshift, extinction
+//Requires lib_wcs, lib_spectrum, lib_masking
+
 function redshift_data, inbuff, z, rdflag, nanflag, smth, fcons {
 //Redshift data, always assume that last axis in spectral one
 //rdflag=1, redisperse final spectrum to original wavelength range

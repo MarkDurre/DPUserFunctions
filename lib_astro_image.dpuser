@@ -1,7 +1,6 @@
-dpuserdir=getenv("DPUSER_DIR")
-run dpuserdir+"/Functions/lib_masking.dpuser"
-
 //Astronomical functions on images
+//Requires lib_masking
+
 function img_flux_to_mag, inbuff, zpm, ssize, flag {
 //Convert flux or counts to magnitude per square arcsec
 //ssize - spaxel size in arcsec (assume square spaxels)

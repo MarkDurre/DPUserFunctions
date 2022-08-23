@@ -1,7 +1,6 @@
-dpuserdir=getenv("DPUSER_DIR")
-run dpuserdir+"/Functions/lib_wcs.dpuser"
-
 //Astronomical functions on spectra
+//Requires lib_wcs
+
 function spec_fluxdens, inbuff, l1, l2, prflag {
 //Compute the flux density average between wavelengths l1 and l2 for either spectrum or cube
 //Returns either a single number (spectrum) or image (cube)

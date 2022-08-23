@@ -285,7 +285,7 @@ If full path to script is not given, it is assumed to be relative to the DPUserl
 - *daxis* - spectral axis of data (default is last axis of *data*)
 - *xmin, delt, npix* - dispersion solution if data=0
 - *zero* - if =1, then set redispersed spectra to zero where out of original range, rather than NaN (=0)
-- *norms* - if =1, normalize dispersed spectra [0,1] (default 0)
+- *norms* - if =1, normalize dispersed spectra \[0,1\] (default 0)
 - *prnt*  - if =1, print spectral range information (default 0)
 - *fluxcons*  - if = 1, spectrum is flux, rather than flux density, so conserve total (default 0)
 
@@ -569,7 +569,7 @@ All the "lib\_astro\_*.dpuser" functions are executed from the "lib\_astro.dpuse
 
 **function map\_compare\_basis, image1, image2, basex0, basey0, basex100, basey100, lgaxesflag** - plots basis distance (AGN mixing ratio) from basis points [*basex0, basey0*] to [*basex100, basey100*] . *lgaxesflag* - 1=take log of *image1*, *image2* before calculation
 
-**function map\_regime\_ir, image1, image2, a1, a2, a3, b1, b2** - create position excitation map. *a1, a2, a3* are the SF, AGN, LINER, b1, b2If a1=0, use the standard infrared Riffel 2013 excitation regimes. *image1* is H~2~/Brγ, *image2* is [Fe II]/Paβ. Both images are in log values. Output values at each spaxel are SF=1, AGN=2, LINER=3, TO1=4, TO2=5
+**function map\_regime\_ir, image1, image2, a1, a2, a3, b1, b2** - create position excitation map. *a1, a2, a3* are the SF, AGN, LINER, b1, b2If a1=0, use the standard infrared Riffel 2013 excitation regimes. *image1* is H$_2$/Brγ, *image2* is [Fe II]/Paβ. Both images are in log values. Output values at each spaxel are SF=1, AGN=2, LINER=3, TO1=4, TO2=5
 
 **function map\_regime\_optical, image1, image2, typeflag**- create position excitation map for optical line ratios (*image1* and *image2*) from Kewley et al. 2006 regimes. For *image1*, *typeflag* = 1 ([N II]/Hα diagram), =2 ([S II]/Hα diagram), =3 ([O I]/Hα diagram). *image2* always has [OIII]/Hβ. Returns at each pixel 1=SF, 2=Seyfert, 3=LINER, 4=Composite.
 

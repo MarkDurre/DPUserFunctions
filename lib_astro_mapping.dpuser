@@ -1,7 +1,6 @@
-dpuserdir=getenv("DPUSER_DIR")
-run dpuserdir+"/Functions/lib_general.dpuser"
-
 //Mapping functions for excitation diagrams
+//Requires lib_general
+
 function map_compare_diagram, inbuff1, inbuff2, min1, max1, min2, max2, nbin, lgaxes {
 //Map diagram density plot
 //inbuff1, inbuff2 - value maps, x and y axes

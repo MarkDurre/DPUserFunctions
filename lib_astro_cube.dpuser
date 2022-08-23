@@ -1,8 +1,6 @@
-dpuserdir=getenv("DPUSER_DIR")
-run dpuserdir+"/functions/lib_wcs.dpuser"
-run dpuserdir+"/functions/lib_cube.dpuser"
-
 //Astronomical functions on cubes
+//Requires lib_wcs, lib_cube
+
 function cube_apspec, cube, ox, oy, or, bx, by, br, br2, mask {
 //Get star spectrum from aperture using circular aperture and background, plus a mask circle
 //Inputs - cube is 3D cube of star, used for both telluric and flux calibration

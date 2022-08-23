@@ -1,3 +1,5 @@
+//Astronomical data and calculations
+
 /* Gravitational constant */
 function G {
   G = 6.673e-11

@@ -1,7 +1,6 @@
-dpuserdir=getenv("DPUSER_DIR")
-run dpuserdir+"/Functions/lib_header.dpuser"
-
 //WCS functions
+//Requires lib_header
+
 function get_WCS_data, inbuff, axis {
   out=floatarray(3)
   ax=axis

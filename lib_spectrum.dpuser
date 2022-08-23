@@ -1,7 +1,5 @@
-dpuserdir=getenv("DPUSER_DIR")
-run dpuserdir+"/Functions/lib_general.dpuser"
-run dpuserdir+"/Functions/lib_cube.dpuser"
-run dpuserdir+"/Functions/lib_wcs.dpuser"
+//Spectrum (1D) functions
+//Requires lib_wcs, lib_general
 
 function spectrum_wave_to_vel, inbuff, clambda {
 //Change spectrum axis from wavelength to velocity, zero velocity at clambda
@@ -417,6 +415,8 @@ function spectrum_sn, inbuff, window {
 //Estimate spectrum S/N from itself - not 100% accurate but good for comparisons
 //Window is smoothing and noise estimation window in pixels - default is 10% of spectrum length
   if nparams()<2 window=int(naxis1(inbuff)*0.1)
+  n1=naxis1(inbuff)
+  n2=naxis2(inbuff)
   signal=smooth(cblank(inbuff), window) //Estimate signal
   no1=inbuff-signal
   no2=no1*0
@@ -424,7 +424,11 @@ function spectrum_sn, inbuff, window {
     no2[i]=stddev(no1[i-int(window/2):i+int(window/2)],0)
   }
   no2[where(inbuff==0)]=0/0
-  spectrum_sn=signal/no2
+  outbuff=resize(inbuff,n1,3)*0
+  outbuff[*,1]=signal
+  outbuff[*,2]=no2
+  outbuff[*,3]=signal/no2
+  spectrum_sn=outbuff
 }
 
 function spectrum_sn_wl, inbuff, lambda, width {
@@ -481,7 +485,7 @@ function spectrum_comb_sigma, inbuff, sigma, toler, omit {
   print "Omit value : "+omit*/
   outbuff=inbuff[*,1]*0
   for (i=1;i<=n1;i++) {
-    print "SPECTRUM_COMB_SIGMA Row: "+i
+//    print "SPECTRUM_COMB_SIGMA Row: "+i
     tol=1
     s=1
     while (tol==1)&&(s>0) {

@@ -1,3 +1,5 @@
+//Astronomical kinematic functions for rotational motion
+
 function velmodel_geom, x0, y0, psi0, inc, xsize, ysize {
 //Compute geometry components for velocity profile model
 //These do not depend on the actual profile form, just on the inclination and line of nodes

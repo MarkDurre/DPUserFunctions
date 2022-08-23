@@ -1,4 +1,5 @@
-//Masking functions
+//2D (image) Masking functions
+
 function mask_from_image, inbuff, level, low {
 //Create a mask from image, set to 1 for values >= level, set to low (default 0) otherwise
   if nparams()<3 low=0

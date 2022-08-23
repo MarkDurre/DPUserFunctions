@@ -1,8 +1,5 @@
-dpuserdir=getenv("DPUSER_DIR")
-run dpuserdir+"/Functions/lib_wcs.dpuser"
-run dpuserdir+"/Functions/lib_general.dpuser"
-run dpuserdir+"/Functions/lib_masking.dpuser"
-run dpuserdir+"/Functions/lib_image.dpuser"
+//Data cube (3D) functionality
+//Requires lib_wcs, lib_general, lib_masking, lib_image
 
 function cube_test_dim, inbuff, x1, x2, y1, y2, z1, z2 {
 //Test for cube dimensions
@@ -94,7 +91,7 @@ function cube_trim_wl, cube_in, l1, l2, value, truncate {
   if ((pl2>=1) && (pl2<=n3)) {
      cube_out[*,*,pl2:n3]=value
   }
-  if (trim>0) cube_out=cube_out[*,*,pl1+1:pl2-1]
+  if (truncate>0) cube_out=cube_out[*,*,pl1+1:pl2-1]
   cube_trim_wl=cube_out
 }
 
@@ -168,7 +165,8 @@ function cube_clip_y, cube_in, lvl, thresh {
 function cube_interp_z, cube_in, x1, x2, y1, y2, z1,z2 {
 //Smooth over bad pixels
 //   check_limits cube_in, x1, x2, y1, y2, z1, z2, 3
-   if (cube_test_dim(cube_in, x1, x2, y1, y2, z1, z2)==0) {
+  cube_interp_z=0
+ if (cube_test_dim(cube_in, x1, x2, y1, y2, z1, z2)==0) {
    z0=z1-1
    z3=z2+1
    outbuff=cube_in
@@ -184,7 +182,7 @@ function cube_interp_z, cube_in, x1, x2, y1, y2, z1,z2 {
      }
    }
    cube_interp_z=outbuff
-   }
+ }
 }
 
 function cube_interp_x, cube_in, x1, x2, y1, y2, z1,z2 {
@@ -934,6 +932,73 @@ function cube_from_image_spectrum, image, spectrum, clipf {
   print "CUBE_FROM_IMAGE_SPECTRUM : Cube dimensions : "+naxis1(cube)+"x"+naxis2(cube)+"x"+naxis3(cube)
   cube_from_image_spectrum=cube
 }
+/*
+dd1="/Volumes/Data/"
+dd2="D:/Users/Mark Durre/""
+*/
+/*
+buffer1 = readfits(dd1+"OneDrive - Swinburne University/Postreduction/NGC7743/B-ScienceCubesReg/NGC7743_K_050_GNI_20131020_0066.fits")
+buffer2 = readfits(dd1+"OneDrive - Swinburne University/Postreduction/NGC7743/B-ScienceCubesReg/NGC7743_K_050_GNI_20131020_0068.fits")
+buffer3 = readfits(dd1+"OneDrive - Swinburne University/Postreduction/NGC7743/B-ScienceCubesReg/NGC7743_K_050_GNI_20131020_0069.fits")
+buffer4 = readfits(dd1+"OneDrive - Swinburne University/Postreduction/NGC7743/B-ScienceCubesReg/NGC7743_K_050_GNI_20131020_0071.fits")
+buffer5 = readfits(dd1+"OneDrive - Swinburne University/Postreduction/NGC7743/B-ScienceCubesReg/NGC7743_K_050_GNI_20131020_0072.fits")
+buffer6 = readfits(dd1+"OneDrive - Swinburne University/Postreduction/NGC7743/B-ScienceCubesReg/NGC7743_K_050_GNI_20131020_0074.fits")
+inbuff=list(buffer1,buffer2,buffer3,buffer4,buffer5,buffer6)
+sigma=2.5;toler=0.1
+*/
+function cube_comb_sigma, inbuff, sigma, toler{
+//Sigma-clip each spectrum for multiple cubes (up to 10) 
+//inbuff is multi-extension fits list
+//Created by list(buffer1, buffer2,...)
+//Sigma is # of SD to clip at (e.g. 2) - default 2.5
+//Toler is tolerance for change in each clipping cycle - default 0.1
+  if nparams()<3 toler=0.1
+  if nparams()<2 sigma=2.5
+  navg=nelements(inbuff)
+  outbuff=inbuff[0]
+  n1=naxis1(outbuff)
+  n2=naxis2(outbuff)
+  n3=naxis3(outbuff)
+  arr=fits(n3,navg)
+  ttemp=arr*0+1
+  print "CUBE_COMB_SIGMA: Axis sizes - "+n1+"x"+n2+"x"+n3
+  print "CUBE_COMB_SIGMA: # of cubes - "+navg
+  print "CUBE_COMB_SIGMA: sigma clip - "+sigma
+  print "CUBE_COMB_SIGMA: tolerance  - "+toler
+  totblanked=0
+  for (i=1;i<=n1;i++) {
+    print "CUBE_COMB_SIGMA: Col "+i
+    for (j=1;j<=n2;j++) {
+//      print "  CUBE_COMB_SIGMA: Row "+j
+      for (k=1;k<=navg;k++) {
+        arr[*,k]=inbuff[k-1][i,j,*]
+      }
+      data=arr
+      tol=1
+      s=1
+      while (tol==1)&&(max(s)>0) {
+        m=median(data,/y) //Median of spectra
+        s=stddev(data,/y) //Std dev of spectra
+        dev=abs((data-m)/s) //SD for each spectral element
+        t=ttemp //Where deviations > sigma
+        t[where(dev>sigma)]=0/0
+        data*=t //Blank out clipped pixels
+        cntblank=n3*navg-total(t)
+        totblanked+=cntblank
+//        print "Blanked: "+cntblank
+        snew=stddev(data,/y)
+        tt=max((s-snew)/snew) //Compute tolerance value
+//        print "Sigma tolerance: "+tt
+        if (tt<=toler) tol=0
+        if (cntblank==0) tol=0
+      }
+      outbuff[i,j,*]=avg(data,/y)
+    }
+  }
+  print "CUBE_COMB_SIGMA: Finished!"
+  print "CUBE_COMB_SIGMA: Pixels clipped - "+totblanked
+  cube_comb_sigma=outbuff
+}
 
 function cube_combine, inbuff, mode, omit {
 //Average/median multiple cubes (up to 10) at each spectral element
@@ -945,9 +1010,11 @@ function cube_combine, inbuff, mode, omit {
   n1=naxis1(outbuff)
   n2=naxis2(outbuff)
   n3=naxis3(outbuff)
+  if (mode==0) mt="Average"
+  if (mode==1) mt="Median"
   print "CUBE_COMBINE: Axis sizes - "+n1+"x"+n2+"x"+n3
   print "CUBE_COMBINE: # of cubes - "+navg
-  print "CUBE_COMBINE: Mode - "+(mode==0 ? "Average":"Median")
+  print "CUBE_COMBINE: Mode - "+mt
   selement=fits(n1,n2,navg)
   ic=20
   for (k=1;k<=n3;k++) { //Go through each spectral element
@@ -1121,6 +1188,7 @@ function cube_rebinxy, cube, xscale, yscale, kernel {
   nx=(xscale==1 ? n1 : int(abs(n1*xscale)+1))
   ny=(yscale==1 ? n2 : int(abs(n2*yscale)+1))
   print "CUBE_REBINXY: Interpolating by 2D polynomial..."
+  print "CUBE_REBINXY: Old cube size = "+n1 + "x"+n2+"x"+n3
   resize outbuff, nx, ny, n3
   xrebin=[1:nx]*n1/nx
   yrebin=[1:ny]*n2/ny
@@ -1156,7 +1224,6 @@ function cube_rebinxy, cube, xscale, yscale, kernel {
     }
     outbuff[*,*]=imgnew*total(img)/total(imgnew)
   }
-  print "CUBE_REBINXY: Old cube size = "+n1 + "x"+n2+"x"+n3
   print "CUBE_REBINXY: New cube size = "+nx + "x"+ny+"x"+n3
   print "CUBE_REBINXY: Scale factor X= "+xscale+" Y= "+yscale
   print "CUBE_REBINXY: Binning kernel = "+kernel
@@ -1172,6 +1239,11 @@ function cube_rebinx, cube, xscale {
   n1=naxis1(cube)
   n2=naxis2(cube)
   n3=naxis3(cube)
+  if (n3<=1) {
+    print "CUBE_REBINX: Input not a cube!"
+    cube_rebinx=0
+    break
+  }
   newx=int(n1*xscale)+1
   xold=[1:n1]
   xnew=[1:newx]/xscale
@@ -1190,6 +1262,20 @@ function cube_rebinx, cube, xscale {
   print "CUBE_REBINX: Scale factor X= "+xscale
   print "CUBE_REBINX: Finished!"
   cube_rebinx=outbuff/xscale
+}
+
+function cube_sn_noise, inbuff, window {
+//Estimate spectrum S/N from itself at each spaxel - not 100% accurate but good for comparisons
+//Window is smoothing and noise estimation window in pixels - default is 10% of spectrum length
+  if nparams()<2 window=int(naxis3(inbuff)*0.1)
+  outbuff=inbuff*0
+  for (i=1;i<=naxis1(inbuff);i++) {
+  print "CUBE_SN_NOISE: Col: "+i
+    for (j=2;j<=naxis2(inbuff);j++){
+      outbuff[i,j,*]=spectrum_sn(inbuff[i,j,*], window)[2]
+    }
+  }
+  cube_sn=outbuff
 }
 
 function cube_apply_snr, signalcube, snr, snrscale {
