@@ -176,12 +176,41 @@ function coordstring, ra, dec, rad, format {
 
 function sextodec, sexstr {
 //Convert sexadecimal string to decimal number
+//Modify to have spaces as separator
+//Format must be one of
+// 12:34:56.7
+// 12 34 56.7
+// 12d34m56.7s
+// 12h34m56.7s
+
+  ss="Error : incorrect format"
   sexcomps=strsplit(sexstr,":")
-  h=float(sexcomps[1])
-  m=float(sexcomps[2])
-  s=float(sexcomps[3])
-  hh=abs(h)
-  ss=(hh+m/60+s/3600)*sign(h)
+  if nelements(sexcomps)==1 sexcomps=strsplit(sexstr," ")
+  if nelements(sexcomps)==1 {
+    l=strlen(sexstr)
+    sexcomps=stringarray(3)
+    p1=strpos(sexstr,"d")
+    if (p1==-1) p1=strpos(sexstr,"h")
+    if (p1==-1) {
+      sexcomps=""
+    } else {
+      sexcomps[1]=sexstr[1:p1-1]
+      p2=strpos(sexstr,"m")
+      sexcomps[2]=sexstr[p1+1:p2-1]
+      p3=strpos(sexstr,"s")
+      sexcomps[3]=sexstr[p2+1:p3-1]
+    }
+  }
+  if nelements(sexcomps)==0 {
+    print ss
+    ss=0
+  } else {
+    h=float(sexcomps[1])
+    m=float(sexcomps[2])
+    s=float(sexcomps[3])
+    hh=abs(h)
+    ss=(hh+m/60+s/3600)*sign(h)
+  }
   sextodec=ss
 }
 
