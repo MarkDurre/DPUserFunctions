@@ -1,0 +1,67 @@
+//Template procedures
+
+procedure procdir {
+//This is a template for processing files in a directory with "input" and "output"
+//sub-directories. Output files have nominally the same name as input
+  dir_base="/my/base/directory/" //Specify base directory, input and output directories and title
+  in_dir="in_dir/"
+  out_dir="out_dir/"
+  title="Processing all fits files"
+  mask="" //Specify mask of files, if blank, all FITS files will be processed
+  cd dir_base //Go to the base directory
+  print title+" for : "+pwd()
+  if mask=="" {
+    file_list=findfile("*.fits")
+  } else {
+    file_list=findfile(mask)
+  }
+  nfiles=nelements(file_list)
+  print "Number of files : "+nfiles
+  i=1
+  for (i=1;i<=nfiles;i++) { //Processing files
+    fn=file_list[i]
+    inbuff=readfits(in_dir+fn)
+    print "Processing : "+i+" - "+fn
+//Do processing here
+    outbuff=inbuff //This must be replaced
+    writefits out_dir+fn, outbuff
+  }
+  print "Completed!"
+}
+procedure procparam {
+//This is a template for processing files in a directory with "input" and "output"
+//sub-directories. Output files have nominally the same name as input.
+//Files are processed on the basis of parameter file
+  dir_base="/my/base/directory/" //Specify base directory, input and output directories and title
+  in_dir="in_dir/"
+  out_dir="out_dir/"
+  title="Processing all fits files"
+  mask="" //Specify mask of files, if blank, all FITS files will be processed
+  cd dir_base //Go to the base directory
+  print title+" for : "+pwd()
+  param_file="myparamfile.csv" //CSV file in dir_base directory, or other if relatively specified
+  cd dir_base
+  print title+" for : "+pwd()
+  params=import(param_file)
+  nfiles=nelements(params)
+  cd in_dir //Move to input directory to process files
+  print ""
+  print "Number of files : "+(nfiles-1) //Assume first line is header
+  i=2
+  for (i=2;i<=nfiles;i++) { //Processing each line of files
+    params=strsplit(file_list[i],",") //Split line into elements
+    fn=params[1] //Assume that the file name is in the first column
+//Can specify params, the params array is a string so must be converted as appropriate
+// e.g.
+//z = float(params[2]) - floating point
+//flag=int(params[3]) - integer
+//s=params[4] - string
+    print "Processing : "+(i-1)+" - "+fn
+    inbuff=readfits(in_dir+fn)
+//Do processing here
+    outbuff=inbuff //This must be replaced
+    writefits out_dir+fn, outbuff
+  }
+  print "Completed!"
+}
+  
