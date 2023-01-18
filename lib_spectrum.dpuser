@@ -91,6 +91,47 @@ function spectrum_mask, inbuff, mask, value, flag {
   free outbuff
 }
 
+function spectrum_mask_from_nan, inbuff {
+//Get spectral mask from Nan/Inf values of input spectrum
+  nans=cblank(inbuff/inbuff) //1D data of 0s (Nan/Inf) or 1s (Good data)
+//Go through nans and make pairs
+  n=nelements(inbuff)
+  pcount=0
+  ppixels=longarray(2)
+  state=1 //State is whether inside or outside a range of nans
+  for (i=1;i<=n;i++) {
+    if ((nans[i]==0)&&(state==1)){ //Swapping from good to nans
+      state=0
+      pcount++
+      p=pcount*2-1
+      ppixels[p]=i
+//      print state+","+i+","+p
+    }
+    if ((nans[i]==1)&&(state==0)){ //Swapping from nans to goods
+      state=1
+      p=pcount*2
+      ppixels[p]=i-1
+//      print state+","+i+","+p
+      resize ppixels,nelements(ppixels)+2,1
+    }
+  }
+  if (state==0) ppixels[nelements(ppixels)]=n
+  spectrum_mask_from_nan=ppixels
+}
+
+function spectrum_interp_mask, inbuff, mask {
+//Interpolate over nans in spectrum
+  outbuff=inbuff
+  nregions=nelements(mask)/2
+  for (i=1;i<=nregions;i++) {
+    p1=mask[i*2-1]
+    p2=mask[i*2]
+//    print i+","+p1+","+p2
+    outbuff=spectrum_interp(outbuff,p1,p2)
+  }
+  spectrum_interp_mask=outbuff
+}
+
 function spectrum_cont_slope, spec, mask, flag, order {
 //1D continuum slope from spectrum with mask
   sspec=spectrum_mask(spec, mask, 0/0, flag)
@@ -211,6 +252,25 @@ function spectrum_wave_to_lambda, inbuff, v1, v2, nv {
   setfitskey outbuff,"CDELT1",cd
   setfitskey outbuff,"CD1_1",cd
   spectrum_wave_to_lambda=outbuff
+}
+
+function spectrum_lin_to_log, inbuff {
+//Convert spectrum linear to log wavelength by interpolation
+  n=naxis1(inbuff)
+  w1=cvt_pixel_WCS_data(inbuff,1,1)
+  w2=cvt_pixel_WCS_data(inbuff,n,1)
+  xold=log(spectrum_make_disp_n(w1,w2,n))
+  xnew=spectrum_make_disp_n(log(w1),log(w2),n)
+  yold=inbuff
+  ynew=interpol(cblank(yold),xold,xnew)
+  outbuff=ynew
+  cd=(log(w2)-log(w1))/n
+  setfitskey outbuff,"CRPIX1",1
+  setfitskey outbuff,"CRVAL1",log(w1)
+  setfitskey outbuff,"CDELT1",cd
+  setfitskey outbuff,"CD1_1",cd
+  setfitskey outbuff,"CTYPE1","WAVE-LOG"
+  spectrum_lin_to_log=outbuff
 }
 
 function spectrum_make_gauss, inbuff, bi, bs, h, lc, w {
@@ -340,16 +400,27 @@ delt=0.5
 
 function spectrum_interp, inbuff, x1, x2 {
 //Smooth over bad pixels
-   x0=x1-1
-   x3=x2+1
-   outbuff=inbuff
-   v0=inbuff[x0]
-   v2=inbuff[x3]
-   for (i=x1;i<=x2;i++) {
-     v=(i-x0)/(x3-x0)*(v2-v0)+v0
-     outbuff[i]=v
-   }
-   spectrum_interp=outbuff
+  x0=x1-1
+  x3=x2+1
+  outbuff=inbuff
+  l=nelements(inbuff) //Check range
+  if (x1<=1) {
+    v0=inbuff[x3]
+    x0=x1
+  } else {
+    v0=inbuff[x0]
+  }
+  if (x2>=l) {
+    v2=inbuff[x0]
+    x3=x2
+  } else {
+    v2=inbuff[x3]
+  }
+  for (i=x1;i<=x2;i++) {
+    v=(i-x0)/(x3-x0)*(v2-v0)+v0
+    outbuff[i]=v
+  }
+  spectrum_interp=outbuff
 }
 
 function spectrum_from_tablexy, inbuff, l1, l2, npix, xscl, yscl {
@@ -409,6 +480,24 @@ function spectrum_clean, inbuff, thresh {
   dead=dpixcreate(inb, median(inb)/2)
   clean=dpixapply(inb, dead, method=1)
   spectrum_clean=clean
+}
+
+function spectrum_der_snr, inbuff, cutoff{
+/* DESCRIPTION This function computes the signal to noise ratio DER_SNR following the
+               definition set forth by the Spectral Container Working Group of ST-ECF,
+               MAST and CADC. */
+  if nparams()<2 cutoff=0
+  data=cblank(inbuff) //Remove Nans
+  data[where(data<=cutoff)]=0 //Zero out below cutoff value
+  data=data[where(data!=0)] //Remove zero values
+  ldata=nelements(data)
+  if ldata>4 {
+    signal=median(data)
+    noise = 0.6052697 * median(abs(2*data[3:ldata-1]-data[1:ldata-3]-data[5:ldata]))
+    spectrum_der_snr=signal/noise
+  } else {
+    spectrum_der_snr=0
+  }
 }
 
 function spectrum_sn, inbuff, window {
@@ -516,3 +605,7 @@ function spectrum_comb_sigma, inbuff, sigma, toler, omit {
   spectrum_comb_sigma=outbuff
 }
 
+function spectrum_range, inbuff, w1, w2 {
+  r=pixel_range(inbuff, w1, w2, 1)
+  spectrum_range=inbuff[r[1]:r[2]]
+}
