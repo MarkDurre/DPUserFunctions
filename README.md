@@ -655,23 +655,31 @@ Output is spectrum of aperture less average of background (with mask) - values <
 
 **function astro\_extn\_correct\_cube, data, lambda, ebv, law, lscale** - correct value/image *data* for extinction *ebv* at wavelength *lambda*: can be used on single value or an image.
 
-**function astro\_extn\_correct\_spectrum, spectrum, ebv, law, lscale** - Correct *spectrum* for extinction using single  E~B-V~  (*ebv*) value.  
+**function astro\_extn\_correct\_spectrum, spectrum, ebv, law, lscale** - Correct *spectrum* for extinction using single  E(B-V)  (*ebv*) value.  
 
-**function astro\_extn\_correct\_cube, cube, ebv, law, lscale** - Correct *cube* for extinction using single  E~B-V~  (*ebv*) value.  
+**function astro\_extn\_correct\_cube, cube, ebv, law, lscale** - Correct *cube* for extinction using single  E(B-V)  (*ebv*) value.  
 
 **function astro\_extn\_correct\_lambda, data, lambda, ebv, law** - Correct *data* for extinction at a single wavelength and E~B-V~ (*ebv*) value.
 
-**function astro\_extn\_al\_ccm, lambda, rv** - Calculate Cardelli, Clayton, and Mathis (1989 ApJ. 345, 245) "CCM" extinction curve (A~λ~) at wavelength *lambda* (nm) with R~V~ value of *rv* (default 3.1). This includes the update for the near-UV given by O'Donnell (1994, ApJ, 422, 158) 
+**function astro\_extn\_al\_ccm, lambda, rv** - Calculate Cardelli, Clayton, and Mathis (1989 ApJ. 345, 245) "CCM" extinction curve (A<sub>λ</sub>) at wavelength *lambda* (nm) with R<sub>V</sub> value of *rv* (default 3.1). This includes the update for the near-UV given by O'Donnell (1994, ApJ, 422, 158) 
 
 **function astro\_extn\_al\_cal, lambda, rv** - As for **astro\_extn\_al\_ccm**, but for Calzetti etal. (2000, ApJ, 533, 682) "CAL" extinction curve; *rv* defaults to 4.05.
 
-**function astro\_extn\_ccm, lambda, ebv, rv** - Calculate actual extinction factor for CCM at wavelength *lambda* (nm), E~B-V~ *ebv* (default 1) and R~V~ *rv* (default 3.1).
+**function astro\_extn\_ccm, lambda, ebv, rv** - Calculate actual extinction factor for CCM at wavelength *lambda* (nm), E(B-V) *ebv* (default 1) and R<sub>V</sub> *rv* (default 3.1).
 
 **function astro\_extn\_cal, lambda, ebv, rv** - As for **astro\_extn\_ccm**, for "CAL". *rv* defaults to 4.05.
 
-**function function astro\_extn\_const\_ccm, lambda1, lambda2** - Calculate constant in extinction law between two wavelengths (*lambda1, lambda2*) (nm) for  E~B-V~ "CCM" calculation.
+**function function astro\_extn\_const\_ccm, lambda1, lambda2** - Calculate constant in extinction law between two wavelengths (*lambda1, lambda2*) (nm) for  E(B-V) "CCM" calculation.
 
 **function astro\_extn\_const\_cal, lambda1, lambda2** - as for function **astro\_extn\_const\_ccm** for "CAL".
+
+### lib_templates
+
+**<u>*File processing templates*</u>**
+
+**procedure procfiles** - scan and process all files in a directory. 
+
+**procedure procparams** - process files based on a parameter file (CSV).
 
 # Standard Procedures
 
@@ -717,4 +725,3 @@ Output is spectrum of aperture less average of background (with mask) - values <
 - Create basic channel map using **[chmap\_create](#chmap\_create)** (usually do not smooth)
 - Rebin to required # of channels (e.g. 9 or 16) using **[chmap\_rebin](#chmap\_rebin)** (smoothing if required)
 - Output individual channel maps using **[chmap\_comps](#chmap\_comps)**
-
