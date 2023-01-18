@@ -121,4 +121,18 @@ function mask_line, inbuff, x1, y1, x2, y2, side {
   }
   mask_line=outbuff
 }
-      
+
+//1D (spectrum) masking routines
+function mask_from_spectrum_nan, inbuff, zero {
+  if nparams()<2 zero=0
+  work=inbuff
+  for (i=1;i<=naxis1(inbuff);i++) {
+    if (isnan(work[i])==0) {
+      work[i]=1 
+    } else {
+      if (zero!=0) work[i]=0
+    }
+  }
+  mask_from_spectrum_nan = work
+}
+
