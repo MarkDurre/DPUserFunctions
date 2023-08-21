@@ -105,7 +105,7 @@ function pixel_range, inbuff, w1, w2, axis, prnt {
 
 function set_WCS_default, inbuff {
 //Check WCS keys and set to 1 if not present
-  wcskeys=["CRPIX1","CRVAL1","CDELT1","CRPIX2","CRVAL2","CDELT2","CRPIX3","CRVAL3","CDELT3"]
+  wcskeys=["CRPIX1","CRVAL1","CDELT1","CRPIX2","CRVAL2","CDELT2","CRPIX3","CRVAL3","CDELT3","CD1_1","CD2_2","CD3_3"]
   n=naxis(inbuff)
   ne=n*3
   outbuff=inbuff

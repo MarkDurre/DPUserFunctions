@@ -27,7 +27,8 @@ function chmap_create, cube, lambda_cent, lambda_width, cutoff, width_factor, sm
     cscube=cscube*mask
     cv=getfitskey(cube, "CRVAL3")
     cp=getfitskey(cube, "CRPIX3")
-    cd=getfitskey(cube, "CDELT3")
+    cd=hdr_get_fits_key(cube, "CDELT3")
+    if (cd=="") cd=hdr_get_fits_key(cube, "CD3_3")
   //Convert inputs in nm to pixels
     lambda_min =lambda_cent-lambda_width*width_factor
     lambda_max =lambda_cent+lambda_width*width_factor
@@ -41,7 +42,8 @@ function chmap_create, cube, lambda_cent, lambda_width, cutoff, width_factor, sm
   //Get the middle wavelength for zero
     cvn=getfitskey(newcube, "CRVAL3")
     cpn=getfitskey(newcube, "CRPIX3")
-    cdn=getfitskey(newcube, "CDELT3")
+    cdn=hdr_get_fits_key(newcube, "CDELT3")
+    if (cdn=="") cd=hdr_get_fits_key(newcube, "CD3_3")
   //Set WCS to velocity, centred on middle pixel
     lcent=lambda_cent
     l1=cvt_pixel_WCS(1,cpn,cvn,cdn)

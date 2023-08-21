@@ -342,7 +342,8 @@ function velmap_ext, inbuff, l_est, fwhm_est, thresh, width, method, r {
   } else {
     cv=getfitskey(inbuff, "CRVAL3")
     cp=getfitskey(inbuff, "CRPIX3")
-    cd=getfitskey(inbuff, "CDELT3")
+    cd=hdr_get_fits_key(inbuff, "CDELT3")
+    if (cd=="") cd=hdr_get_fits_key(inbuff, "CD3_3")
     l1=l_est-width*fwhm_est
     l2=l_est+width*fwhm_est
     p1=cvt_WCS_pixel(l1, cp, cv, cd)

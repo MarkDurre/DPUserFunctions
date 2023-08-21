@@ -177,7 +177,8 @@ function io_FITS_text_2D, inbuff, prefix {
     }
     cp=getfitskey(inbuff,"CRPIX1")
     cv=getfitskey(inbuff,"CRVAL1")
-    cd=getfitskey(inbuff,"CDELT1")
+    cd=hdr_get_fits_key(inbuff,"CDELT1")
+    if (cd=="") cd=hdr_get_fits_key(inbuff,"CD1_1")
     for (i=1;i<=n1;i++) {
       x=cvt_pixel_WCS(i,cp,cv,cd)
       outbuff[i+1]=string(x)
