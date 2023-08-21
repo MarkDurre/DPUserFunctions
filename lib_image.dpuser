@@ -306,16 +306,20 @@ function image_interp_flags, image, flags, xi1, xi2, yi1, yi2, dmax {
   image_interp_flags=outbuff
 }
   
-function image_cut, inbuff, x, y, a {
+function image_cut, inbuff, x, y, a, w {
 //Image 2D cut, then setting WCS values correctly and setting OOB to N/A
-  work=twodcut(inbuff,x,y,a,1)
+  if (nparams()<5) w=1
+  work=twodcut(inbuff,x,y,a,w)
   work[where(work==0)]=0/0
   n=naxis1(work)
-  cdold=getfitskey(work,"CDELT1")
+  cdold=hdr_get_fits_key(work,"CDELT1")
+  if (cdold=="") cdold=hdr_get_fits_key(work,"CD1_1")
   setfitskey work,"CRPIX1",(n+1)/2
   setfitskey work,"CRVAL1",0
   setfitskey work, "CDELT1",abs(cdold/1.5*3600)
   setfitskey work, "CD1_1",abs(cdold/1.5*3600)
+  setfitskey work, "CUNIT1","sec"
+  deletefitskey work, "CTYPE1"
   image_cut=work
 }
 
