@@ -188,7 +188,7 @@ function map_regime_optical, inbuff1, inbuff2, type {
           if ((p2>=(0.72/(p1-0.32)+1.3))&&(p2>(1.89*p1+0.76))) f=2 //Seyfert
           if ((p2>=(0.72/(p1-0.32)+1.3))&&(p2<=(1.89*p1+0.76))) f=3 //LINER
         }
-        if (type==2) { //[O I]/H_alpha
+        if (type==3) { //[O I]/H_alpha
           if (p2<(0.73/(p1+0.59)+1.33)) f=1 //SF
           if ((p2>=(0.73/(p1+0.59)+1.33))&&(p2>(1.18*p1+1.13))) f=2 //Seyfert
           if ((p2>=(0.73/(p1+0.59)+1.33))&&(p2<=(1.18*p1+1.13))) f=3 //LINER
