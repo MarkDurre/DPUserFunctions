@@ -197,3 +197,16 @@ function inf_clean, inbuff {
   inf_clean=outbuff
 }
 
+function bintable_to_matrix, inbuff {
+//Convert mult column binary table to std FITS matrix
+  ncol=nelements(inbuff)
+  if (ncol<=1) {
+    bintable_to_matrix=0
+  } else {
+    len=nelements(inbuff[0])
+    outbuff=fits(ncol,len)
+    for (i=0;i<ncol;i++) outbuff[i+1,*]=inbuff[i]
+    bintable_to_matrix=outbuff
+  }
+}
+
