@@ -302,6 +302,30 @@ function spectrum_make_lorentz, inbuff, bi, bs, h, lc, w {
   spectrum_make_lorentz=gs
 }
 
+function spectrum_flux_ul, inbuff, lambda, width, deslope, ignore {
+//Find upper limit for flux over range, 3-sigma on noise
+//Assume spectrum is in last axis and has correct WCS
+//deslope is oder of polynomial fit to slope, if zero, do not deslope
+//ignore - value to ignore (e.g. 0 or Nan)
+  if (nparams()<5) ignore=0/0
+  if (nparams()<4) deslope=0
+  laxis=naxis(inbuff)
+  p1=cvt_WCS_pixel_data(inbuff, lambda-width/2, laxis)
+  p2=cvt_WCS_pixel_data(inbuff, lambda+width/2, laxis)
+  if (laxis==1) spec=inbuff[p1:p2]
+  if (laxis==3) spec=inbuff[*,*,p1:p2]
+  if (deslope>0) {
+    s=spectrum_deslope(spec,[0],0,deslope)
+    spec=avg(spec)*s
+  }
+  if (isnan(ignore)==1) {
+    sigma=stddev(spec)
+  } else {
+    sigma=stddev(spec, ignore)
+  }      
+  spectrum_flux_ul=3*sigma
+}
+
 function spectrum_redisp_lin, inbuff, data, daxis, xmin,delt, npix, zero, norms,  prnt, fluxcons {
 //Redisperse spectrum, zeroing outside of old spectral range 
   if (nparams()<1) {
@@ -361,11 +385,14 @@ function spectrum_redisp_lin, inbuff, data, daxis, xmin,delt, npix, zero, norms,
   spectrum_redisp_lin=ynew
 }
 
-function spectrum_from_xy, inbuff {
+function spectrum_from_xy, inbuff, col {
 //re-disperse spectrum from 2D x and y bintable to wavelength range and same number of points
+//Assume wavelength is in the first column (index [0]) and flux is in column 2 (index [1])
+//"col" selects column for flux - default 1
 //Get wavelength and flux vectors
+  if nparams()<2 col=1
   w=inbuff[0]
-  f=inbuff[1]
+  f=inbuff[col]
   nw=naxis1(w)
   xstart=w[1]
   xend=w[nw]
@@ -451,6 +478,10 @@ function spectrum_from_tablexy, inbuff, l1, l2, npix, xscl, yscl {
     spectrum_from_tablexy=outbuff
 }
 
+function st, inbuff {
+  st=spectrum_from_tablexy(inbuff)
+}
+
 function spectrum_redisp, inbuff, l1, l2, npix, xscl, yscl {
 //Rediserse input spectrum
 //l1, l2, npix is new wavelength range and number of pixels
@@ -471,6 +502,30 @@ function spectrum_redisp, inbuff, l1, l2, npix, xscl, yscl {
     setfitskey outbuff,"MINWAVE",min(xold),"Minimum wavelength observed (nm)"
     setfitskey outbuff,"MAXWAVE",max(xold),"Maximum wavelength observed (nm)"
     spectrum_redisp=outbuff
+}
+
+function spectrum_redisp_loglin, inbuff {
+//Redisperse spectrum with log-linear wavelength e.g.SDSS
+//Start wavelength in CRVAL1, log steps in CD1_1
+  w=getfitskey(inbuff,"CRVAL1")
+  s=hdr_get_fits_key(inbuff,"CD1_1")
+  if (s=="") s=hdr_get_fits_key(inbuff,"CDELT1")
+  n=naxis1(inbuff)
+  lw1=w
+  lw2=w+s*n
+  speclog=spectrum_make_disp_n(lw1,lw2,n)
+  xold=10^speclog
+  xnew=spectrum_make_disp_n(10^lw1,10^lw2,n)
+  yold=cblank(clip(inbuff,0,-1))
+  outbuff=interpol(yold,xold,xnew)
+  cdelt=(max(xnew)-min(xnew))/(n-1)
+  copyheader outbuff,inbuff
+  setfitskey outbuff, "CRPIX1", 1
+  setfitskey outbuff, "CRVAL1",10^lw1
+  setfitskey outbuff, "CDELT1", cdelt
+  setfitskey outbuff,"CTYPE1","WAVE"
+  setfitskey outbuff,"CD1_1",cdelt
+  spectrum_redisp_loglin=outbuff
 }
 
 function spectrum_clean, inbuff, thresh {
@@ -537,6 +592,20 @@ function spectrum_sn_wl, inbuff, lambda, width {
     noise=stddev(inbuff[wl1:wl2])
     spectrum_sn_wl=[signal,noise,signal/noise]
   }
+}
+
+function spectrum_noise, spectrum, snr {
+//Create noise to a spectrum using a Gaussian realisation of the SNR
+  n=naxis1(spectrum)
+  outbuff=spectrum
+  for (i=1;i<=n;i++) {
+    if (nelements(snr)==1) {
+      outbuff[i]=randomg(spectrum[i]/snr)
+    } else {
+      outbuff[i]=randomg(spectrum[i]/snr[i])
+    }
+  }
+  spectrum_noise=outbuff
 }
 
 function spectrum_apply_snr, spectrum, snr {
@@ -608,4 +677,36 @@ function spectrum_comb_sigma, inbuff, sigma, toler, omit {
 function spectrum_range, inbuff, w1, w2 {
   r=pixel_range(inbuff, w1, w2, 1)
   spectrum_range=inbuff[r[1]:r[2]]
+}
+
+function spectrum_abs_index, inbuff, ll1, ll2, bc1, bc2, rc1, rc2 {
+//Get absorption spectral indexes for a particular line
+//inbuff - input spectrum
+//ll1, ll2, bc1, bc2, rc1, rc2 - line limits, blue and red continuum wavelength ranges
+//Returns 2x1 matrix [index, sd_index]
+  if (nparams()<7) {
+    print "SPECTRUM_ABS_INDEX : Error - not enough parameters"
+    print "SPECTRUM_ABS_INDEX : inbuff, ll1, ll2, bc1, bc2, rc1, rc2"
+  }
+//Average over the line, blue and red
+  ll=spectrum_range(inbuff, ll1, ll2)
+  bc=spectrum_range(inbuff, bc1, bc2)
+  rc=spectrum_range(inbuff, rc1, rc2)
+  all=avg(ll)
+  abc=avg(bc)
+  arc=avg(rc)
+  blambda=(bc1+bc2)/2
+  rlambda=(rc1+rc2)/2
+  llambda=(ll1+ll2)/2
+//Interpolate from midpoints of red and blue continuum to midpoint of line
+  fcont=abc+(arc-abc)*(llambda-blambda)/(rlambda-blambda)
+  fluxdens=avg(1-ll/fcont)
+  lwidth=abs(ll2-ll1)
+  ew=fluxdens*lwidth
+  sdll=stddev(ll)
+  sdbc=stddev(bc)
+  sdrc=stddev(rc)
+  sdcont=sqrt(sdbc^2+sdrc^2)
+  ewsd=ew*sqrt((sdll/all)^2+(sdcont/fcont)^2)
+  spectrum_abs_index=[ew,ewsd]
 }
