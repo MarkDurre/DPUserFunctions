@@ -63,6 +63,10 @@ function redshift_data, inbuff, z, rdflag, nanflag, smth, fcons {
   redshift_data=outbuff
 }
 
+procedure rs, inbuff, z {
+  inbuff=redshift_data(inbuff, -z)
+}
+
 function bb, t, l {
 //Black-body value for temperature and wavelength (m)
     h=6.62618e-34 //Plank's constant
@@ -162,26 +166,3 @@ function bb_div, inbuff, temp, scale {
   }
 }
 
-function flux_ul, inbuff, lambda, width, deslope, ignore {
-//Find upper limit for flux over range, 3-sigma on noise
-//Assume spectrum is in last axis and has correct WCS
-//deslope is oder of polynomial fit to slope, if zero, do not deslope
-//ignore - value to ignore (e.g. 0 or Nan)
-  if (nparams()<5) ignore=0/0
-  if (nparams()<4) deslope=0
-  laxis=naxis(inbuff)
-  p1=cvt_WCS_pixel_data(inbuff, lambda-width/2, laxis)
-  p2=cvt_WCS_pixel_data(inbuff, lambda+width/2, laxis)
-  if (laxis==1) spec=inbuff[p1:p2]
-  if (laxis==3) spec=inbuff[*,*,p1:p2]
-  if (deslope>0) {
-    s=spectrum_deslope(spec,[0],0,deslope)
-    spec=avg(spec)*s
-  }
-  if (isnan(ignore)==1) {
-    sigma=stddev(spec)
-  } else {
-    sigma=stddev(spec, ignore)
-  }      
-  flux_ul=3*sigma
-}
