@@ -1353,3 +1353,11 @@ function cube_redisp_simple, cube, spectrum {
   set_WCS_data newcube, wcs, 3
   cube_redisp_simple=newcube
 }
+
+function cube_from_spectrum, spectrum {
+//Make a minimal datacube from a spectrum for those functions which expect a cube
+  slen=naxis1(spectrum)
+  out=resize(spectrum,3,3,slen)*0
+  out[2,2,*]=spectrum
+  cube_from_spectrum=out
+}
