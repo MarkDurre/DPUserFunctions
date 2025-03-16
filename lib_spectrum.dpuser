@@ -16,7 +16,6 @@ function spectrum_wave_to_vel, inbuff, clambda {
   set_WCS_data outbuff, wcs, ns
   spectrum_wave_to_vel=outbuff
 }
-  
 
 function spectrum_make_disp, val, delt, pix, n {
 //Make a dispersion value vector
@@ -135,8 +134,8 @@ function spectrum_interp_mask, inbuff, mask {
 function spectrum_cont_slope, spec, mask, flag, order {
 //1D continuum slope from spectrum with mask
   sspec=spectrum_mask(spec, mask, 0/0, flag)
-  if (nparams()<4) order=1
   o=order
+  if (nparams()<4) o=1
   if (o<2) o=1
   p=polyfit(sspec,o)
   spectrum_cont_slope=p
@@ -146,8 +145,6 @@ function spectrum_deslope, spec, mask, flag, order {
 //Remove and normailze spectrum with mask
   n1=naxis1(spec)
   s=spectrum_cont_slope(spec,mask, flag, order)
-  o=order
-  if (o<2) o=1
   l=poly([1:n1],s[*,1])
   spectrum_deslope=spec/l
 }
@@ -156,8 +153,6 @@ function spectrum_slope_sub, spec, mask, flag, order {
 //Remove and normailze spectrum with mask
   n1=naxis1(spec)
   s=spectrum_cont_slope(spec,mask, flag, order)
-  o=order
-  if (o<2) o=1
   l=poly([1:n1],s[*,1])
   spectrum_slope_sub=spec-l
 }
@@ -302,7 +297,44 @@ function spectrum_make_lorentz, inbuff, bi, bs, h, lc, w {
   spectrum_make_lorentz=gs
 }
 
-function spectrum_flux_ul, inbuff, lambda, width, deslope, ignore {
+function spectrum_flux_ul, inbuff, lambda, width, deslope, ignore, flag {
+//Return SD and (optionally) average for spectrum over wavelength range
+//Can be used for UL to fluxes
+//Assume spectrum is in last axis and has correct WCS
+//Parameters:
+//lambda, width - central wavelength and window width
+//deslope  - order of polynomial fit to slope, if zero, do not deslope (default)
+//ignore - value to ignore (e.g. 0 or Nan) - default Nan, i.e. don't ignore any number
+//flag - if 0 (default) return only SD, if 1, return [SD, AVG]
+
+  if (nparams()<6) flag=0
+  if (nparams()<5) ignore=0/0
+  if (nparams()<4) deslope=0
+  laxis=1
+  p1=cvt_WCS_pixel_data(inbuff, lambda-width/2, laxis)
+  p2=cvt_WCS_pixel_data(inbuff, lambda+width/2, laxis)
+  spec=inbuff[p1:p2]
+  if (deslope>0) {
+    s=spectrum_deslope(spec,[0],0,deslope)
+    spec=avg(spec)*s
+  }
+  if (isnan(ignore)==1) {
+    sigma=stddev(spec)
+  } else {
+    sigma=stddev(spec, ignore)
+  }
+  spectrum_flux_ul=sigma
+  if (flag==1) {
+    if (isnan(ignore)==1) {
+      a=avg(spec)
+    } else {
+      a=avg(spec, ignore)
+    }
+    spectrum_flux_ul=[sigma, a]
+  }
+}
+
+function spectrum_flux_ul_old, inbuff, lambda, width, deslope, ignore, flag {
 //Find upper limit for flux over range, 3-sigma on noise
 //Assume spectrum is in last axis and has correct WCS
 //deslope is oder of polynomial fit to slope, if zero, do not deslope
@@ -404,10 +436,13 @@ function spectrum_from_xy, inbuff, col {
 }
 
 function spectrum_from_dataxy, xdata, ydata, l1, l2, npix, xscl, yscl {
-//re-disperse spectrum from 2D x and y bintable to wavelength range and same number of points
+//re-disperse spectrum from 2D x and y image to wavelength range and same number of points
 //Get wavelength and flux vectors
   if (nparams()<7) yscl=1
   if (nparams()<6) xscl=1
+  if (nparams()<5) npix=nelements(xdata)
+  if (nparams()<4) l2=max(xdata)
+  if (nparams()<3) l1=min(xdata)
   w=xdata*xscl
   f=ydata*yscl
   wnew=spectrum_make_disp_n(l1, l2, npix)
@@ -482,8 +517,8 @@ function st, inbuff {
   st=spectrum_from_tablexy(inbuff)
 }
 
-function spectrum_redisp, inbuff, l1, l2, npix, xscl, yscl {
-//Rediserse input spectrum
+function spectrum_redisp_xy, inbuff, l1, l2, npix, xscl, yscl {
+//Rediserse input spectrum from image data, wavelength in col 1, flux in col2
 //l1, l2, npix is new wavelength range and number of pixels
     if (nparams()<6) yscl=1
     if (nparams()<5) xscl=1
@@ -501,7 +536,60 @@ function spectrum_redisp, inbuff, l1, l2, npix, xscl, yscl {
     setfitskey outbuff,"CD1_1",cdelt
     setfitskey outbuff,"MINWAVE",min(xold),"Minimum wavelength observed (nm)"
     setfitskey outbuff,"MAXWAVE",max(xold),"Maximum wavelength observed (nm)"
-    spectrum_redisp=outbuff
+    spectrum_redisp_xy=outbuff
+}
+
+function spectrum_redisp_data, inbuff, l1, l2, npix, xscl, yscl {
+//Rediserse input spectrum from image data, wavelength in col 1, flux in col2
+//l1, l2, npix is new wavelength range and number of pixels
+    if (nparams()<6) yscl=1
+    if (nparams()<5) xscl=1
+    xold=spectrum_make_disp_data(inbuff,1)*xscl
+    xnew=spectrum_make_disp_n (l1, l2, npix)
+    yold=cblank(clip(inbuff,0,-1))*yscl //rescale data
+    ynew=interpol(yold,xold,xnew) //Interpolate flux
+    outbuff=cblank(clip(ynew,0,-1))
+    cdelt=(l2-l1)/(npix-1)
+    copyheader outbuff,inbuff
+    setfitskey outbuff, "CRPIX1", 1
+    setfitskey outbuff, "CRVAL1",l1
+    setfitskey outbuff, "CDELT1", cdelt
+    setfitskey outbuff,"CTYPE1","WAVE"
+    setfitskey outbuff,"CD1_1",cdelt
+    setfitskey outbuff,"MINWAVE",min(xold),"Minimum wavelength observed (nm)"
+    setfitskey outbuff,"MAXWAVE",max(xold),"Maximum wavelength observed (nm)"
+    spectrum_redisp_data=outbuff
+}
+
+function spectrum_check_monotonic, wbuff, dbuff {
+//Check spectrum wavelengths in wbuff are monotonic, and remove incorrect ones
+//If dbuff is zero or nor given wbuff has x and y values in cols 1 and 2
+//Result is 2 x n 
+  if nparams()<2 dbuff=0
+  w=wbuff
+  d=dbuff
+  if dbuff==0 {
+    w=wbuff[1,*]
+    d=wbuff[2,*]
+  }
+  wout=w
+  dout=d
+  n=naxis1(w)
+  outbuff=resize(wout,2,n)
+  nout=0
+  wlast=w[1]
+  for (i=2;i<=n;i++) {
+    if w[i]>wlast { //Is increasing
+      nout++
+      wout[nout]=w[i]
+      dout[nout]=d[i]
+      wlast=w[i]
+    }
+  }
+  outbuff[1,1:nout]=wout[1:nout]
+  outbuff[2,1:nout]=dout[1:nout]
+  resize outbuff,2,nout
+  spectrum_check_monotonic=outbuff
 }
 
 function spectrum_redisp_loglin, inbuff {
