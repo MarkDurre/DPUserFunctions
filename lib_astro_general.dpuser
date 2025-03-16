@@ -1,4 +1,4 @@
-//Astronomical function - black-body, redshift, extinction
+//Astronomical function - black-body, redshift, electron density/temperature
 //Requires lib_wcs, lib_spectrum, lib_masking
 
 function redshift_data, inbuff, z, rdflag, nanflag, smth, fcons {
@@ -17,6 +17,7 @@ function redshift_data, inbuff, z, rdflag, nanflag, smth, fcons {
   if (nparams()<5) smth=0
   if (nparams()<4) nanflag=0
   if (nparams()<3) rdflag=0
+  z=float(z)
   saxis=naxis(inbuff)
   zshift=z+1
   if (z<0) zshift=1/(abs(z)+1)
@@ -164,5 +165,36 @@ function bb_div, inbuff, temp, scale {
     outbuff=inbuff/bb
     bb_div=outbuff
   }
+}
+
+function diag_ne_SII, lSII1, lSII2, Te {
+//Get electron density from [S II] λ6717,6730 and electron temperature
+//Formulae from Proxauf+ 2014
+//lSII1 is flux/luminosity of [S II] 6717, lSII2 is 6730
+//Te is electron temp. defaults to 10000K
+  if nparams()<3 Te=10000
+//Calculate Rs for observed ratio
+  Rs=lSII1/lSII2
+//Rescale for Te
+  Rlo10=1.4338
+  Rhi=0.436
+  t10=Te/10000
+  RloTe=1.496-0.07442*t10+0.01225*t10^2
+  Rscl=(Rlo10-Rhi)/(RloTe-Rhi)*(Rs-Rhi)+Rhi
+//  print t10,RloTe, Rscl
+  f=0.0543*tan(-3.0553*Rscl+2.8506)+6.98-10.6905*Rscl+9.9186*Rscl^2-3.5442*Rscl^3
+  diag_ne_SII=10^f
+}
+
+function diag_Te_OIII, lOIII1, lOIII2, lOIII3 {
+//Get electron density from [O III] λ 5007, 4958, 4363 
+//Electron density is negligible effect
+//Formulae from Proxauf+ 2014
+//lOIII1,2,3 are [O III] 5007, 4958, 4363
+//Te is electron temp. defaults to 10000K
+  if nparams()<3 Te=10000
+  RO=(lOIII1+lOIII2)/lOIII3
+  r=log(RO)
+  diag_Te_OIII=5294/(r-0.848)+19047-7769*r+944*r^2
 }
 
