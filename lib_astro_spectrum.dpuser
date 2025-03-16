@@ -12,9 +12,9 @@ function spec_fluxdens, inbuff, l1, l2, prflag {
   fluxavg=cnt/(p2-p1)
   fd=cnt/(ll2-ll1)
   if (prflag!=0) {
-    print "SPEC_FLUXDENS: Pixel range : "+p1+"-"+p2+" ("+(p2-p1)+")"
-    print "SPEC_FLUXDENS: Wavelength range : "+ll1+"-"+ll2+" ("+(ll2-ll1)+")"
     print "SPEC_FLUXDENS: Total flux (counts) : "+cnt
+    print "SPEC_FLUXDENS: Wavelength range : "+ll1+"-"+ll2+" ("+(ll2-ll1)+")"
+    print "SPEC_FLUXDENS: Pixel range : "+p1+"-"+p2+" ("+(p2-p1)+")"
     print "SPEC_FLUXDENS: Average flux (counts) : "+fluxavg
     print "SPEC_FLUXDENS: Average flux density (counts/unit wavelength) : "+fd
   }
