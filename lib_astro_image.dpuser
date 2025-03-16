@@ -60,6 +60,33 @@ function img_flux_to_mag, inbuff, zpm, ssize, flag {
   img_flux_to_mag=outbuff
 }
 
+function img_mag_2MASS, inbuff {
+//Convert 2MASS images to mag/arcsec^2 using img_flux_to_mag and header ZPT
+//Assume 1" pixels
+//Check ZPT
+  z=hdr_get_fits_key(inbuff,"JMAGZP")
+  if (z=="") {
+    z=hdr_get_fits_key(inbuff,"HMAGZP")
+    if (z=="") {
+      z=hdr_get_fits_key(inbuff,"KMAGZP")
+      if (z=="") {
+        print "IMG_MAG_2MASS: No Zero Point mag key"
+      } else {
+        print "IMG_MAG_2MASS: Filter = Ks ZPT = "+z
+      }
+    } else {
+      print "IMG_MAG_2MASS: Filter = H ZPT = "+z
+    }
+  } else {
+    print "IMG_MAG_2MASS: Filter = J ZPT = "+z
+  }
+  if (z=="") {
+    img_mag_2MASS=0
+  } else {
+    img_mag_2MASS=img_flux_to_mag(inbuff,float(z),1,0)
+  }
+}
+
 function img_apphot_annular, img, xcen, ycen, r, ib, ob {
 //Get total and average flux and pixel count over circular-annular aperture
 //Circle specified by xce, xyen, r
@@ -81,15 +108,40 @@ function img_apphot_annular, img, xcen, ycen, r, ib, ob {
   img_apphot_annular=flux-bck*fluxcnt/bckcnt
 }
 
+function img_apphot_bckgnd, img, xo, yo, ro, xb, yb, rb, prn {
+//Get total and average flux and pixel count over circular aperture plus circular background
+//Object aperture specified by xo, yo, ro
+//Background aperture specified by x, yb, rb
+//Annulus specified by xcen, ycen, ib, ob (inner and outer radius)
+//If ib=0 then annulus is twice the size of circle
+  if (nparams()<8) prn=0
+  n1=naxis1(img)
+  n2=naxis2(img)
+  mask1=circle(xo, yo, ro, naxis1=n1,naxis2=n2)
+  mask2=circle(xb, yb, rb, naxis1=n1,naxis2=n2)
+  flux=total(img*mask1)
+  fluxcnt=total(mask1)
+  bck=total(img*mask2)
+  bckcnt=total(mask2)
+  img_apphot_bckgnd=flux-bck*fluxcnt/bckcnt
+  if (prn!=0) {
+    print "IMG_APPHOT_BCKGND : Flux = "+flux
+    print "IMG_APPHOT_BCKGND : Bckg = "+bck
+    print "IMG_APPHOT_BCKGND : Pixels "+fluxcnt+" "+bckcnt
+
+  }
+}
+
 function img_apphot_simple, img, xcen, ycen, r, pixsize, scale, prn {
 //Get total and average flux and pixel count over circle for surface density
 //Circle xcen, ycen, r
 //1 pixel per "pixsize" pc
 //if r=0, then single pixel [xcen, ycen]
-//Returns total flux, average flux and pixel count
-  if (nparams()<8) prn=0
-  if (nparams()<7) scale=0
-  if (nparams()<6) pixsize=1
+//If prn<>0 print data as well as return
+//Returns total flux, average flux and pixel count as array
+  if (nparams()<7) prn=0
+  if (nparams()<6) scale=0
+  if (nparams()<5) pixsize=1
   n1=naxis1(img)
   n2=naxis2(img)
   if (scale==0) {
@@ -112,6 +164,7 @@ function img_apphot_simple, img, xcen, ycen, r, pixsize, scale, prn {
     print "IMG_APPHOT_SIMPLE: Pixel Count: "+ncount
     print "IMG_APPHOT_SIMPLE: Total/pc^2 : "+fpc
   }
+  print prn
   img_apphot_simple=[tot,av,ncount,fpc]
 }
 
