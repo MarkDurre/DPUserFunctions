@@ -36,16 +36,25 @@ function hdr_get_fits_key, inbuff, key {
 
 function hdr_get_all_fits_keys, inbuff, prefix {
 //Get all keys in header that match a prefix
+//This will only select keys in the form KEY = VALUE
+  if (nparams()<2) prefix=""
   hh=hdr_get_lines(inbuff)
   nlines=nelements(hh)
   outbuff=stringarray(nlines)
   cnt=0
   l=strlen(prefix)
   for (i=1;i<=nlines;i++) {
-    if (hh[i][1:l]==prefix) {
-      p=strpos(hh[i],"=")
-      cnt++
-      outbuff[cnt]=strtrim(hh[i][1:p-1])
+    p=strpos(hh[i],"=")
+    if (p>0) {
+      if (prefix=="") {
+        cnt++
+        outbuff[cnt]=strtrim(hh[i][1:p-1])
+      } else {
+        if (hh[i][1:l]==prefix) {
+          cnt++
+          outbuff[cnt]=strtrim(hh[i][1:p-1])        
+        }
+      }
     }
   }
   hdr_get_all_fits_keys=outbuff[1:cnt]
@@ -54,15 +63,96 @@ function hdr_get_all_fits_keys, inbuff, prefix {
 function hdr_get_all_fits_key_values, inbuff, prefix, type {
 //Get all key values that match a prefix
 //If type=1, return number array, otherwise string
-  keys=get_all_fits_keys(inbuff, prefix)
-  nkeys=nelements(keys)
+//If prefix not given, prefix=""
+//If type=1, string keys are returned as nan, i.e. 0/0
   if (nparams()<3) type=0
+  if (nparams()<2) prefix=""
+  keys=hdr_get_all_fits_keys(inbuff, prefix)
+  nkeys=nelements(keys)
   if (type==0) {
     outbuff=stringarray(nkeys)
   } else {
     outbuff=floatarray(nkeys)
   }
-  for (i=1;i<=nkeys;i++) outbuff[i]=getfitskey(inbuff, keys[i])
+  for (i=1;i<=nkeys;i++) {
+    key=getfitskey(inbuff, keys[i])
+    if (type==0) {
+      outbuff[i]=string(key)
+    } else {
+      if (string(key)==string(float(key))){
+        outbuff[i]=key //Test for non-string keys
+      } else {
+        outbuff[i]=0/0
+      }
+    }
+  }
   hdr_get_all_fits_key_values=outbuff
+}
+/*
+    txt=txtdata[i]
+      key=simplifywhitespace(txt[2:9]) //FITS key
+      line=txt[12:80]
+          sline=strsplit(line,"/") //Split value and comment
+          value=strtrim(sline[1])
+          cmnt=strtrim(sline[2])
+          len=strlen(value)
+          if strpos(value,"'")>-1 { //Value is string
+            p1=strpos(value,"'")
+            p2=strpos(value[p1+1:len],"'")
+            val=value[p1+1:p2-1]
+          } else { //Value is float or int
+            if strpos(value,".")>-1 {//Value is float
+              val=float(value)
+            } else {
+              val=int(value)
+            }
+          }
+          setfitskey hdrbuff,key,val,cmnt
+*/
+
+function hdr_read_from_text, txtdata, prefix {
+//Read header keys from text data (stringarray) and add to FITS file
+//Default prefix for header keys is "#"
+//Typically the header fits file will use copyheader to xfer to data fits file
+  if nparams()<3 prefix="#"
+  nlines=nelements(txtdata)
+  hdrbuff=fits(1) //Create a basic fits file to put keys in
+  for (i=1;i<=nlines;i++) {
+    txt=txtdata[i]
+    ltxt=strlen(txt)
+    print txt
+    if (txt[1]==prefix)&&(txt[2]!=" ") { //Part of the header
+      key=simplifywhitespace(txt[2:9]) //FITS key
+      if (key=="SIMPLE")||(key=="END") { //Ignore the first/last lines, this is created with the new FITS file
+      } else {
+        if (key=="HISTORY")||(key=="COMMENT") { //Write HISTORY keys - no "=" sign
+          if (key=="HISTORY") setfitskey hdrbuff,"HISTORY",txt[10:80]
+          if (key=="COMMENT") setfitskey hdrbuff,"COMMENT",txt[10:80]
+        } else {
+          p=strpos(txt,"=")
+          line=txt[p+2:ltxt] //Should have "=" sign
+          sline=strsplit(line,"/") //Split value and comment
+          value=strtrim(sline[1])
+          cmnt=strtrim(sline[2])
+          len=strlen(value)
+          if strpos(value,"'")>-1 { //Value is string
+            p1=strpos(value,"'")
+            p2=strpos(value[p1+1:len],"'")
+            val=value[p1+1:p2]
+          } else { 
+            if strpos(value,".")>-1 {//Value is float
+              val=float(value)
+            } else { //Integer
+              val=int(value)
+            }           
+          }
+//          print i,key,value,cmnt,val
+          setfitskey hdrbuff,key,val,cmnt
+        }
+      }
+    }
+  }
+  
+  hdr_read_from_text = hdrbuff
 }
 
