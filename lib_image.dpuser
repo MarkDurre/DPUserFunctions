@@ -230,8 +230,8 @@ function image_structure, image, psf_image {
 
 function image_interp_flags, image, flags, xi1, xi2, yi1, yi2, dmax {
 //Interpolate over flagged spaxels
-//cube - input data cube, x/y axes are spaxels
-//flags - 2D data with same x/y axes size as cube, with value=1 to be interpolated, value=0 - good pixels
+//image - input data image, x/y axes are spaxels
+//flags - 2D data with same x/y axes size as image, with value=1 to be interpolated, value=0 - good pixels
 //xi1,xi2,yi1,yi2 - co-ordinate range to interpolate over. If not input, then do all spaxels
 //dmax - maximum pixel distance for interpolation (=0 don't test)
   n1=naxis1(image)
@@ -249,7 +249,7 @@ function image_interp_flags, image, flags, xi1, xi2, yi1, yi2, dmax {
     y2=n2
   }
   if (naxis1(flags)!=n1)||(naxis2(flags)!=n2) {
-    print "IMAGE_INTERP_FLAGS: Error! : cube and flags size mismatch"
+    print "IMAGE_INTERP_FLAGS: Error! : image and flags size mismatch"
     break
   }
 //Get range to good pixels
@@ -325,7 +325,7 @@ function image_cut, inbuff, x, y, a, w {
 
 function image_comb_sigma, inbuff, sigma, toler, omit {
 //Image combine with sigma clipping algorithm
-//imbuff is a cube of images with n images in 3rd dimension
+//imbuff is a image of images with n images in 3rd dimension
 //sigma is standard deviations allowed (default 3 sigma)
 //toler is tolerance for convergence on clipping algorithm (default 0.1)
 //omit is value to omit on averaging (if parameter not entered, don't omit any value)
@@ -378,16 +378,153 @@ function image_comb_sigma, inbuff, sigma, toler, omit {
   image_comb_sigma=outbuff
 }
 
-function image_coord_map, image {
+function image_combine, inbuff, mode, omit {
+//Average/median multiple images (up to 10) 
+//inbuff is multi-extension fits list
+//Created by list(buffer1, buffer2,...)
+  if (nparams()<3) omit=0/0
+  navg=nelements(inbuff)
+  outbuff=inbuff[0]*0
+  n1=naxis1(outbuff)
+  n2=naxis2(outbuff)
+  if (mode==0) mt="Average"
+  if (mode==1) mt="Median"
+  print "IMAGE_COMBINE: Axis sizes - "+n1+"x"+n2
+  print "IMAGE_COMBINE: # of images - "+navg
+  print "IMAGE_COMBINE: Mode - "+mt
+  selement=fits(n1,n2,navg)
+  for (i=1;i<=navg;i++) { //Go though images
+    b=inbuff[i-1]
+    selement[*,*,i]=b[*,*]
+  }
+  if (mode==0) { //Average
+    if isnan(omit)==1 {
+      outbuff[*,*]=avg(selement,/z)
+    } else {
+      outbuff[*,*]=avg(selement,omit,/z)
+    }
+  } else { //Median
+    if isnan(omit)==1 {
+      outbuff[*,*]=median(selement,/z)
+    } else {
+      outbuff[*,*]=median(selement,omit,/z)
+    }
+  }
+  print "IMAGE_COMBINE: Finished"
+  image_combine=outbuff
+}
+
+function image_combine_avg, inbuff, omit {
+  if (nparams()<2) omit=0/0
+  image_combine_avg=image_combine(inbuff,0,omit)
+}
+
+function image_combine_median, inbuff, omit {
+  if (nparams()<2) omit=0/0
+  image_combine_median=image_combine(inbuff,1,omit)
+}
+
+
+function image_coord_map, image, prnt {
 //Gives WCS co-ordinates at image corners and centre, including correct projections
+  if (nparams()<2) prnt=0
   n1=naxis1(image)
   n2=naxis2(image)
   res=worldpos(image,[[1,1],[1,n1],[n2,1],[n1,n2],[n1/2,n2/2]])
-  print "IMAGE_COORD_MAP: Bottom Left  - ["+sprintf("%10.8f",res[1,1])+","+sprintf("%10.8f",res[2,1])+"] - ["+dectosex(res[1,1]/15)[1:13]+","+dectosex(res[2,1])+"]"
-  print "IMAGE_COORD_MAP: Bottom Right - ["+sprintf("%10.8f",res[1,2])+","+sprintf("%10.8f",res[2,2])+"] - ["+dectosex(res[1,2]/15)[1:13]+","+dectosex(res[2,2])+"]"
-  print "IMAGE_COORD_MAP: Top Left     - ["+sprintf("%10.8f",res[1,3])+","+sprintf("%10.8f",res[2,3])+"] - ["+dectosex(res[1,3]/15)[1:13]+","+dectosex(res[2,3])+"]"
-  print "IMAGE_COORD_MAP: Top Right    - ["+sprintf("%10.8f",res[1,4])+","+sprintf("%10.8f",res[2,4])+"] - ["+dectosex(res[1,4]/15)[1:13]+","+dectosex(res[2,4])+"]"
-  print "IMAGE_COORD_MAP: Center       - ["+sprintf("%10.8f",res[1,5])+","+sprintf("%10.8f",res[2,5])+"] - ["+dectosex(res[1,5]/15)[1:13]+","+dectosex(res[2,5])+"]"
+  if (prnt>0) {
+    print "IMAGE_COORD_MAP: Bottom Left  - ["+sprintf("%10.8f",res[1,1])+","+sprintf("%10.8f",res[2,1])+"] - ["+dectosex(res[1,1]/15)[1:13]+","+dectosex(res[2,1])+"]"
+    print "IMAGE_COORD_MAP: Bottom Right - ["+sprintf("%10.8f",res[1,2])+","+sprintf("%10.8f",res[2,2])+"] - ["+dectosex(res[1,2]/15)[1:13]+","+dectosex(res[2,2])+"]"
+    print "IMAGE_COORD_MAP: Top Left     - ["+sprintf("%10.8f",res[1,3])+","+sprintf("%10.8f",res[2,3])+"] - ["+dectosex(res[1,3]/15)[1:13]+","+dectosex(res[2,3])+"]"
+    print "IMAGE_COORD_MAP: Top Right    - ["+sprintf("%10.8f",res[1,4])+","+sprintf("%10.8f",res[2,4])+"] - ["+dectosex(res[1,4]/15)[1:13]+","+dectosex(res[2,4])+"]"
+    print "IMAGE_COORD_MAP: Center       - ["+sprintf("%10.8f",res[1,5])+","+sprintf("%10.8f",res[2,5])+"] - ["+dectosex(res[1,5]/15)[1:13]+","+dectosex(res[2,5])+"]"
+  }
   image_coord_map=res
 }
+
+function image_make_wcs, wcs_x, wcs_y {
+//Make a 2D fits file from x and y wcs data
+//wcs data in form [min, max, n]
+  deltx=(wcs_x[2]-wcs_x[1])/(wcs_x[3]-1)
+  delty=(wcs_y[2]-wcs_y[1])/(wcs_y[3]-1)
+  img=fits(int(wcs_x[3]),int(wcs_y[3]))
+  img=set_WCS_data(img,[1,wcs_x[1],deltx],1)
+  img=set_WCS_data(img,[1,wcs_y[1],delty],2)
+  image_make_wcs=img
+}
+
+function image_make_grid, xmin, xmax, xsteps, ymin, ymax, ysteps {
+//Make a 2D fits file from min, max and steps
+  if (nparams()<6) ysteps=xsteps
+  if (nparams()<4) {ymin=xmin;ymax=xmax}
+  
+  deltx=(xmax-xmin)/(xsteps-1)
+  delty=(ymax-ymin)/(ysteps-1)
+  img=fits(xsteps,ysteps)
+  img=set_WCS_data(img,[1,xmin,deltx],1)
+  img=set_WCS_data(img,[1,ymin,delty],2)
+  image_make_grid=img
+}
+
+function image_kde_gauss, data, grid, kernel {
+//Create gaussian KDE of x/y data onto 2D map
+//data is 2xn (x,y)
+//grid is 2D image with wcs values set - usually created by image_make_grid or image_make_wcs
+//kernel is kernel size as a multiplier of the standard deviations of the data in x & y. 
+//If not given, or = 0, then set to Scott's rule, i.e. n^(1/6)
+//If = -1, use Silverman's rule, else use kernel size
+  n=naxis2(data)
+  dx=data[1,*]
+  dy=data[2,*]
+  sx=stddev(dx)
+  sy=stddev(dy)
+  scx=get_wcs_cd(grid,"CDELT1")
+  scy=get_wcs_cd(grid,"CDELT2")
+  if (nparams()<3) kernel=0
+  if (kernel==0) {
+    kernel1=kernel2=1.06*n^(1/6) //2D Scott's rule
+    hx=kernel1*sx
+    hy=kernel2*sy
+  } else { if (kernel==-1) {//Silverman's rule
+      qx=(abs(quantile(dx,0.25)-quantile(dx,0.75))) //IQR
+      qy=(abs(quantile(dy,0.25)-quantile(dy,0.75))) //IQR
+      hx=0.9*min(sx,qx/1.34)*n^(1/6)
+      hy=0.9*min(sy,qy/1.34)*n^(1/6)
+    } else {  //Simple scalar
+      hx=sx*kernel
+      hy=sy*kernel
+    }
+  }
+  xw=hx/scx
+  yw=hy/scy
+  l=naxis1(grid)
+  m=naxis2(grid)
+  grid*=0
+  z=grid
+  for (k=1;k<=n;k++) {
+    xc=cvt_WCS_pixel_data(grid,dx[k],1)
+    yc=cvt_WCS_pixel_data(grid,dy[k],2)
+    
+    z=gauss(xc,yc,xw,yw,0,naxis1=l,naxis2=m)
+    grid+=z
+  }
+  image_kde_gauss=norm(grid)
+}
+
+function image_curve_of_growth, inbuff, x, y, r, nrm {
+//Create curve of growth for image photometry, centred on pixel x,y up to radius r
+//If nrm>0 then normalize cog
+  if (nparams()<5) nrm=0
+  image=inbuff
+  if (naxis(inbuff)==3) image=median(inbuff,/z) //Collapse along spectral axis if cube
+  cogdata=fits(r+1)
+  n1=naxis1(image)
+  n2=naxis2(image)
+  for (i=0;i<=r;i++) {
+    mask=circle(x,y,i,naxis1=n1,naxis2=n2)
+    cogdata[i+1]=total(image*mask)
+  }
+  if (nrm>0)  cogdata=norm(cogdata)
+  image_curve_of_growth=cogdata  
+}
+
 
