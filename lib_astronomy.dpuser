@@ -145,6 +145,7 @@ function coordstring, ra, dec, rad, format {
 ; if format=0, returns long string
 ; if format=1, returns short string array [ra, dec]
 ; if format=2, returns numeric array [rah, rad, ras, ded, dem, des]
+; if format=3, returns string HH:MM:SS +DD:MM:SS
 */
   if nparams()<4 format=0
   if nparams()<3 rad=0
@@ -172,6 +173,7 @@ function coordstring, ra, dec, rad, format {
   coordstring = "RA = " + sprintf("%2.0fh ",rah) + sprintf("%2.0fm ", ram) + sprintf("%5.2fs", rad) + ", DEC = " + sign + sprintf("%2.0fd ", deh) + sprintf("%2.0f' ", dem) + sprintf("%4.1f\"", de)
   if (format==1) coordstring=[sprintf("%02.0f",rah) + ":"+sprintf("%02.0f", ram) + ":"+  sprintf("%06.3f", rad),sign + sprintf("%02.0f", deh) + ":" + sprintf("%02.0f", dem) + ":" + sprintf("%05.2f", de)]
   if (format==2) coordstring=[rah,ram,rad,sgn*deh,sgn*dem,sgn*de]
+  if (format==3) coordstring=sprintf("%02.0f",rah) + ":"+sprintf("%02.0f", ram) + ":"+  sprintf("%06.3f", rad)+" "+sign + sprintf("%02.0f", deh) + ":" + sprintf("%02.0f", dem) + ":" + sprintf("%05.2f", de)
 }
 
 function sextodec, sexstr {
