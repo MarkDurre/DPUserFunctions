@@ -1,5 +1,49 @@
 //Input/output functions
 //Requires lib_wcs
+function io_col_to_csv, inbuff, sep {
+//Create CSV line from 1D fits array
+  if (nparams()<2) sep=""
+  brk=sep
+  if (sep=="")||(sep=="C") brk=","
+  if (sep=="T") brk="\t"
+  nn=nelements(inbuff)
+  s=string(inbuff[1])
+  for (i=2;i<=nn;i++) {
+    s+=brk+inbuff[i]
+  }
+  io_col_to_csv = s
+}
+
+function io_bintable_text, fname, extn, sep {
+//Export binary table to CSV sep
+// fname - file name of fits bintable
+// extn - extension name or number (default 1)
+// sep - separator for delimited file ("C" or "" is comma-separator, "T" is tab separator)
+// output - string array of all lines 
+  if (nparams()<3) sep=""
+  if (nparams()<2) extn=1
+  table=readfitsbintable(fname, extn)
+  names=listtablecolumns(fname, extn)
+  ncol=nelements(table)
+  nlines=naxis1(table[0])
+  outbuff=stringarray(nlines+1)
+  outbuff[1]=io_col_to_csv(names,sep)
+  print "IO_BINTABLE_TEXT : No. Table Cols  = "+ncol
+  print "IO_BINTABLE_TEXT : No. Table Lines = "+nlines  
+  data=stringarray(ncol)
+  for (j=1;j<=(nlines+1);j++) {
+    if ((j%10)==1) print "IO_BINTABLE_TEXT : Line "+j
+    for (i=0;i<=(ncol-1);i++) data[i+1]=string(table[i][j])
+    outbuff[j+1]=io_col_to_csv(data,sep)
+  }
+  print "IO_BINTABLE_TEXT : Finished!"
+  io_bintable_text=outbuff
+}
+
+xx=io_bintable_text(
+fname="/Users/mdurre/Downloads/hetdex_agn.fits"
+extn="basic_info"
+sep="T"
 
 function io_str_clean, strng {
   n=nelements(strng)
@@ -18,8 +62,8 @@ function io_str_clean, strng {
 }
 
 function io_text_FITS_1D, inbuff, ignore{
-//Read text file, convert to FITS format
-//Input lines in format wavelength,flux
+//Read text file, convert to FITS sep
+//Input lines in sep wavelength,flux
 //Values separated by "," or " "
 //Output is fits buffer with WCS axis 1 wavelength set
 //Assumes linear wavelength range
@@ -66,7 +110,7 @@ function io_text_FITS_1D, inbuff, ignore{
 function io_text_FITS_3D, inbuff, nx, ny, nz, blank {
 //Convert text file to 3D cube
 //nx, ny, nz are the dimensions
-//Input format is "i j v1 v2..."
+//Input sep is "i j v1 v2..."
 //This allows for blank elements
 //"blank" is the value for no input
   nlines=naxis2(inbuff)
@@ -278,7 +322,7 @@ function io_files_from_csv, inbuff, indelim, outdelim, outquote {
 //First line contains the parameter names
 //Subsequent lines contain data
 //First column is individual output names
-//Other columns are line-by-line in parameter-data format
+//Other columns are line-by-line in parameter-data sep
 //Delimiter between columns in input specified by "indelim" (default comma)
 //Between parameter and data specified by "outdelim" (default space)
 //If "outquote" is 1, then data is quoted (default 1)
@@ -336,3 +380,19 @@ procedure io_export_spectrum, inbuff, fname, fmult, wlmult, prec {
   outbuff[2,*]=inbuff*fmult
   export fname, outbuff, prec
 }
+
+function io_writefile_ctr, inbuff, prefix, suffix {
+//Write file with prefix, suffix and counter (limit 9999)
+//e.g. io_writefits_ctr data, "TEST_", ".fits" 
+//will output TEST_0001.fits, TEST_0002.fits.. etc.
+  ctr=1
+  fmt="%04.0f"
+  fn=prefix+sprintf(fmt,ctr)+suffix
+  while (fileexists(fn)==1) {
+    ctr++
+    fn=prefix+sprintf(fmt,ctr)+suffix
+  }
+  writefits fn, inbuff
+  io_writefile_ctr=fn
+}
+
