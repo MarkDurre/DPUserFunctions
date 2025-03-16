@@ -42,14 +42,14 @@ procedure procparam {
   param_file="myparamfile.csv" //CSV file in dir_base directory, or other if relatively specified
   cd dir_base
   print title+" for : "+pwd()
-  params=import(param_file)
+  params=import(param_file,/text)
   nfiles=nelements(params)
   cd in_dir //Move to input directory to process files
   print ""
   print "Number of files : "+(nfiles-1) //Assume first line is header
   i=2
   for (i=2;i<=nfiles;i++) { //Processing each line of files
-    params=strsplit(file_list[i],",") //Split line into elements
+    params=strsplit(param_file[i],",") //Split line into elements
     fn=params[1] //Assume that the file name is in the first column
 //Can specify params, the params array is a string so must be converted as appropriate
 // e.g.
