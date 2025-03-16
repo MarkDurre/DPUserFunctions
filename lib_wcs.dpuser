@@ -40,6 +40,15 @@ procedure set_WCS_data, inbuff, wcs, axis {
   setfitskey inbuff,"CD"+axis+"_"+axis, wcs[3]
 }
 
+function set_WCS_data, inbuff, wcs, axis {
+  if (axis<=1)  axis=1 
+  setfitskey inbuff, "CRVAL"+axis, wcs[2]  
+  setfitskey inbuff, "CRPIX"+axis, wcs[1]  
+  setfitskey inbuff, "CDELT"+axis, wcs[3]
+  setfitskey inbuff,"CD"+axis+"_"+axis, wcs[3]
+  set_WCS_data=inbuff
+}
+
 procedure copy_WCS_data, frombuff, tobuff, fromaxis, toaxis {
 //Copy WCS values from one buffer to another
   if nparams()<3 fromaxis=1
@@ -67,7 +76,7 @@ function cvt_pixel_WCS, pix, cpix, cval, cdelt, prnt {
   cvt_pixel_WCS = (pix-cpix)*cdelt+cval
 }
 
-function cvt_WCS_pixel_data, inbuff, value, axis, prnt {
+function cvt_WCS_pixel_data, inbuff, value, axis {
   if nparams()<4 prnt=0
   wcs=get_WCS_data(inbuff,axis)
   cp=wcs[1]
@@ -84,7 +93,7 @@ function cvt_pixel_WCS_data, inbuff, value, axis, prnt {
   cv=wcs[2]
   cd=wcs[3]
   v=float(value)
-  cvt_pixel_WCS_data=cvt_pixel_WCS(v, cp, cv, cd, prnt)
+  cvt_pixel_WCS_data=cvt_pixel_WCS(v, cp, cv, cd)
 }
 
 function WCS_range, inbuff, p1, p2, axis, prnt {
@@ -307,4 +316,62 @@ function WCS_shift_pix, inbuff, xshift, yshift, sec {
   setfitskey outbuff, "CRPIX1", getfitskey(outbuff, "CRPIX1")-pix1
   setfitskey outbuff, "CRPIX2", getfitskey(outbuff, "CRPIX2")-pix2
   WCS_shift_pix=outbuff
+}
+
+function WCS_PC_To_CD, inbuff {
+//Convert PC/CDELT to CD matrix
+  if (hdr_check_prefix(inbuff,"PC1")!=0)&& (hdr_check_prefix(inbuff,"CDELT1")!=0){ //Have PC/CDELT matrix
+    outbuff=inbuff
+    pc11=hdr_get_fits_key(inbuff,"PC1_1") //Allow for wavelength in axis1 or axis3
+    pc12=hdr_get_fits_key(inbuff,"PC1_2")
+    pc21=hdr_get_fits_key(inbuff,"PC2_1")
+    pc22=hdr_get_fits_key(inbuff,"PC2_2")
+    pc32=hdr_get_fits_key(inbuff,"PC3_2")
+    pc23=hdr_get_fits_key(inbuff,"PC2_3")
+    pc33=hdr_get_fits_key(inbuff,"PC3_3")
+    cdelt1=hdr_get_fits_key(inbuff,"CDELT1")
+    cdelt2=hdr_get_fits_key(inbuff,"CDELT2")
+    cdelt3=hdr_get_fits_key(inbuff,"CDELT3")
+    if (pc11!="") {
+      cd11=float(pc11)*float(cdelt1)
+      setfitskey outbuff, "CD1_1", cd11
+      deletefitskey outbuff, "PC1_1"
+    }
+    if (pc21!="") {
+      cd21=float(pc21)*float(cdelt2)
+      setfitskey outbuff, "CD2_1", cd21
+      deletefitskey outbuff, "PC2_1"
+    }
+    if (pc12!="") {
+      cd12=float(pc12)*float(cdelt1)
+      setfitskey outbuff, "CD1_2", cd12
+      deletefitskey outbuff, "PC1_2"
+    }
+    if (pc22!="") {
+      cd22=float(pc22)*float(cdelt2)
+      setfitskey outbuff, "CD2_2", cd22
+      deletefitskey outbuff, "PC2_2"
+    }
+    if (pc23!="") {
+      cd32=float(pc32)*float(cdelt3)
+      setfitskey outbuff, "CD3_2", cd32
+      deletefitskey outbuff, "PC3_2"
+    }
+    if (pc23!="") {
+      cd23=float(pc23)*float(cdelt2)
+      setfitskey outbuff, "CD2_3", cd23
+      deletefitskey outbuff, "PC2_3"
+    }
+    if (pc33!="") {
+      cd33=float(pc33)*float(cdelt3)
+      setfitskey outbuff, "CD3_3", cd33
+      deletefitskey outbuff, "PC3_3"
+    }
+    WCS_PC_To_CD=outbuff
+    
+  } else {
+    print "WCS_PC_To_CD: No PC/CDELT matrix!"
+    WCS_PC_To_CD=0
+  }
+
 }
