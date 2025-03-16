@@ -16,5 +16,5 @@ cd dpuserdir
 @Functions/lib_velmap.dpuser
 @Functions/lib_pv.dpuser
 @Functions/lib_chmap.dpuser
-@postprocessing/lib_post_reduction.dpuser
+@Postprocessing/lib_post_reduction.dpuser
 cd dir_save_all
