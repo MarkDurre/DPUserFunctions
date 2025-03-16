@@ -602,6 +602,42 @@ function cube_spectrum_multiply, cube, spectrum, x1, x2, y1, y2 {
   cube_spectrum_multiply=cube_spectrum_arith(cube, spectrum, 1, x1, x2, y1, y2)
 }
 
+function cube_spectrum_sub_scale, cube, spectrum, l1 ,l2 {
+//Subtract scaled spectrum from cube (spectral model continuum removal)
+// l1, l2 is wavelength range for scaling
+// spectrum must be same z axis length as cube
+  if (nparams<4) {
+    print "CUBE_SPECTRUM_SUB_SCALE: Error! Wavelength range not specified"
+    cube_spectrum_sub_scale=0
+    break
+  }
+  n1=naxis1(cube)
+  n2=naxis2(cube)
+  n3=naxis3(cube)
+  outbuff=cube*0
+  p1=int(cvt_WCS_pixel_data(cube, l1, 3))
+  p2=int(cvt_WCS_pixel_data(cube, l2, 3))
+  if (p1<1)||(p2>n3) {
+    print "CUBE_SPECTRUM_SUB_SCALE: Error! Wavelength range out of range"
+    cube_spectrum_sub_scale=0
+    break  
+  }
+  if (naxis1(spectrum)!=naxis3(cube)) {
+    print "CUBE_SPECTRUM_SUB_SCALE: Error! Cube and spectrum not same wavelength pixels length"
+    cube_spectrum_sub_scale=0
+    break  
+  }
+  for (i=1;i<=n1;i++) {
+    for (j=1;j<=n2;j++) {
+      spaxel=cube[i,j,*]
+      cubes=avg(spaxel[p1:p2])
+      spectrums=avg(spectrum[p1:p2])
+      outbuff[i,j,*]=spaxel-spectrum*cubes/spectrums
+    }
+  }
+  cube_spectrum_sub_scale=outbuff
+}
+
 function cube_spectrum_arith,  inbuff, spectrum, modeflag, x1, x2, y1, y2 {
    if nparams()<4 x1=x2=y1=y2=0
    n1=naxis1(inbuff)
@@ -850,6 +886,46 @@ function cube_deslope, inbuff, mask, flag, order, sub {
   cube_deslope=outbuff
 }
 
+function cube_flux_ul, inbuff, lambda, width, deslope, ignore, flag {
+//Return SD and (optionally) average for cube over wavelength range
+//Can be used for UL to fluxes
+//Assume spectrum is in last axis and has correct WCS
+//Parameters:
+//lambda, width - central wavelength and window width
+//deslope  - order of polynomial fit to slope, if zero, do not deslope (default)
+//ignore - value to ignore (e.g. 0 or Nan) - default Nan, i.e. don't ignore any number
+//flag - if 0 (default) return only SD, if 1, return [SD, AVG]
+
+  if (nparams()<6) flag=0
+  if (nparams()<5) ignore=0/0
+  if (nparams()<4) deslope=0
+  laxis=3
+  p1=cvt_WCS_pixel_data(inbuff, lambda-width/2, laxis)
+  p2=cvt_WCS_pixel_data(inbuff, lambda+width/2, laxis)
+  spec=inbuff[*,*,p1:p2]
+  if (deslope>0) {
+    s=cube_deslope(spec,[0],0,deslope,0)
+    spec=s*avg(spec,/z)
+  }
+  if (isnan(ignore)==1) {
+    sigma=stddev(spec,/z)
+  } else {
+    sigma=stddev(spec, ignore, /z)
+  }
+  cube_flux_ul=sigma
+  if (flag==1) {
+    if (isnan(ignore)==1) {
+      a=avg(spec,/z)
+    } else {
+      a=avg(spec, ignore, /z)
+    }
+    cube_flux_ul=fits(naxis1(inbuff),naxis2(inbuff),2)
+    cube_flux_ul[*,*,1]=sigma
+    cube_flux_ul[*,*,2]=a
+    }
+}
+
+
 function cube_clean_pixels, inbuff, layer, npix {
 //Remove singleton pixels surronded by Nan's
 //Opposite of cube_interp_flags
@@ -932,20 +1008,7 @@ function cube_from_image_spectrum, image, spectrum, clipf {
   print "CUBE_FROM_IMAGE_SPECTRUM : Cube dimensions : "+naxis1(cube)+"x"+naxis2(cube)+"x"+naxis3(cube)
   cube_from_image_spectrum=cube
 }
-/*
-dd1="/Volumes/Data/"
-dd2="D:/Users/Mark Durre/""
-*/
-/*
-buffer1 = readfits(dd1+"OneDrive - Swinburne University/Postreduction/NGC7743/B-ScienceCubesReg/NGC7743_K_050_GNI_20131020_0066.fits")
-buffer2 = readfits(dd1+"OneDrive - Swinburne University/Postreduction/NGC7743/B-ScienceCubesReg/NGC7743_K_050_GNI_20131020_0068.fits")
-buffer3 = readfits(dd1+"OneDrive - Swinburne University/Postreduction/NGC7743/B-ScienceCubesReg/NGC7743_K_050_GNI_20131020_0069.fits")
-buffer4 = readfits(dd1+"OneDrive - Swinburne University/Postreduction/NGC7743/B-ScienceCubesReg/NGC7743_K_050_GNI_20131020_0071.fits")
-buffer5 = readfits(dd1+"OneDrive - Swinburne University/Postreduction/NGC7743/B-ScienceCubesReg/NGC7743_K_050_GNI_20131020_0072.fits")
-buffer6 = readfits(dd1+"OneDrive - Swinburne University/Postreduction/NGC7743/B-ScienceCubesReg/NGC7743_K_050_GNI_20131020_0074.fits")
-inbuff=list(buffer1,buffer2,buffer3,buffer4,buffer5,buffer6)
-sigma=2.5;toler=0.1
-*/
+
 function cube_comb_sigma, inbuff, sigma, toler{
 //Sigma-clip each spectrum for multiple cubes (up to 10) 
 //inbuff is multi-extension fits list
@@ -1361,3 +1424,40 @@ function cube_from_spectrum, spectrum {
   out[2,2,*]=spectrum
   cube_from_spectrum=out
 }
+
+function cube_centroids, cube, pos, radius {
+//Find centroid along z axis for cube, initial estimate at "pos"
+//Search "radius" about "pos"
+  clen=naxis3(cube)
+  outbuff=fits(clen, 2)
+  for (i=1;i<=clen;i++) outbuff[i,*]=centroids(cube[*,*,i],pos, radius)
+  cube_centroids=outbuff
+}
+
+function cube_3d_to_2d, cube, axis {
+//Convert cube from 3d to 2d image
+//scanned along either x (axis=1 - default) or y (axis=2)
+  if (nparams()==1) axis=1
+  if (axis<1) or (axis>2) {
+    print "CUBE_3D_TO_2D: Error, AXIS = ", axis
+  }
+  c1=naxis1(cube)
+  c2=naxis2(cube)
+  c3=naxis3(cube)
+  outbuff=fits(c1*c2,c3)
+  axlim=c2
+  if (axis==2) axlim=c1
+  for (i=1;i<=axlim;i++) {
+    if (axis==1) {
+      x1=(i-1)*c1+1
+      x2=i*c1
+      outbuff[x1:x2,*]=cube[*,i,*]
+    } else {
+      x1=(i-1)*c2+1
+      x2=i*c2
+      outbuff[x1:x2,*]=cube[i,*,*]
+    }
+  }
+  cube_3d_to_2d=outbuff
+}
+
