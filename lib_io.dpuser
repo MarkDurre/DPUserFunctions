@@ -40,11 +40,6 @@ function io_bintable_text, fname, extn, sep {
   io_bintable_text=outbuff
 }
 
-xx=io_bintable_text(
-fname="/Users/mdurre/Downloads/hetdex_agn.fits"
-extn="basic_info"
-sep="T"
-
 function io_str_clean, strng {
   n=nelements(strng)
   out=""
@@ -108,7 +103,7 @@ function io_text_FITS_1D, inbuff, ignore{
 }
 
 function io_text_FITS_3D, inbuff, nx, ny, nz, blank {
-//Convert text file to 3D cube
+//Convert text data to 3D cube
 //nx, ny, nz are the dimensions
 //Input sep is "i j v1 v2..."
 //This allows for blank elements
