@@ -90,6 +90,31 @@ function spectrum_mask, inbuff, mask, value, flag {
   free outbuff
 }
 
+function spectrum_mask_optical_lines, inbuff, flag_NLBL, z {
+//Mask spectrum for standard emmission lines
+//inbuff - spectrum (assume in Angstroms)
+//flag_NLBL - 0 = NL width, 1 = BL width
+//z - redshift of inbuff (default 0)
+//         -----[OII]-----    Hdelta   Hgamma   Hbeta   -----[OIII]-----   [OI]    -----[NII]-----   Halpha   -----[SII]-----
+
+  if (nparams()<3) z=0
+  lines = [3726.03, 3728.82, 4101.76, 4340.47, 4861.33, 4958.92, 5006.84, 6300.30, 6548.03, 6583.41, 6562.80, 6716.47, 6730.85]
+  nlw   = floatarray(13)+20
+  blw   = nlw
+  bb=[3,4,5,11]
+  blw[bb] = 80
+  if (z>0) inbuff=redshift_data(inbuff, -z)
+  wdth=(flag_NLBL==0 ? nlw : blw)
+  mask=floatarray(26)
+  for (i=1;i<=13;i++) {
+    mask[2*i-1]=lines[i]-wdth[i]
+    mask[2*i]=lines[i]+wdth[i]
+  }
+  outbuff=spectrum_mask(inbuff,mask,0/0,1)
+  if (z>0) outbuff=redshift_data(outbuff,z)
+  spectrum_mask_optical_lines=outbuff
+}
+
 function spectrum_mask_from_nan, inbuff {
 //Get spectral mask from Nan/Inf values of input spectrum
   nans=cblank(inbuff/inbuff) //1D data of 0s (Nan/Inf) or 1s (Good data)
