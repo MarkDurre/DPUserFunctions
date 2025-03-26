@@ -197,6 +197,14 @@ function inf_clean, inbuff {
   inf_clean=outbuff
 }
 
+function infnan_flag, inbuff, flag {
+  outbuff=inbuff
+  for (i=1;i<=nelements(inbuff);i++) {
+     if (isnan(inbuff[i])||isinf(inbuff[i])) outbuff[i]=flag     
+  }
+  infnan_flag=outbuff
+}
+
 function bintable_to_matrix, inbuff {
 //Convert mult column binary table to std FITS matrix
   ncol=nelements(inbuff)
