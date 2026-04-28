@@ -424,13 +424,12 @@ function image_combine_median, inbuff, omit {
   image_combine_median=image_combine(inbuff,1,omit)
 }
 
-
 function image_coord_map, image, prnt {
 //Gives WCS co-ordinates at image corners and centre, including correct projections
   if (nparams()<2) prnt=0
   n1=naxis1(image)
   n2=naxis2(image)
-  res=worldpos(image,[[1,1],[1,n1],[n2,1],[n1,n2],[n1/2,n2/2]])
+  res=worldpos(image,[[1,1],[n1,1],[1,n2],[n1,n2],[n1/2,n2/2]])
   if (prnt>0) {
     print "IMAGE_COORD_MAP: Bottom Left  - ["+sprintf("%10.8f",res[1,1])+","+sprintf("%10.8f",res[2,1])+"] - ["+dectosex(res[1,1]/15)[1:13]+","+dectosex(res[2,1])+"]"
     print "IMAGE_COORD_MAP: Bottom Right - ["+sprintf("%10.8f",res[1,2])+","+sprintf("%10.8f",res[2,2])+"] - ["+dectosex(res[1,2]/15)[1:13]+","+dectosex(res[2,2])+"]"
