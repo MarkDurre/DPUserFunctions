@@ -308,6 +308,9 @@ function cube_single_pixel_fix, inbuff, x, y {
 function cube_clean_dpix, inbuff, mode, threshold, vmin, vmax {
 //Clean cube by dpixcreate/apply
 //divisor =  scale set from maximum of median image
+//mode, =0 then use threshold, =1 use vmin and vmax
+  if (nparams()<5) vmax=0
+  if (nparams()<4) vmin=0
   flag=0
   if nparams()>3 flag=1 //Use min/max vs divisor
   outbuff=inbuff
