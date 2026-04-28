@@ -149,7 +149,6 @@ procedure chmap_comps, inbuff, dirout, fnameout {
   print "CHMAP_COMPS: Min Value : "+min(workbuff)+" Max Value : "+max(workbuff)
 }
 
-
 function chmap_from_velmap, velmap, cube_template, width, res {
 //Make a channel map from the velmap and a FWHM factor
 //Evaluate the velmap as pure gaussians
