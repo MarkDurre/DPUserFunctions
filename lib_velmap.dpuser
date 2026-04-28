@@ -1,4 +1,4 @@
-//Velocity mapping functions
+q//Velocity mapping functions
 //Requires lib_wcs, lib_general, lib_cube
 
 /*
@@ -49,6 +49,18 @@ function velmap_flux_fix, velmp, scale {
 function velmap_std_to_ext, velmpstd, r, fmin, vmethod, vcenter, vx, vy {
 //Convert standard QFitsView velmap to extended version
 //Clips flux<fmin
+// result[1..9] as per std velmap
+// result[10] = velocity
+// result[11] = dispersion
+// result[12] = flux
+// result[13] = EW
+// result[14] = order + turbulence
+// result[15] = order/turbulence
+// r = instrumental resolution
+// Clip flux values below fmin
+// vmethod - 0 set zero velocity at median, 1= average, 2 = flux weighted average
+//           3 = set value at position set by [vx,vy], 4 = set zero at position set by [vx,vy]
+
   n1=naxis1(velmpstd)
   n2=naxis2(velmpstd)
 //Set defaults
@@ -529,7 +541,7 @@ function velmap_mask, velmp {
   velmap_mask=velmp*m
 }
 
-	procedure write_comp, data, prefix, nm {
+procedure write_comp, data, prefix, nm {
 		fn=prefix+"_"+nm+".fits"
 		print nm+" => "+fn
 		writefits fn, data
@@ -593,4 +605,9 @@ function velmap_derotate, cube, velmodel, lambdac {
     }
   }
   velmap_derotate=outbuff
+}
+
+function velmap_sn_height, velmp {
+//Compute S/N for height from velmap, sets parameter for lowest S/N for velmap_fix_interp
+  velmap_sn_height=velmp[*,*,2]/velmp[*,*,6] //S/N map on height
 }
