@@ -2,13 +2,18 @@
 //Requires lib_header
 
 function get_WCS_data, inbuff, axis {
-  out=floatarray(3)
+  out=[1,1,1]
   ax=axis
   if (ax<=1)  ax=1 
-  cv=getfitskey(inbuff, "CRVAL"+ax)
-  cp=getfitskey(inbuff, "CRPIX"+ax)
-  set_CD_key, inbuff, ax
-  cd=getfitskey(inbuff,"CD"+axis+"_"+axis)
+  cv=hdr_get_fits_key(inbuff, "CRVAL"+ax)
+  if (cv=="") cv=1
+  cp=hdr_get_fits_key(inbuff, "CRPIX"+ax)
+  if (cp=="") cp=1
+  cd=hdr_get_fits_key(inbuff, "CDELT"+ax)
+  if (cd=="") {
+    cd=hdr_get_fits_key(inbuff, "CD"+axis+"_"+axis)
+    if (cd=="") cd=1
+  }
   out[1]=float(cp)
   out[2]=float(cv)
   out[3]=float(cd) 
@@ -114,16 +119,29 @@ function pixel_range, inbuff, w1, w2, axis, prnt {
 
 function set_WCS_default, inbuff {
 //Check WCS keys and set to 1 if not present
-  wcskeys=["CRPIX1","CRVAL1","CDELT1","CRPIX2","CRVAL2","CDELT2","CRPIX3","CRVAL3","CDELT3","CD1_1","CD2_2","CD3_3"]
+  wcskeys=["CRPIX1","CRVAL1","CDELT1","CRPIX2","CRVAL2","CDELT2","CRPIX3","CRVAL3","CDELT3"]
   n=naxis(inbuff)
   ne=n*3
   outbuff=inbuff
   for (i=1;i<=ne;i++) {
     t=strtrim(getfitskey(inbuff, wcskeys[i],/text))
+    print t
     if (t=="") setfitskey outbuff,wcskeys[i],1, "Set by default"
   }
   set_WCS_default=outbuff
 }
+
+function reset_WCS_default, inbuff {
+//Check WCS keys and set to 1 if not present
+  wcskeys=["CRPIX1","CRVAL1","CDELT1","CRPIX2","CRVAL2","CDELT2","CRPIX3","CRVAL3","CDELT3"]
+  n=naxis(inbuff)
+  outbuff=inbuff
+  for (i=1;i<=9;i++) {
+    setfitskey outbuff,wcskeys[i],1, "Set by default"
+  }
+  reset_WCS_default=outbuff
+}
+
 
 function get_aperture_WCS, inbuff, wcs1, wcs2, wsize, prnt {
 //Get aperture from image based on WCS co-ords
@@ -229,22 +247,32 @@ function get_WCS_image, cube {
   get_WCS_image=[crpix1,crval1,cd11,cd12,crpix2,crval2,cd21,cd22,cdelt1,cdelt2,rotang]
 }
 
-function WCS_cd_from_cdelt, data, cdelt1, cdelt2, crota2 {
+function WCS_cd_from_cdelt, data{
+  x=get_WCS_image(data)
   outbuff=data
-  cr=cos(crota2,/deg)
-  sr=sin(crota2,/deg)
-  cd11=cdelt1*cr
-  cd12=abs(cdelt2)*sign(cdelt1)*sr
-  cd21=-abs(cdelt1)*sign(cdelt2)*sr
-  cd22=cdelt2*cr
-  setfitskey outbuff,"CD1_1",cd11
-  setfitskey outbuff,"CD1_2",cd12
-  setfitskey outbuff,"CD2_1",cd21
-  setfitskey outbuff,"CD2_2",cd22
+  setfitskey outbuff,"CD1_1",x[3]
+  setfitskey outbuff,"CD1_2",x[4]
+  setfitskey outbuff,"CD2_1",x[8]
+  setfitskey outbuff,"CD2_2",x[9]
   deletefitskey outbuff,"CDELT1"
   deletefitskey outbuff,"CDELT2"
   deletefitskey outbuff,"CROTA2"
   WCS_cd_from_cdelt=outbuff
+}
+
+function WCS_cdelt_from_cd, data {
+//Set CDELT/ROTA from CD keys - needed for some software
+  x=get_WCS_image(data)
+  outbuff=data
+  deletefitskey outbuff,"CD1_1"
+  deletefitskey outbuff,"CD1_2"
+  deletefitskey outbuff,"CD2_1"
+  deletefitskey outbuff,"CD2_2"
+  setfitskey outbuff,"CDELT1", x[9]
+  setfitskey outbuff,"CDELT2", x[10]
+  setfitskey outbuff,"CROTA2", x[11]
+  WCS_cdelt_from_cd = outbuff
+  
 }
 
 function set_WCS_image_scale, cube, wcs, xscale, yscale{
