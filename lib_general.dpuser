@@ -1,5 +1,12 @@
 //General functions
 //Requires lib_wcs
+function fwhm_to_kms, fwhm, lambda {
+   fwhm_to_kms = fwhm * 300000/ lambda /2.355
+}
+
+function kms_to_fwhm, sigma, lambda {
+   kms_to_fwhm = sigma * lambda * 2.355 / 300000
+}
 
 function indexreform, index, xsize, ysize, zsize {
 //Return x,y,z co-ords from 1D index, given dimensions xsize, ysize, zsize
@@ -92,30 +99,14 @@ function axiscentroids, inbuff, axis {
   axiscentroids=outbuff
 }
 
-function myhist, inbuff, low, high, bin, normflag {
-//Create histogram
-//low, high - range of values (default min/max of data range)
-//bin - binsize (default set so there are 100 bins)
-  myhist=0
-  if nparams()<5 normflag=0
-  if nparams()<2 {
-    low=min(inbuff)
-    high=max(inbuff)
-  }
-  if nparams()<4 bin=(high-low)/100
-  if (bin>(high-low)) {
-    print "MYHIST: Error - Bin size is greater than data range!"
-    break
-  }
-  hsize=round((high-low)/bin)
-  outbuff=fits(hsize)
-  for (i=1; i<=nelements(inbuff); i++) {
-    hi=int((inbuff[i]-low)/bin)+1
-    if ((hi>=1)&&(hi<=hsize)&&(inbuff[i]>low)) outbuff[hi]=outbuff[hi]+1
-  }
-  setwcs outbuff,1,1,low,1,bin,1
-  if (normflag==1) outbuff=norm(outbuff,/total)
-  myhist=outbuff
+function moments, datax, datay, n {
+//Compute the nth moment for a dataset
+  i=nelements(datax)
+  s=0
+  for (j=1;j<=i;j++) {
+    s+=(datax[j]^n)*datay[j]
+  } 
+  moments=s/i
 }
 
 function profile_export, inbuff, scale1, scale2, scale3, offset{
