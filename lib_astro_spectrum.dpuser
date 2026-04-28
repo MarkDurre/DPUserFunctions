@@ -31,15 +31,3 @@ function spec_sn, inbuff, l1, l2 {
   ns=meddev(inbuff[p1:p2])
   spec_sn=sig/ns
 }
-
-function spec_wave_to_vel, inbuff, centre {
-  waxis=naxis(inbuff) //Get the wavelength axis
-  outbuff=inbuff
-  wcs=get_WCS_data(inbuff,waxis)
-  vc=centre/299792.458
-  crval=0.0
-  crpix=wcs[1]+(centre-wcs[2])/wcs[3]
-  cdelt=wcs[3]/vc
-  set_WCS_data outbuff, [crpix, crval, cdelt],waxis
-  spec_wave_to_vel=outbuff
-}
