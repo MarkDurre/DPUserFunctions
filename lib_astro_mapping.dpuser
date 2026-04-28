@@ -126,16 +126,15 @@ function map_compare_pos, inbuff1, inbuff2, inbuff3, inbuff4, x, y {
   print "MAP_COMPARE_POS: Compare 1: "+e1+" 2: "+e2
   map_compare_pos=[e1,e2]
 }
-
-    
-function map_regime_ir, inbuff1, inbuff2, a1, a2, a3, b1, b2 {
+   
+function map_regime_ir, inbuff1, inbuff2, a1, a2, b1, b2 {
 //Map IR excitation diagram, using Riffel et al. (2013a) limits
-  if (a1==0) {
-    b1=log(2.6)
-    b2=log(8.6)
+//a1, a2 are region limits for H_2/Br_gamma, b1 and b2 for [FeII]/Pa_beta
+  if (nparams()<3)||(a1==0) {
     a1=log(0.4)
     a2=log(6)
-    a3=log(2)
+    b1=log(0.6)
+    b2=log(2)
   }
   outbuff=inbuff1*0
   n1=naxis1(inbuff1)
@@ -146,12 +145,15 @@ function map_regime_ir, inbuff1, inbuff2, a1, a2, a3, b1, b2 {
       p2=inbuff2[i,j]
       f=0
       if ((isnan(p1)==0)&&(isnan(p2)==0)) {
-        if (p1<a2)&&(p2<b2) f=2//AGN
-        if (p1<a1)&&(p2<b1) f=1 //PI
-        if (p1>=a3)&&(p2>=b2) f=3 //LINER
-        if (p1>=a2)&&(p2<b2) f=4 //TO1
-        if (p1<a3)&&(p2>=b2) f=5 //TO2
-//        if (i==33)&&(j==33) print i+","+j+","+p1+","+p2+","+f
+        if {(p1<a1)&&(p2<b1)} {
+          f=1 
+        }//SF 
+        else if {(p1<a2)&&(p2<b2)} 
+          f=2 
+        }//AGN 
+        else {
+          f=3
+        }
       }
       outbuff[i,j]=f
     }
