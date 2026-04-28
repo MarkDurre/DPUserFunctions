@@ -234,3 +234,35 @@ function dectosex, decnum {
   dectosex=ss+d1+":"+d2s+":"+d3ss
 }
 
+function arcdist, r1, d1, r2, d2, conv {
+//Compute arc angle distance between 2 points RA and DEC [R1,D1] [R2,D2]
+//Angles in degrees. If conv=1, convert sex string to dec
+  if nparams()<5 conv=0
+  if nparams()<4 {
+    print "ARCDIST: Error! Co-ordinates not correct R1, D1, R2, D2"
+    break
+  }
+  rd1=r1
+  rd2=r2
+  dd1=d1
+  dd2=d2
+  if (conv>0) { //Convert to dec from sex
+    rd1=sextodec(r1)*15
+    rd2=sextodec(r2)*15
+    dd1=sextodec(d1)
+    dd2=sextodec(d2)
+  }
+  rr1=deg2rad(rd1) //Convert to radians
+  rr2=deg2rad(rd2)
+  dr1=deg2rad(dd1)
+  dr2=deg2rad(dd2)
+  c1=cos(rr1)
+  c2=cos(rr2)
+  h1=sin((rr1-rr2)/2)^2
+  h2=sin((dr1-dr2)/2)^2
+  cc1=h1+c1*c2*h2
+  cc2=2*atan(sqrt(cc1),sqrt(1-cc1))
+  arcdist=rad2deg(cc2)
+  print "ARCDIST: ["+rd1+","+dd1+"]<->["+rd2+","+dd2+"] = "+arcdist+" (deg)"
+}
+
