@@ -88,27 +88,6 @@ function hdr_get_all_fits_key_values, inbuff, prefix, type {
   }
   hdr_get_all_fits_key_values=outbuff
 }
-/*
-    txt=txtdata[i]
-      key=simplifywhitespace(txt[2:9]) //FITS key
-      line=txt[12:80]
-          sline=strsplit(line,"/") //Split value and comment
-          value=strtrim(sline[1])
-          cmnt=strtrim(sline[2])
-          len=strlen(value)
-          if strpos(value,"'")>-1 { //Value is string
-            p1=strpos(value,"'")
-            p2=strpos(value[p1+1:len],"'")
-            val=value[p1+1:p2-1]
-          } else { //Value is float or int
-            if strpos(value,".")>-1 {//Value is float
-              val=float(value)
-            } else {
-              val=int(value)
-            }
-          }
-          setfitskey hdrbuff,key,val,cmnt
-*/
 
 function hdr_read_from_text, txtdata, prefix {
 //Read header keys from text data (stringarray) and add to FITS file
@@ -154,5 +133,30 @@ function hdr_read_from_text, txtdata, prefix {
   }
   
   hdr_read_from_text = hdrbuff
+}
+
+function hdr_fits_basic, inbuff {
+//Strips fits header to minimum, just NAXIS and WCS keys
+  
+  nax=int(getfitskey(inbuff, "NAXIS"))
+  nkey=[1,1,1]
+  ne=1
+  for (i=1;i<=nax;i++) {
+    nkey[i]=int(getfitskey(inbuff, "NAXIS"+i))
+    ne*=nkey[i]
+  }
+  outbuff=fits(int(ne))
+  outbuff[*]=inbuff[*]
+  outbuff=reform(outbuff,int(nkey[1]), int(nkey[2]), int(nkey[3]))
+  outbuff=reform(outbuff)
+  for (i=1;i<=nax;i++) {
+    z=get_WCS_data(inbuff,i)
+//    print i+" - "+z[1]+" "+z[2]+" "+z[3]
+    setfitskey outbuff, "CRVAL"+i, z[2]  
+    setfitskey outbuff, "CRPIX"+i, z[1]  
+    setfitskey outbuff,"CD"+i+"_"+i, z[3]
+    setfitskey outbuff,"CDELT"+i, z[3]
+  } 
+  hdr_fits_basic=outbuff  
 }
 
