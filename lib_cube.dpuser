@@ -305,22 +305,78 @@ function cube_single_pixel_fix, inbuff, x, y {
   cube_single_pixel_fix=cube_interp_xy(inbuff, x, x, y, y, 1, n3)
 }
 
-function cube_clean_dpix, inbuff, divisor {
+function cube_clean_dpix, inbuff, mode, threshold, vmin, vmax {
 //Clean cube by dpixcreate/apply
 //divisor =  scale set from maximum of median image
+  flag=0
+  if nparams()>3 flag=1 //Use min/max vs divisor
+  outbuff=inbuff
+  if (mode==1) outbuff*=0
+  count=0
   cm=cubemedian(inbuff)
+  for (i=1;i<=naxis3(inbuff);i++) {
+    layer=inbuff[*,*,i]
+    if (flag==0) {
+      dp=dpixcreate(layer/cm,threshold,3,3) 
+    } else {
+      dp=layer*0
+      dp[where(layer<vmin)]=1
+      dp[where(layer>vmax)]=1
+      dp[where(layer==0)]=0
+    }
+    tdp=total(dp)
+    count=count+total(dp)
+    if (tdp>0) outbuff[*,*,i]=(mode==0 ? dpixapply(layer,dp,3) : dp )
+  }
+  print "CUBE_CLEAN_DPIX: Clean method : "+ (flag==0 ? "Divisor" : "Min/max")
+  print "CUBE_CLEAN_DPIX: Total pixels fixed : "+count
+  cube_clean_dpix=outbuff
+}
+
+function cube_clean_dpix2, inbuff, pixbuff, divisor {
+//Clean cube by dpixcreate/apply. Bad pixel map from pixbuff
+//divisor =  scale set from maximum of median image
+  cm=cubemedian(pixbuff)
   outbuff=inbuff
   m=max(cm)
   count=0
-  for (i=1;i<=naxis3(inbuff);i++) {
-    layer=inbuff[*,*,i]
-    dp=dpixcreate(layer,m/divisor,3,1)
+  for (i=1;i<=naxis1(inbuff);i++) {
+    layer=pixbuff[i,*,*]
+    dp=dpixcreate(layer,m/divisor,3,3) 
     tdp=total(dp)
     count=count+total(dp)
-    if (tdp>0) outbuff[*,*,i]=dpixapply(layer,dp,3)
+    if (tdp>0) outbuff[i,*,*]=dp
   }
-  print "CUBE_CLEAN_DPIX: Total pixels fixed : "+count
-  cube_clean_dpix=outbuff
+  print "CUBE_CLEAN_DPIX2: Total pixels fixed : "+count
+  cube_clean_dpix2=outbuff
+}
+
+function cube_clean_dpix3, inbuff, thresh, cycles {
+//Clean cube by dpixcreate/apply along each spectrum
+//thresh = threshold
+//cycles = # of times to apply
+  if nparams()<3 cycles=1
+  if nparams()<2 thresh=1
+  outbuff=inbuff
+  count=0
+  for (i=1;i<=naxis1(inbuff);i++) {
+    print "CUBE_CLEAN_DPIX3: Layer - "+i
+    for (j=1;j<=naxis2(inbuff);j++) {
+      spec=inbuff[i,j,*]
+      if (total(spec)>0) { //Ignore null spectra
+//        print "["+i+","+j+"]"
+        for (k=1;k<=cycles;k++) {
+          dp=dpixcreate(spec, thresh,3,3) 
+          tdp=total(dp)
+          count+=total(dp)
+          spec=dpixapply(spec, dp, 5, method=1)
+        }
+        outbuff[i,j,*]=spec
+      }
+    }
+  }
+  print "CUBE_CLEAN_DPIX3: Total pixels fixed : "+count
+  cube_clean_dpix3=outbuff
 }
 
 function cube_resize_center, inbuff, xcent, ycent, xsize, ysize, subpix {
@@ -925,7 +981,6 @@ function cube_flux_ul, inbuff, lambda, width, deslope, ignore, flag {
     }
 }
 
-
 function cube_clean_pixels, inbuff, layer, npix {
 //Remove singleton pixels surronded by Nan's
 //Opposite of cube_interp_flags
@@ -1338,7 +1393,7 @@ function cube_sn_noise, inbuff, window {
       outbuff[i,j,*]=spectrum_sn(inbuff[i,j,*], window)[2]
     }
   }
-  cube_sn=outbuff
+  cube_sn_noise=outbuff
 }
 
 function cube_apply_snr, signalcube, snr, snrscale {
@@ -1461,3 +1516,86 @@ function cube_3d_to_2d, cube, axis {
   cube_3d_to_2d=outbuff
 }
 
+function cube_redisp_spectrum, cube, spectrum {
+//Redisperse cube spectral axis to spectrum values
+  nn=naxis1(spectrum)
+  n1=naxis1(cube)
+  n2=naxis2(cube)
+  l1=min(spectrum)  
+  l2=max(spectrum)
+  xnew=spectrum_make_disp_n(l1,l2,nn)
+  xold=spectrum_make_disp_data(cube, 3)
+  newcube=fits(n1,n2,nn)
+  copyheader newcube, cube
+  for (i=1;i<=n1;i++) {
+//  print i
+    for (j=1;j<=n2;j++) {
+      newcube[i,j,*]=interpol(cblank(cube[i,j,*]),xold,xnew)
+    }
+  }
+  wcs=get_WCS_data(xnew,1)
+  set_WCS_data newcube, wcs, 3
+  cube_redisp_spectrum=newcube
+}
+
+function cube_der_snr, inbuff, cutoff{
+//SNR using spectrum_der_snr
+  if nparams()<2 cutoff=0
+  n1=naxis1(inbuff)
+  n2=naxis2(inbuff)
+  outbuff=fits(n1,n2)
+  copyheader outbuff, inbuff
+  for (i=1;i<=n1;i++) {
+    print "CUBE_DER_SNR: Row - "+i
+    for (j=1;j<=n2;j++) {
+      s=inbuff[i,j,*]
+      snr=spectrum_der_snr(s,cutoff)
+//      print i+","+j+","+snr
+      outbuff[i,j]=snr
+    }
+  }
+  cube_der_snr=outbuff
+}  
+
+function cube_erode, inbuff, cutoff{
+  if nparams()<2 cutoff=0
+  inbuff[where(inbuff<=cutoff)]=0/0
+  n1=naxis3(inbuff)
+  outbuff=inbuff*0
+  for (i=1;i<=n1;i++) {
+    s=inbuff[*,*,i]
+    outbuff[*,*,i]=cblank(image_erodenan(s))
+  }
+  cube_erode=outbuff
+}  
+function cube_abs_index, inbuff, ll1, ll2, bc1, bc2, rc1, rc2, z {
+//Get absorption index at all spaxel spectra for cube
+//inbuff - input cube
+//ll1, ll2, bc1, bc2, rc1, rc2 - line limits, blue and red continuum wavelength ranges
+//z = redshift required, default 0
+//Returns 2x1 matrix [index, sd_index]
+  if (nparams()<7) {
+    print "CUBE_ABS_INDEX : Error - not enough parameters"
+    print "CUBE_ABS_INDEX : inbuff, ll1, ll2, bc1, bc2, rc1, rc2"
+    outbuff=0
+  } else {
+    if nparams()<8 z=0
+    n1=naxis1(inbuff)
+    n2=naxis2(inbuff)
+    outbuff=fits(n1,n2,2)
+    copyheader outbuff,inbuff
+    for (i=1;i<=n1;i++) {
+      print "CUBE_ABS_INDEX: Row - "+i
+      for (j=1;j<=n2;j++) {
+        data=inbuff[i,j,*]
+        res=spectrum_abs_index(data, ll1, ll2, bc1, bc2, rc1, rc2, z)
+        outbuff[i,j,1:2]=res
+//        print "Done"
+      }
+    }
+  }
+  cube_abs_index=outbuff
+}
+/*
+ll1=2291;ll2=2307;rc1=2310;rc2=2314;bc1=2315;bc2=2319;z=.001168
+*/
