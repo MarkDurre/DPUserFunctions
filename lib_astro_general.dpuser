@@ -64,8 +64,8 @@ function redshift_data, inbuff, z, rdflag, nanflag, smth, fcons {
   redshift_data=outbuff
 }
 
-procedure rs, inbuff, z {
-  inbuff=redshift_data(inbuff, -z)
+function rs, inbuff, z {
+  rs=redshift_data(inbuff, -z)
 }
 
 function bb, t, l {
