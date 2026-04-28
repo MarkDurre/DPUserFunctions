@@ -1,11 +1,11 @@
 //General functions
 //Requires lib_wcs
 function fwhm_to_kms, fwhm, lambda {
-   fwhm_to_kms = fwhm * 300000/ lambda /2.355
+   fwhm_to_kms = fwhm * (c/1000)/ lambda /2.355
 }
 
 function kms_to_fwhm, sigma, lambda {
-   kms_to_fwhm = sigma * lambda * 2.355 / 300000
+   kms_to_fwhm = sigma * lambda * 2.355 / (c/1000)
 }
 
 function indexreform, index, xsize, ysize, zsize {
