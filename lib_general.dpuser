@@ -8,6 +8,20 @@ function kms_to_fwhm, sigma, lambda {
    kms_to_fwhm = sigma * lambda * 2.355 / (c/1000)
 }
 
+function gheval, x, amplitude, mean, sd, h3, h4 {
+	w = (x - mean) / sd
+	sq2pi = sqrt(2 * pi())
+	alphaw = exp(-(w^2/2))/sq2pi
+	hh3 = h3 * ((2. * w^3 )- (3. * w)) / sqrt(3) 
+	hh4 = h4 * ((4. * w ^4) - (12. * w^2 + 3.)) / sqrt(24.) 
+	
+	gheval = amplitude * alphaw * (1. + hh3 + hh4) / sd * sq2pi
+}
+
+function gausseval, x, amplitude, mean, sd {
+	gausseval = amplitude * exp( -0.5*(x-mean/sd)^2)
+}
+
 function indexreform, index, xsize, ysize, zsize {
 //Return x,y,z co-ords from 1D index, given dimensions xsize, ysize, zsize
   indexreform=0
