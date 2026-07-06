@@ -34,6 +34,35 @@ function hdr_get_fits_key, inbuff, key {
   hdr_get_fits_key = k
 }
 
+function hdr_get_extension, inbuff, name {
+//Return extension "name" from MEF
+  hdr_get_extension = 0
+  if (nparams()<2) {
+    print "HDR_GET_EXTENSION: Extension name not given!"
+    break
+  }
+ //Get number of extns
+ nextn = nelements(inbuff)
+ if (nextn==1) {
+   hdr_get_extension = inbuff
+   break 
+ }
+ ext=0
+ print name
+ for (i=1;i<=nextn-1;i++)    
+   hdrname=hdr_get_fits_key(inbuff[i], "EXTNAME")
+   print hdrname
+   if (hdrname==name) {
+     ext=i-1
+   } 
+ }
+ if (ext==0) {
+   print "HDR_GET_EXTENSION: Extension not found! - ",name
+ } else {
+   hdr_get_extension = inbuff[ext]
+ }
+}
+
 function hdr_get_all_fits_keys, inbuff, prefix {
 //Get all keys in header that match a prefix
 //This will only select keys in the form KEY = VALUE
@@ -155,7 +184,7 @@ function hdr_fits_basic, inbuff {
     setfitskey outbuff, "CRVAL"+i, z[2]  
     setfitskey outbuff, "CRPIX"+i, z[1]  
     setfitskey outbuff,"CD"+i+"_"+i, z[3]
-    setfitskey outbuff,"CDELT"+i, z[3]
+//    setfitskey outbuff,"CDELT"+i, z[3]
   } 
   hdr_fits_basic=outbuff  
 }
