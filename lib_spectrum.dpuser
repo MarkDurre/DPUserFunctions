@@ -17,6 +17,29 @@ function spectrum_wave_to_vel, inbuff, clambda {
   spectrum_wave_to_vel=outbuff
 }
 
+function spectrum_trim_wl, spectrum_in, l1, l2, value, truncate {
+//Trim spectrum in wavelength 
+//Wavelength range, l1, l2 from WCS
+//Set pixels outside range to value (default 0)
+//Truncate flag, if 1 truncate spectrum outside wl range (default 0)
+  if nparams()<5 truncate=0
+  if nparams()<4 value=0
+  spectrum_out = spectrum_in
+  n1=naxis1(spectrum_in)
+  pl1=cvt_WCS_pixel_data(spectrum_in, l1, 1)
+  pl2=cvt_WCS_pixel_data(spectrum_in, l2, 1)
+  if ((pl1>=1) && (pl1<=n1)) {
+     spectrum_out[1:pl1]=value
+  }
+  if ((pl2>=1) && (pl2<=n1)) {
+     spectrum_out[pl2:n1]=value
+  }
+  if (truncate>0) spectrum_out=spectrum_out[pl1+1:pl2-1]
+  spectrum_trim_wl=spectrum_out
+}
+
+
+
 function spectrum_make_disp, val, delt, pix, n {
 //Make a dispersion value vector
 //Val : starting value
@@ -39,6 +62,19 @@ function spectrum_make_disp, val, delt, pix, n {
 function spectrum_make_disp_n, val1, val2, n {
   delt=(val2-val1)/(n-1)
   spectrum_make_disp_n = spectrum_make_disp(val1, delt, 1, n)
+}
+
+function spectrum_make_disp_delt, val1, val2, delt {
+  n=int((val2-val1)/delt+1)
+  spectrum_make_disp_delt=spectrum_make_disp(val1, delt, 1, n)
+}
+
+function spectrum_make_disp_simple, inbuff {
+//Make a dispersion vector from another vector
+  l1=min(inbuff)
+  l2=max(inbuff)
+  npix=nelements(inbuff)
+  spectrum_make_disp_simple=spectrum_make_disp_n(l1, l2, npix)
 }
 
 function spectrum_make_disp_data, inbuff, axis {
@@ -460,11 +496,29 @@ function spectrum_from_xy, inbuff, col {
   spectrum_from_xy=ynew
 }
 
-function spectrum_from_dataxy, xdata, ydata, l1, l2, npix, xscl, yscl {
+function spectrum_from_data, inbuff, l1, l2, npix, xscl, yscl, mode, dflip {
 //re-disperse spectrum from 2D x and y image to wavelength range and same number of points
 //Get wavelength and flux vectors
+  if (nparams()<9) dflip=0
+  if (nparams()<8) mode=0
   if (nparams()<7) yscl=1
   if (nparams()<6) xscl=1
+  if (mode==0) {
+    if (dflip==0) {
+      xdata=inbuff[*,1]
+      ydata=inbuff[*,2]
+    } else {
+      xdata=inbuff[1,*]
+      ydata=inbuff[2,*]
+    }
+  } 
+  if (mode==1) {
+    xdata=inbuff[0]
+    ydata=inbuff[1]
+  } 
+  if (mode==2) {
+    
+  }
   if (nparams()<5) npix=nelements(xdata)
   if (nparams()<4) l2=max(xdata)
   if (nparams()<3) l1=min(xdata)
@@ -476,14 +530,6 @@ function spectrum_from_dataxy, xdata, ydata, l1, l2, npix, xscl, yscl {
   set_WCS_data ynew, wcsnew, 1
   spectrum_from_dataxy=ynew
 }
-/*
-data = import("/Users/mdurre/Programs/STARLIGHT/BasesDir/bc2003_hr_m22_chab_ssp_020.spec", 0, " ", "", 6, /number)
-xdata=data[1,*]/10
-ydata=data[2,*]
-w1=1000
-w2=2500
-delt=0.5
-*/
 
 function spectrum_interp, inbuff, x1, x2 {
 //Smooth over bad pixels
@@ -588,7 +634,7 @@ function spectrum_redisp_data, inbuff, l1, l2, npix, xscl, yscl {
 
 function spectrum_check_monotonic, wbuff, dbuff {
 //Check spectrum wavelengths in wbuff are monotonic, and remove incorrect ones
-//If dbuff is zero or nor given wbuff has x and y values in cols 1 and 2
+//If dbuff is zero or nor given, wbuff has x and y values in cols 1 and 2
 //Result is 2 x n 
   if nparams()<2 dbuff=0
   w=wbuff
@@ -627,7 +673,7 @@ function spectrum_redisp_loglin, inbuff {
   lw1=w
   lw2=w+s*n
   speclog=spectrum_make_disp_n(lw1,lw2,n)
-  xold=10^speclog
+    xold=10^speclog
   xnew=spectrum_make_disp_n(10^lw1,10^lw2,n)
   yold=cblank(clip(inbuff,0,-1))
   outbuff=interpol(yold,xold,xnew)
@@ -657,14 +703,19 @@ function spectrum_der_snr, inbuff, cutoff{
   if nparams()<2 cutoff=0
   data=cblank(inbuff) //Remove Nans
   data[where(data<=cutoff)]=0 //Zero out below cutoff value
-  data=data[where(data!=0)] //Remove zero values
-  ldata=nelements(data)
-  if ldata>4 {
-    signal=median(data)
-    noise = 0.6052697 * median(abs(2*data[3:ldata-1]-data[1:ldata-3]-data[5:ldata]))
-    spectrum_der_snr=signal/noise
-  } else {
+  z=where(data!=0)
+  if nelements(z)<=0 { //Whole spectrum is zero?
     spectrum_der_snr=0
+  } else {
+    data=data[z] //Remove zero values
+    ldata=nelements(data)
+    if ldata>4 {
+      signal=median(data)
+      noise = 0.6052697 * median(abs(2*data[3:ldata-1]-data[1:ldata-3]-data[5:ldata]))
+      spectrum_der_snr=signal/noise
+    } else {
+      spectrum_der_snr=0
+    }
   }
 }
 
@@ -709,13 +760,20 @@ function spectrum_sn_wl, inbuff, lambda, width {
 
 function spectrum_noise, spectrum, snr {
 //Create noise to a spectrum using a Gaussian realisation of the SNR
+//snr = signal to noise ratio
+//Either a single number, with same snr for all spectral elements, or 
+//is a vector (same length as spectrum) use snr for element
   n=naxis1(spectrum)
+  snrr=snr
+  if (nelements(snr)>1) {
+    if (nelements(snr)!=n) snrr=snr[1]
+  }
   outbuff=spectrum
   for (i=1;i<=n;i++) {
-    if (nelements(snr)==1) {
-      outbuff[i]=randomg(spectrum[i]/snr)
+    if (nelements(snrr)==1) {
+      outbuff[i]=randomg(spectrum[i]/snrr)
     } else {
-      outbuff[i]=randomg(spectrum[i]/snr[i])
+      outbuff[i]=randomg(spectrum[i]/snrr[i])
     }
   }
   spectrum_noise=outbuff
@@ -723,16 +781,8 @@ function spectrum_noise, spectrum, snr {
 
 function spectrum_apply_snr, spectrum, snr {
 //Add noise to a spectrum using a Gaussian realisation of the SNR
-  n=naxis1(spectrum)
-  outbuff=spectrum
-  for (i=1;i<=n;i++) {
-    if (nelements(snr)==1) {
-      outbuff[i]+=randomg(spectrum[i]/snr)
-    } else {
-      outbuff[i]+=randomg(spectrum[i]/snr[i])
-    }
-  }
-  spectrum_apply_snr=outbuff
+  noise=spectrum_noise(spectrum,snr)
+  spectrum_apply_snr=spectrum+noise
 }
 
 function spectrum_comb_sigma, inbuff, sigma, toler, omit {
@@ -789,37 +839,52 @@ function spectrum_comb_sigma, inbuff, sigma, toler, omit {
 
 function spectrum_range, inbuff, w1, w2 {
   r=pixel_range(inbuff, w1, w2, 1)
-  spectrum_range=inbuff[r[1]:r[2]]
+  if (r[1]<1)||(r[2]>naxis1(inbuff)) {
+    spectrum_range=0
+  } else {
+    spectrum_range=inbuff[r[1]:r[2]]
+  }
 }
 
-function spectrum_abs_index, inbuff, ll1, ll2, bc1, bc2, rc1, rc2 {
+function spectrum_abs_index, inbuff, ll1, ll2, bc1, bc2, rc1, rc2, z {
 //Get absorption spectral indexes for a particular line
 //inbuff - input spectrum
 //ll1, ll2, bc1, bc2, rc1, rc2 - line limits, blue and red continuum wavelength ranges
 //Returns 2x1 matrix [index, sd_index]
+  res=[0.0,0.0]
+  if (nparams()<8) z=0
   if (nparams()<7) {
     print "SPECTRUM_ABS_INDEX : Error - not enough parameters"
-    print "SPECTRUM_ABS_INDEX : inbuff, ll1, ll2, bc1, bc2, rc1, rc2"
+    print "SPECTRUM_ABS_INDEX : inbuff, ll1, ll2, bc1, bc2, rc1, rc2, z"
+  } else {
+    if (z>0) inbuff=redshift_data(inbuff, -(z))
+    ll=spectrum_range(inbuff, ll1, ll2)
+    bc=spectrum_range(inbuff, bc1, bc2)
+    rc=spectrum_range(inbuff, rc1, rc2)
+    if (nelements(ll)>1)&&(nelements(bc)>1)&&(nelements(rc)>1) {
+      all=median(ll)
+      abc=median(bc)
+      arc=median(rc)
+       if (all>0)&&(abc>0)&&(arc>0) {
+        blambda=(bc1+bc2)/2
+        rlambda=(rc1+rc2)/2
+        llambda=(ll1+ll2)/2
+      //Interpolate from midpoints of red and blue continuum to midpoint of line
+        fcont=abc+(arc-abc)*(llambda-blambda)/(rlambda-blambda)
+        if (fcont!=0) {
+          fluxdens=avg(1-ll/fqcont)
+          lwidth=abs(ll2-ll1)
+          ew=fluxdens*lwidth
+          sdll=stddev(ll)
+          sdbc=stddev(bc)
+          sdrc=stddev(rc)
+          sdcont=sqrt(sdbc^2+sdrc^2)
+          ewsd=ew*sqrt((sdll/all)^2+(sdcont/fcont)^2)
+          res=[ew,ewsd]
+        }
+      }
+    } 
   }
-//Average over the line, blue and red
-  ll=spectrum_range(inbuff, ll1, ll2)
-  bc=spectrum_range(inbuff, bc1, bc2)
-  rc=spectrum_range(inbuff, rc1, rc2)
-  all=avg(ll)
-  abc=avg(bc)
-  arc=avg(rc)
-  blambda=(bc1+bc2)/2
-  rlambda=(rc1+rc2)/2
-  llambda=(ll1+ll2)/2
-//Interpolate from midpoints of red and blue continuum to midpoint of line
-  fcont=abc+(arc-abc)*(llambda-blambda)/(rlambda-blambda)
-  fluxdens=avg(1-ll/fcont)
-  lwidth=abs(ll2-ll1)
-  ew=fluxdens*lwidth
-  sdll=stddev(ll)
-  sdbc=stddev(bc)
-  sdrc=stddev(rc)
-  sdcont=sqrt(sdbc^2+sdrc^2)
-  ewsd=ew*sqrt((sdll/all)^2+(sdcont/fcont)^2)
-  spectrum_abs_index=[ew,ewsd]
+  spectrum_abs_index=res
 }
+
