@@ -1,4 +1,4 @@
-q//Velocity mapping functions
+//Velocity mapping functions
 //Requires lib_wcs, lib_general, lib_cube
 
 /*
@@ -72,6 +72,7 @@ function velmap_std_to_ext, velmpstd, r, fmin, vmethod, vcenter, vx, vy {
   if nparams()<2 r=0
   cc=299796
   lvelmpstd=velmpstd
+  veltype=(naxis3(velmpstd) )
   mask=lvelmpstd[*,*,1]*0+1
   mask[where(cblank(lvelmpstd[*,*,1])==0)]=0
   lr=r
@@ -80,7 +81,8 @@ function velmap_std_to_ext, velmpstd, r, fmin, vmethod, vcenter, vx, vy {
   lvcenter=vcenter
   lvx=vx
   lvy=vy
-  vmgauss=(resize(velmpstd,n1,n2,15))
+  newsize=(naxis3(velmpstd)==9 ? 15 : 17)
+  vmgauss=(resize(velmpstd,n1,n2,newsize))
   flux=lvelmpstd[*,*,2]*lvelmpstd[*,*,4]*1.06447
   flux[where(lvelmpstd[*,*,2]*lvelmpstd[*,*,4]<0)]=0/0
   vel=(lvelmpstd[*,*,3]) //central wavelength
@@ -135,6 +137,10 @@ function velmap_std_to_ext, velmpstd, r, fmin, vmethod, vcenter, vx, vy {
   print "VELMAP_STD_TO_EXT: Instrumental dispersion : "+ds+" (km/s) = "+df+" (nm)"
   print "VELMAP_STD_TO_EXT: Zero velocity method - "+["Median","Average","Flux Weighted","Manual","Pixel"][lvmethod+1]
   print "VELMAP_STD_TO_EXT: Central wavelength (nm) - "+velmed
+  if (newsize == 17) {
+    vmgauss[i,j,16:17]=velmpstd[*,*,10:11]
+    print "VELMAP_STD_TO_EXT: Includes Gauss-Hermite moments"
+  }
   velmap_std_to_ext=vmgauss
 }
 
@@ -314,6 +320,96 @@ function velmap_fix, inbuff, contlo, conthi, flo, fhi, vlo, vhi, wlo, whi, snmin
   }
   flag[where(flag<1)]=setvalue
   velmap_fix=outbuff*flag
+}
+
+function velmap_fix_ifs, inbuff, contlo, conthi, flo, fhi, vlo, vhi, wlo, whi, chisqmax, vmethod, vcenter, vx, vy {
+//Fix velocity map
+//  print contlo,conthi,flo,fhi,vlo,vhi,wlo,whi
+  outbuff=inbuff
+  n1=naxis1(inbuff)
+  n2=naxis2(inbuff)
+  n3=naxis3(inbuff)
+  if nparams()<14 vy=int(n2/2)
+  if nparams()<13 vx=int(n1/2)
+  if nparams()<12 vcenter=0
+  if nparams()<11 vmethod=1
+  if nparams()<10 chqsqmax=1
+  flag=fits(n1,n2)
+  flag[*,*]=1
+  cont=inbuff[*,*,1]
+  flux=inbuff[*,*,12]
+  vel=inbuff[*,*,10]
+  sigma=inbuff[*,*,11]
+  eqw=inbuff[*,*,13]
+  chisq=inbuff[*,*,9] //Chi Sq 
+  flag[where(cblank(cont)==0)]=0 //Check for nan values
+  if ((contlo!=0)||(conthi!=0)) setfitskey outbuff, "CONTRNGE", contlo+":"+conthi,"Continuum range"
+  if ((vlo!=0)||(vhi!=0)) setfitskey outbuff, "VELRNGE", vlo+":"+vhi,"Velocity range"
+  if ((flo!=0)||(fhi!=0)) setfitskey outbuff, "FLUXRNGE", flo+":"+fhi,"Flux range"
+  if ((wlo!=0)||(whi!=0)) setfitskey outbuff, "DISPRNGE", wlo+":"+whi,"Dispersion range"
+  if ((chisqmax>0)) setfitskey outbuff, "CHISQMAX", chisqmax,"Chi Squared maximum"
+  for (i=1;i<=n1;i++) {
+    for (j=1;j<=n2;j++) {
+      outbuff[i,j,13]=abs(outbuff[i,j,13])
+      if (flag[i,j]==1) {
+//Check continuum level
+        if ((contlo!=0)||(conthi!=0)) {
+          if ((cont[i,j]>conthi)||(cont[i,j]<contlo)) {
+            flag[i,j]=-1
+            print "VELMAP_FIX_IFS: Cont fix : ["+i+","+j+"] "+cont[i,j]
+          }
+        }
+//Check vel. level
+        if ((vlo!=0)||(vhi!=0)) {
+          if ((vel[i,j]<vlo)||(vel[i,j]>vhi)) {
+            flag[i,j]=-1
+            print "VELMAP_FIX_IFS: Velo fix : ["+i+","+j+"] "+vel[i,j]
+          }
+        }
+//Check flux level
+        if ((flo!=0)||(fhi!=0)) {
+          if ((flux[i,j]<flo)||(flux[i,j]>fhi)) {
+            flag[i,j]=-1
+            print "VELMAP_FIX_IFS: Flux fix : ["+i+","+j+"] "+flux[i,j]
+          }
+        }
+//Check fwhm level
+        if ((wlo!=0)||(whi!=0)) {
+          if ((sigma[i,j]<wlo)||(sigma[i,j]>whi)) {
+            flag[i,j]=-1
+            print "VELMAP_FIX_IFS: Sigma fix : ["+i+","+j+"] "+sigma[i,j]
+          }
+        }
+//Check S/N level
+        if (chisqmax>0) {
+          if (chisq[i,j]>chisqmax) {
+            flag[i,j]=-1
+            print "VELMAP_FIX_IFS: ChiSq fix : ["+i+","+j+"] "+chisq[i,j]
+          }
+        }
+      }
+    }
+  }
+  flag[where(flag<1)]=0/0
+//Correct zero velocity
+  velmed=0
+  if (vmethod==0) {
+    velmed=median(vel,0)
+  }
+  if (vmethod==1) {
+    velmed=avg(vel,0)
+  }
+  if (vmethod==2) {
+    velmed=total( vel * flux) / total(flux)
+  }
+  if (vmethod==3) {
+    velmed=vcenter
+  }
+  if (vmethod==4) {
+    velmed=vel[vx, vy]
+  }
+  outbuff[*,*,10]-=velmed
+  velmap_fix_ifs=outbuff*flag
 }
 
 function velmap_ext, inbuff, l_est, fwhm_est, thresh, width, method, r {
@@ -545,7 +641,7 @@ procedure write_comp, data, prefix, nm {
 		fn=prefix+"_"+nm+".fits"
 		print nm+" => "+fn
 		writefits fn, data
-	}
+}
 
 procedure velmap_comps, velmap, prefix, hmax {
 //Output velmap components - extended version
@@ -611,3 +707,36 @@ function velmap_sn_height, velmp {
 //Compute S/N for height from velmap, sets parameter for lowest S/N for velmap_fix_interp
   velmap_sn_height=velmp[*,*,2]/velmp[*,*,6] //S/N map on height
 }
+
+function evalvelmapgh , fit, template {
+//Same as evalvelmap, with Gauss-Hermite polynomial
+	if (nparams())<2 {
+		print "EVALVELMAPGH: Error - no template defined"
+		break
+	}
+	x=spectrum_make_disp_data(template, 3)
+	n1=naxis1(template)
+	n2=naxis2(template)
+	n3=naxis3(template)
+	outbuff=template*0 
+	amplitude=fit[*,*,2]
+	mean=fit[*,*,3]
+	sd=fit[*,*,4]/2.355
+	h3=fit[*,*,10]
+	h4=fit[*,*,11]
+	sq2pi=sqrt(2 * pi())
+	sqr24=sqrt(24)
+	sqr2=sqrt(2)
+	sqr6=sqrt(6)
+	for (i=1;i<=n1;i++) {
+	  for (j=1;j<=n2;j++) {	    
+		w = (x - mean[i,j]) / sd[i,j]	    
+		alphaw = exp(-(w^2/2))/ sq2pi
+		hh3 = ((2. * w^3 * sqr2)- (3. * w * sqr2)) / sqr6
+		hh4 = ((4. * w ^4) - (12. * w^2 + 3.)) / sqr24 
+		outbuff[i,j,*]= amplitude[i,j] * alphaw * (1 + h3[i,j]*hh3 + h4[i,j]*hh4) / sd[i,j] * sq2pi
+	  }
+	}
+	evalvelmapgh=outbuff
+ }
+
