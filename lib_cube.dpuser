@@ -105,7 +105,7 @@ function cube_spectrum_mask, cube, mask, value {
      l1=mask[i*2-1]
      l2=mask[i*2]
      print "CUBE_SPECTRUM_MASK: Masking pixels : ["+l1+":"+l2+"]"
-     outbuff[*,*,l1:l2]=level
+     outbuff[*,*,l1:l2]=value
    }
    cube_spectrum_mask=outbuff
 }
@@ -945,6 +945,17 @@ function cube_deslope, inbuff, mask, flag, order, sub {
   cube_deslope=outbuff
 }
 
+function cube_set_nan_marked, cube, marked {
+//Delete cube pixels from marked bits - check marking is "pixel" method
+  mx=marked[1,*]
+  my=marked[2,*]
+  nm=nelements(mx)
+  for (i=1;i<=nm;i++) {
+    cube[mx[i],my[i],*]=0/0
+  }
+  cube_set_nan_marked=cube
+}
+
 function cube_flux_ul, inbuff, lambda, width, deslope, ignore, flag {
 //Return SD and (optionally) average for cube over wavelength range
 //Can be used for UL to fluxes
@@ -1587,9 +1598,12 @@ function cube_abs_index, inbuff, ll1, ll2, bc1, bc2, rc1, rc2, z {
     n2=naxis2(inbuff)
     outbuff=fits(n1,n2,2)
     copyheader outbuff,inbuff
+    print "CUBE_ABS_INDEX : Line limit - "+ll1+":"+ll2
+    print "CUBE_ABS_INDEX : Blue cont. - "+bc1+":"+bc2
+    print "CUBE_ABS_INDEX : Red cont.  - "+rc1+":"+rc2
     for (i=1;i<=n1;i++) {
-      print "CUBE_ABS_INDEX: Row - "+i
       for (j=1;j<=n2;j++) {
+       print "CUBE_ABS_INDEX: "+i+" "+j
         data=inbuff[i,j,*]
         res=spectrum_abs_index(data, ll1, ll2, bc1, bc2, rc1, rc2, z)
         outbuff[i,j,1:2]=res
@@ -1599,6 +1613,49 @@ function cube_abs_index, inbuff, ll1, ll2, bc1, bc2, rc1, rc2, z {
   }
   cube_abs_index=outbuff
 }
+
+function cube_abs_index2, inbuff, ll1, ll2, bc1, bc2, rc1, rc2, z {
+//Get absorption spectral indexes for a particular line
+//inbuff - input spectrum
+//ll1, ll2, bc1, bc2, rc1, rc2 - line limits, blue and red continuum wavelength ranges
+//Returns 2x1 matrix [index, sd_index]
+  res=[0.0,0.0]
+  if (nparams()<8) z=0
+  if (nparams()<7) {
+    print "SPECTRUM_ABS_INDEX : Error - not enough parameters"
+    print "SPECTRUM_ABS_INDEX : inbuff, ll1, ll2, bc1, bc2, rc1, rc2, z"
+  } else {
+    if (z>0) inbuff=redshift_data(inbuff, -(z))
+    ll=cube_trim_wl(inbuff, ll1, ll2,0,1)
+    bc=cube_trim_wl(inbuff, bc1, bc2,0,1)
+    rc=cube_trim_wl(inbuff, bc1, bc2,0,1)
+    if (nelements(ll)>1)&&(nelements(bc)>1)&&(nelements(rc)>1) {
+      all=median(ll,/z)
+      abc=median(bc,/z)
+      arc=median(rc,/z)
+       if (total(all)!=0)&&(total(abc)!=0)&&(total(arc)!=0) {
+        blambda=(bc1+bc2)/2
+        rlambda=(rc1+rc2)/2
+        llambda=(ll1+ll2)/2
+      //Interpolate from midpoints of red and blue continuum to midpoint of line
+        fcont=abc+(arc-abc)*(llambda-blambda)/(rlambda-blambda)
+        if (total(fcont)!=0) {
+          fluxdens=avg(1-ll/fcont)
+          lwidth=abs(ll2-ll1)
+          ew=fluxdens*lwidth
+          sdll=stddev(ll)
+          sdbc=stddev(bc)
+          sdrc=stddev(rc)
+          sdcont=sqrt(sdbc^2+sdrc^2)
+          ewsd=ew*sqrt((sdll/all)^2+(sdcont/fcont)^2)
+          res=[ew,ewsd]
+        }
+      }
+    } 
+  }
+  cube_abs_index2=res
+}
+
 /*
-ll1=2291;ll2=2307;rc1=2310;rc2=2314;bc1=2315;bc2=2319;z=.001168
+ll1=2291;ll2=2307;rc1=2310;rc2=2314;bc1=2315;bc2=2319;z=.002912
 */
