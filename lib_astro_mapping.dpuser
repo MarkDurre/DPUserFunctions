@@ -130,35 +130,29 @@ function map_compare_pos, inbuff1, inbuff2, inbuff3, inbuff4, x, y {
 function map_regime_ir, inbuff1, inbuff2, a1, a2, b1, b2 {
 //Map IR excitation diagram, using Riffel et al. (2013a) limits
 //a1, a2 are region limits for H_2/Br_gamma, b1 and b2 for [FeII]/Pa_beta
-  if (nparams()<3)||(a1==0) {
-    a1=log(0.4)
-    a2=log(6)
-    b1=log(0.6)
-    b2=log(2)
-  }
-  outbuff=inbuff1*0
-  n1=naxis1(inbuff1)
-  n2=naxis2(inbuff2)
-  for (i=1;i<=n1;i++) {
-    for (j=1; j<=n2; j++) {
-      p1=inbuff1[i,j]
-      p2=inbuff2[i,j]
-      f=0
-      if ((isnan(p1)==0)&&(isnan(p2)==0)) {
-        if {(p1<a1)&&(p2<b1)} {
-          f=1 
-        }//SF 
-        else if {(p1<a2)&&(p2<b2)} 
-          f=2 
-        }//AGN 
-        else {
-          f=3
-        }
-      }
-      outbuff[i,j]=f
-    }
-  }
-  map_regime_ir=outbuff
+	if (nparams()<3)||(a1==0) {
+		a1=log(0.4)
+		a2=log(6)
+		b1=log(0.6)
+		b2=log(2)
+	}
+	outbuff=inbuff1*0
+	n1=naxis1(inbuff1)
+	n2=naxis2(inbuff2)
+	for (i=1;i<=n1;i++) {
+		for (j=1; j<=n2; j++) {
+			p1=inbuff1[i,j]
+			p2=inbuff2[i,j]
+			f=0
+			if ((isnan(p1)==0)&&(isnan(p2)==0)) {
+				if (p1<a1)&&(p2<b1) f=1 //SF
+				if (p1>=a1)&&(p2>=b1)&&(p1<a2)&&(p2<b2) f=2 //AGN
+				if (p1>=a2)&&(p2>=b2) f=3 //HLR
+			}
+		  outbuff[i,j]=f
+		}
+	}
+	map_regime_ir=outbuff
 }
 
 function map_regime_optical, inbuff1, inbuff2, type {
