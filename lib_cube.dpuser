@@ -83,15 +83,21 @@ function cube_trim_wl, cube_in, l1, l2, value, truncate {
   n1=naxis1(cube_in)
   n2=naxis2(cube_in)
   n3=naxis3(cube_in)
-  pl1=cvt_WCS_pixel_data(cube_in, l1, 3)
-  pl2=cvt_WCS_pixel_data(cube_in, l2, 3)
+  pl1=int(cvt_WCS_pixel_data(cube_in, l1, 3))
+  pl2=int(cvt_WCS_pixel_data(cube_in, l2, 3))
   if ((pl1>=1) && (pl1<=n3)) {
-     cube_out[*,*,1:pl1]=value
+     cube_out[*,*,1:(pl1-1)]=value
   }
   if ((pl2>=1) && (pl2<=n3)) {
-     cube_out[*,*,pl2:n3]=value
+     cube_out[*,*,(pl2+1):n3]=value
   }
-  if (truncate>0) cube_out=cube_out[*,*,pl1+1:pl2-1]
+  if (truncate>0) {
+    cube_out=cube_out[*,*,pl1:pl2]
+  }
+  lo1=cvt_pixel_WCS_data(cube_in,pl1,3)
+  lo2=cvt_pixel_WCS_data(cube_in,pl2,3)
+  print "CUBE_TRIM_WL: Pixel range - "+pl1+":"+pl2
+  print "CUBE_TRIM_WL: Wavelength range - "+lo1+":"+lo2
   cube_trim_wl=cube_out
 }
 
